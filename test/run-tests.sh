@@ -181,9 +181,9 @@ do_tests () {
 # not used currently but leave here for future reference.
 #
 case $(uname) in
-    CYGWIN*) os=windows ;;
-    Darwin) os=macos ;;
-    Linux) os=linux ;;
+    CYGWIN*|MSYS_NT*) os=windows ;;
+    Darwin*) os=macos ;;
+    Linux*) os=linux ;;
     *) os=unknown ;;
 esac
 
@@ -223,9 +223,9 @@ case "$lisp" in
     # echo ALLEGRO=$ALLEGRO
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then
+    if [ "$os" = windows ] ; then
         adir=$(dirname "${command}") ;
-        allegroName=$(basename "${command}") ;
+        allegroName=$(basename "${command}" ".exe") ;
         if [[ ${allegroName: -1} == "8" ]] ; then build=build ; else build=buildi ; fi ;
         # this takes somewhat unjustifiable advantage of the fact that
         # the Allegro images have the same name (with .dxl extension)
@@ -357,14 +357,21 @@ upgrade_tags () {
     # all the stabilization work done in 3.0 so far, plus extra developments
     # in UIOP, package-inferred-system, and more robustification.
     #   3.1.2 (2014-05-06) is the first ASDF 3.1 release
+    #   3.1.3 (2014-07-24) a bug fix release for 3.1.2
+    #   3.1.4 (2014-10-09) more bug fixes, source-registry cache, in LispWorks 7
+    #   3.1.5 (2015-07-21) more bug fixes, what SBCL sports (as of 1.3.14, 2017-02-04)
+    #   3.1.6 (2015-10-17) more bug fixes
+    #   3.1.7 (2016-03-23) more bug fixes, last in 3.1 series
+    #
+    # The 3.2 series provides the asdf3.2 feature, meaning users can rely on
+    # all its new features (launch-program, improved bundle support), as well as
+    # the improvements done in 3.1 (e.g. XDG support).
+    #   3.2.0 (2017-01-08) first (and latest) in 3.2 series
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
-    echo REQUIRE
-    echo 3.1.7 # 2016-03-23, latest release (as of 2016-09)
-    echo 3.1.5 # 2015-07-21, what SBCL sports (as of 1.3.9, 2016-08-30)
-    echo 3.0.3 # 2013-10-22, last in ASDF 3.0 series
-    echo 2.26 # 2012-10-30, last in ASDF 2 series, still sported by Quicklisp 2016-02-22 (!)
+    # We picked the last in each relevant series.
+    echo REQUIRE 3.2.0 3.1.7 3.0.3 2.26
 
     #echo 3.1.7 3.1.6 3.1.5 3.1.4 3.1.3 3.1.2
     #echo 3.0.3 3.0.2 3.0.1
@@ -419,7 +426,7 @@ valid_upgrade_test_p () {
         # and only need to test it once, below for 2.24.
         abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
         # ccl fasl numbering broke loading of old asdf 2.0
-        ccl:2.0[01]*) : ;;
+        ccl:2.0[01]*|ccl:2.2[0-6]*) : ;;
         # Allegro ships with versions 3*, so give up testing 2
         # Also, unpatched Allegro 10 has bug updating from 2.26 and before
         allegro*:[12].*) : ;;

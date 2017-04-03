@@ -2,6 +2,8 @@
 ;;;; Plan
 
 (uiop/package:define-package :asdf/plan
+  ;; asdf/action below is needed for required-components, traverse-action and traverse-sub-actions
+  ;; that used to live there before 3.2.0.
   (:recycle :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system

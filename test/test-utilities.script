@@ -269,6 +269,7 @@
     ;; types
     asdf/bundle:user-system
     #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
+    uiop/image:fatal-condition
     ;; on some implementations only
     asdf/bundle:bundle-system
     asdf/bundle:static-library
@@ -300,12 +301,12 @@
           :collect symbol))
 
 (defun fishy-asdf-exported-symbols ()
-  (remove-duplicates
-   (loop :for package :in (list-all-packages)
-         :when (and (string-prefix-p "ASDF/" (package-name package))
-                    (not (equal (package-name package) "ASDF/COMMON-LISP")))
-           :nconc (fishy-exported-symbols package))
-   :from-end t))
+  (loop :for package :in (list-all-packages)
+    :when (and (or (string-prefix-p "ASDF/" (package-name package))
+                   (string-prefix-p "UIOP/" (package-name package)))
+               (not (equal (package-name package) "UIOP/COMMON-LISP")))
+    :append (let ((fishy (fishy-exported-symbols package)))
+              (when fishy (list (cons (package-name package) (mapcar 'symbol-name fishy)))))))
 
 (assert-equal nil (fishy-asdf-exported-symbols))
 

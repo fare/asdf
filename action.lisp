@@ -7,6 +7,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
+  #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
   (:export
    #:action #:define-convenience-action-methods
    #:action-description

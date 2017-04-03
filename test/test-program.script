@@ -1,7 +1,8 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or allegro (and clisp os-unix) clozure cmucl (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
+(unless (or #+(or allegro (and clisp os-unix) clozure cmucl
+                  (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
@@ -43,6 +44,7 @@
     (lisp-invocation:invoke-lisp
      :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
+     :console t
      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
      :eval (format nil "(asdf-test::make-hello-~(~a~))" kind)
      :run-program-args
@@ -70,6 +72,7 @@
      :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :image-path (native-namestring img)
+     :console t
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
      :run-program-args '(:output :lines :error-output t)))
    '("hello, world"))
@@ -81,6 +84,7 @@
     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
     :image-path (native-namestring img)
     :cross-compile nil
+    :console t
     :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
     :arguments '("a" "b c" "d")
     :run-program-args '(:output :lines :error-output t))
@@ -122,8 +126,9 @@
 #+(or ecl mkcl)
 (progn
   (DBG "Now create an program without UIOP")
-  (assert (probe-file (asdf/bundle::system-module-pathname "asdf")))
-  (assert (probe-file (asdf/bundle::system-module-pathname "cmp")))
+  #+mkcl (assert (probe-file* (asdf/bundle::system-module-pathname "uiop")))
+  (assert (probe-file* (asdf/bundle::system-module-pathname "asdf")))
+  #+ecl (assert (probe-file* (asdf/bundle::system-module-pathname "cmp")))
   (def-test-system hello-no-uiop
     :class program-system
     :no-uiop t
@@ -131,13 +136,48 @@
     :epilogue-code
     (progn
       (format t "~:[Look ma, no UIOP~;Oops, UIOP~]!~%" (find-package :uiop))
-      (format t "~:[But no TEST-PACKAGE :-(~;But TEST-PACKAGE~]!~%" (find-package :test-package))
+      (format t "~:[But no TEST-PACKAGE :-(~;And TEST-PACKAGE~]!~%" (find-package :test-package))
+      (format t "~:[And no ASDF~;But ASDF :-( ~]!~%" (find-package :asdf))
       #+ecl (si:quit 0) #+mkcl (mk-ext:quit :exit-code 0)))
   (operate 'program-op 'hello-no-uiop :force t)
   (DBG :run (output-file 'program-op 'hello-no-uiop))
   (assert-equal
    (run-program `(,(native-namestring (output-file 'program-op 'hello-no-uiop)))
                 :output :lines :error-output t)
-   '("Look ma, no UIOP!" "But TEST-PACKAGE!")))
+   '("Look ma, no UIOP!" "And TEST-PACKAGE!" "And no ASDF!"))
+
+  (DBG "Now create an program with explicit ASDF dependency, without registered ASDF (use implementation-provided prebuilt)")
+  (assert-pathname-equal
+   (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
+   (truename (subpathname (lisp-implementation-directory) #+mkcl "contrib/" #-mkcl nil)))
+  (def-test-system hello-asdf
+    :class program-system
+    :depends-on ("asdf")
+    :components ((:file "file1"))
+    :epilogue-code
+    (progn
+      (format t "~:[~Oops, no ASDF~;Look ma, ASDF~]!~%" (find-package :asdf))
+      (format t "~:[But no TEST-PACKAGE :-( ~;And TEST-PACKAGE~]!~%" (find-package :test-package))
+      (uiop:quit 0)))
+  (operate 'program-op 'hello-asdf :force t)
+  (DBG :run (output-file 'program-op 'hello-asdf))
+  (assert-equal
+   (run-program `(,(native-namestring (output-file 'program-op 'hello-asdf)))
+                :output :lines :error-output t)
+   '("Look ma, ASDF!" "And TEST-PACKAGE!"))
+
+  (DBG "Now create an program with explicit ASDF dependency")
+  (register-directory *asdf-directory*)
+  (with-asdf-cache (:override t)
+    (load-asd (subpathname *asdf-directory* "asdf.asd")) ;; force re-loading ASDF, from source
+    (assert-pathname-equal
+     (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
+     (truename (resolve-output "asdf/")))
+    (operate 'program-op 'hello-asdf :force t)
+    (DBG :run (output-file 'program-op 'hello-asdf))
+    (assert-equal
+     (run-program `(,(native-namestring (output-file 'program-op 'hello-asdf)))
+                  :output :lines :error-output t)
+     '("Look ma, ASDF!" "And TEST-PACKAGE!"))))
 
 ;;; TODO: include a regular system dependency and a prebuilt-system in the executable.

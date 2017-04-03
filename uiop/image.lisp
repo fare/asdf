@@ -445,17 +445,27 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                             (shell-boolean-exit
                              (restore-image))))))))
                  (when forms `(progn ,@forms))))))
-      #+(or clasp ecl) (check-type kind (member :dll :lib :static-library :program :object :fasl))
+      #+(or clasp ecl mkcl)
+      (check-type kind (member :dll :shared-library :lib :static-library
+                               :fasl :fasb :program))
       (apply #+clasp 'cmp:builder #+clasp kind
-             #+ecl 'c::builder #+ecl kind
-             #+mkcl (ecase kind
-                      ((:dll) 'compiler::build-shared-library)
-                      ((:lib :static-library) 'compiler::build-static-library)
-                      ((:fasl) 'compiler::build-bundle)
-                      ((:program) 'compiler::build-program))
+             #+(or ecl mkcl)
+             (ecase kind
+               ((:dll :shared-library)
+                #+ecl 'c::build-shared-library #+mkcl 'compiler:build-shared-library)
+               ((:lib :static-library)
+                #+ecl 'c::build-static-library #+mkcl 'compiler:build-static-library)
+               ((:fasl #+ecl :fasb)
+                #+ecl 'c::build-fasl #+mkcl 'compiler:build-fasl)
+               #+mkcl ((:fasb) 'compiler:build-bundle)
+               ((:program)
+                #+ecl 'c::build-program #+mkcl 'compiler:build-program))
              (pathname destination)
-             #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (append lisp-object-files #+(or clasp ecl) extra-object-files)
-             #+(or clasp ecl) :init-name #+(or clasp ecl) (c::compute-init-name (or output-name destination) :kind kind)
+             #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files
+             (append lisp-object-files #+(or clasp ecl) extra-object-files)
+             #+ecl :init-name
+             #+ecl (c::compute-init-name (or output-name destination)
+                                         :kind (if (eq kind :fasb) :fasl kind))
              (append
               (when prologue-code `(:prologue-code ,prologue-code))
               (when epilogue-code `(:epilogue-code ,epilogue-code))

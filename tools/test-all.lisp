@@ -13,6 +13,19 @@
 (defmacro with-all-lisps ((lisp-var lisps &key muffle-failures) &body body)
   `(call-with-all-lisps (lambda (,lisp-var) ,@body) :lisps ,lisps :muffle-failures ,muffle-failures))
 
+(deftestcmd test-all-basic (lisps systems)
+  "basic test: doc, clean-load, load-systems"
+  (without-stopping ()
+    (show-version)
+    (doc)
+    (test-ascii)
+    (test-all-clean-load lisps)
+    (test-all-load-systems lisps systems)))
+
+(deftestcmd test-all-load-systems (lisps systems)
+  (with-systems-test (systems)
+    (with-all-lisps (l lisps) (test-load-systems l systems))))
+
 (deftestcmd test-all-clean-load (lisps)
   "test-clean-load on all lisps"
   (with-all-lisps (l lisps) (test-clean-load l)))
@@ -22,8 +35,8 @@
   (with-all-lisps (l lisps) (test-scripts l)))
 
 (deftestcmd test-all-no-upgrade ()
-  "test-basic, and test-all-script"
-  (test-basic) (test-all-scripts))
+  "test-all-basic, and test-all-script"
+  (test-all-basic) (test-all-scripts))
 
 (deftestcmd test-all-upgrade (upgrade-lisps)
   "test-upgrade on all lisps"
@@ -44,16 +57,14 @@
 (deftestcmd test-all-no-upgrade-no-stop ()
   "all tests but upgrade on all lisps, no stop"
   (without-stopping ()
-    (doc) (test-load-systems)
-    (test-all-clean-load)
+    (test-all-basic)
     (test-all-scripts-no-stop)
     (check-all-scripts-results)))
 
 (deftestcmd test-all-no-stop () ;; TODO: pass arguments!
   "all tests on all lisps, no stop"
   (without-stopping ()
-    (doc) (test-load-systems)
-    (test-all-clean-load)
+    (test-all-basic)
     (test-all-scripts-no-stop)
     (test-all-upgrade-no-stop)
     (check-all-results)))

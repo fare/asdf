@@ -173,7 +173,7 @@ Some constraints:
 (defun assert-pathname-equal-helper (qx x qy y)
   (cond
     ((equal x y)
-     (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
+     (format t "~S and~%~S both evaluate to same path:~%  ~S~%" qx qy x))
     #+mkcl
     ((acall :pathname-equal x y)
      (format t "~S and ~S evaluate to functionaly equivalent paths, respectively:~%  ~S~%and~%  ~S~%" qx qy x y))

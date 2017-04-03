@@ -21,7 +21,7 @@
 (in-package :asdf/bundle)
 
 (with-upgradability ()
-  (defclass bundle-op (basic-compile-op)
+  (defclass bundle-op (operation)
     ;; NB: use of instance-allocated slots for operations is DEPRECATED
     ;; and only supported in a temporary fashion for backward compatibility.
     ;; Supported replacement: Define slots on program-system instead.
@@ -107,10 +107,10 @@ itself."))
       `((,go ,@deps) ,@(call-next-method))))
 
   ;; Create a single fasl for the entire library
-  (defclass basic-compile-bundle-op (bundle-op)
+  (defclass basic-compile-bundle-op (bundle-op basic-compile-op)
     ((gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :object
                   :allocation :class)
-     (bundle-type :initform :fasl :allocation :class))
+     (bundle-type :initform :fasb :allocation :class))
     (:documentation "Base class for compiling into a bundle"))
 
   ;; Analog to prepare-op, for load-bundle-op and compile-bundle-op
@@ -217,6 +217,8 @@ for all the linkable object files associated with the system or its dependencies
       ((eql :no-output-file) ;; marker for a bundle-type that has NO output file
        (error "No output file, therefore no pathname type"))
       ((eql :fasl) ;; the type of a fasl
+       (compile-file-type)) ; on image-based platforms, used as input and output
+      ((eql :fasb) ;; the type of a fasl
        #-(or clasp ecl mkcl) (compile-file-type) ; on image-based platforms, used as input and output
        #+(or clasp ecl mkcl) "fasb") ; on C-linking platforms, only used as output for system bundles
       ((member :image)
@@ -274,7 +276,7 @@ e.g. as part of the implementation, of an outer build system that calls into ASD
 or of opaque libraries shipped along the source code."))
 
   (defclass precompiled-system (system)
-    ((build-pathname :initarg :fasl))
+    ((build-pathname :initarg :fasb :initarg :fasl))
     (:documentation "Class For a system that is delivered as a precompiled fasl"))
 
   (defclass prebuilt-system (system)
@@ -341,7 +343,7 @@ or of opaque libraries shipped along the source code."))
        (if monolithic 'monolithic-dll-op 'dll-op))
       ((:lib :static-library)
        (if monolithic 'monolithic-lib-op 'lib-op))
-      ((:fasl)
+      ((:fasb)
        (if monolithic 'monolithic-compile-bundle-op 'compile-bundle-op))
       ((:image)
        'image-op)
@@ -511,6 +513,7 @@ which is probably not what you want; you probably need to tweak your output tran
        (list
         #+clasp (compile-file-pathname (make-pathname :name name :defaults "sys:") :output-type :object)
         #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :lib)
+        #+ecl (compile-file-pathname (make-pathname :name (strcat "lib" name) :defaults "sys:") :type :lib)
         #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :object)
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:")
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;")))))
@@ -522,22 +525,30 @@ which is probably not what you want; you probably need to tweak your output tran
                      :name (coerce-name name)
                      :static-library (resolve-symlinks* pathname))))
 
+  (defun linkable-system (x)
+    (or (if-let (s (find-system x))
+          (and (system-source-file x) s))
+        (if-let (p (system-module-pathname (coerce-name x)))
+          (make-prebuilt-system x p))))
+
   (defmethod component-depends-on :around ((o image-op) (c system))
-    (destructuring-bind ((lib-op . deps)) (call-next-method)
-      (labels ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name))
-               (ensure-linkable-system (x)
-		 (unless (has-it-p x)
-                   (or (if-let (s (find-system x))
-                         (and (system-source-directory x)
-                              (list s)))
-                       (if-let (p (system-module-pathname x))
-                         (list (make-prebuilt-system x p)))))))
-        `((,lib-op
+    (let* ((next (call-next-method))
+           (deps (make-hash-table :test 'equal))
+           (linkable (loop* :for (do . dcs) :in next :collect
+                       (cons do
+                             (loop :for dc :in dcs
+                               :for dep = (and dc (resolve-dependency-spec c dc))
+                               :when dep
+                               :do (setf (gethash (coerce-name (component-system dep)) deps) t)
+                               :collect (or (and (typep dep 'system) (linkable-system dep)) dep))))))
+        `((lib-op
            ,@(unless (no-uiop c)
-               (append (ensure-linkable-system "cmp")
-                       (or (ensure-linkable-system "uiop")
-                           (ensure-linkable-system "asdf"))))
-           ,@deps)))))
+               (list (linkable-system "cmp")
+                     (unless (or (gethash "uiop" deps) (gethash "asdf" deps))
+                       (or (linkable-system "uiop")
+                           (linkable-system "asdf")
+                           "asdf")))))
+          ,@linkable)))
 
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))

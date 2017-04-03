@@ -7,8 +7,7 @@
 
 (deftestcmd build-asdf-tools ()
   "build a binary for asdf-tools"
-  (when (asdf:traverse :program-op :asdf-tools)
-    (asdf:operate :program-op :asdf-tools))
+  (asdf:operate :program-op :asdf-tools)
   (success))
 
 ;;; Documentation
