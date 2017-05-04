@@ -237,7 +237,7 @@
           and you can simply <tt>(require "asdf")</tt>.
           (All of them but CLISP also accept
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
-          All these implementations provide ASDF 3.1 in their latest version,
+          All these implementations provide ASDF 3.1 or later in their latest version,
           but your software distribution might have an older version.
         </p><p>
           As for remaining implementations,
@@ -261,7 +261,7 @@
             </li><li>
               CormanLisp was recently open-sourced.
               Its bundled ASDF has not yet been updated from 1.x;
-              ASDF 3.1 should work fine with it, but
+              ASDF 3 should work fine with it, but
               several features were disabled
               because CormanLisp was insufficiently compliant with the CLHS,
               and requires some work in this regard.
@@ -281,13 +281,13 @@
               for providing ASDF via <tt>(require "asdf")</tt>
             </li><li>
               Genera was never open-source and never bundled ASDF,
-              but should otherwise just work with a recent ASDF 3.1,
+              but should otherwise just work with a recent ASDF 3,
               if you somehow have a license and a working version.
               There are rumors of people doing active development with it
               and having minor patches to improve ASDF on it.
             </li><li>
               MCL similarly was open-sourced, but never bundled ASDF;
-              ASDF 3.1 should work just fine with it,
+              ASDF 3 should work just fine with it,
               but Rosetta is not supported in the latest versions of MacOS X,
               so a lot of work is required to make something out of it
               — at which point, you might just use CCL.
@@ -299,18 +299,18 @@
             </li><li>
               SCL was seemingly abandoned and never open-sourced.
               It never bundled ASDF, but otherwise
-              should just work with a recent ASDF 3.1,
+              should just work with a recent ASDF 3,
               if you somehow have a license and a working version.
             </li><li>
               XCL is now an abandoned experiment.
               It provides some old ASDF 2;
-              but you can replace it with ASDF 3.1, which works well with it,
+              but you can replace it with ASDF 3, which works well with it,
               inasmuch as anything works at all with XCL.
           </li></ul>
         </p>
         <table border="1">
           <tr><th></th>
-            <th align="left">Provide ASDF 3.1</th>
+            <th align="left">Provide ASDF 3.1 or later</th>
             <th align="left">No ASDF</th>
             <th align="left">Unmaintained</th></tr>
           <tr><th align="left">Free</th>
@@ -339,12 +339,12 @@
             <td align="left">Genera, mocl, SCL</td></tr>
         </table>
         <p>
-          To deal with an implementation that does not yet provide ASDF 3.1,
+          To deal with an implementation that does not yet provide ASDF 3.1 or later,
           we provide
           <a href="https://common-lisp.net/asdf/asdf/blob/master/tools/install-asdf.lisp">a script</a>
-          that will install ASDF 3.1
-          where your implementation goes looking for it
-          when you <tt>(require "asdf")</tt> .
+          that will install the ASDF from your git checkout
+          to where your implementation goes looking for it
+          when you <tt>(require "asdf")</tt>.
         </p><p>
           Note that upgrading from an old version of ASDF 2 or earlier
           is possible, but quite complex to do right in a robust way,
