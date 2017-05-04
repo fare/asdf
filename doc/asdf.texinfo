@@ -240,6 +240,7 @@ Issues with installing the proper version of ASDF
 
 * My Common Lisp implementation comes with an outdated version of ASDF. What to do?::
 * I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?::
+* After upgrading ASDF, ASDF (and Quicklisp) can't find my systems: After upgrading ASDF.
 
 Issues with configuring ASDF
 
@@ -5588,7 +5589,7 @@ make heroic attempts to load it the hard way if at first they don't succeed,
 see @file{tools/load-asdf.lisp} distributed with the ASDF source repository,
 or the code of @url{https://cliki.net/cl-launch,@code{cl-launch}}.
 
-@item
+@item @anchor{reinitializeASDFAfterUpgrade}
 Note that in addition to the pitfalls and constraints above,
 these heroic scripts (should you wish to write or modify one),
 must take care to configure ASDF @emph{twice}.
@@ -5658,6 +5659,7 @@ Old bundle operations, and their modern equivalents are:
 @menu
 * My Common Lisp implementation comes with an outdated version of ASDF. What to do?::
 * I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?::
+* After upgrading ASDF, ASDF (and Quicklisp) can't find my systems: After upgrading ASDF.
 @end menu
 
 @node My Common Lisp implementation comes with an outdated version of ASDF. What to do?, I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?, Issues with installing the proper version of ASDF, Issues with installing the proper version of ASDF
@@ -5674,7 +5676,7 @@ we recommend you replace your implementation's ASDF.
 @xref{Replacing your implementation's ASDF}.
 
 
-@node I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?,  , My Common Lisp implementation comes with an outdated version of ASDF. What to do?, Issues with installing the proper version of ASDF
+@node I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?, After upgrading ASDF, My Common Lisp implementation comes with an outdated version of ASDF. What to do?, Issues with installing the proper version of ASDF
 @subsection ``I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?''
 
 Since ASDF 2,
@@ -5758,7 +5760,22 @@ when they upgrade to the upstream version.
 
 @end itemize
 
+@node After upgrading ASDF,  , I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?, Issues with installing the proper version of ASDF
+@subsection After upgrading ASDF, ASDF (and Quicklisp) can't find my systems
+@vindex *central-registry*
+@cindex Quicklisp
 
+If you upgrade ASDF on-line, loading a new version on top of an old one
+(e.g., loading an updated version of ASDF to support systems that use
+newer features), then you must reconfigure it.  Notably,
+@var{*central-registry*} is not maintained across upgrades.
+@xref{reinitializeASDFAfterUpgrade,note about ASDF reconfiguration after upgrade}
+
+Problems like this may be experienced if one loads Quicklisp (which as
+of this writing bundles a quite old version of ASDF), upgrades
+ASDF, and then tries to load new systems.  It is better always to load
+the most up-to-date ASDF you want, then load its configuration, for
+reasons discussed in detail at the above cross-reference.
 
 @node Issues with configuring ASDF, Issues with using and extending ASDF to define systems, Issues with installing the proper version of ASDF, FAQ
 @section Issues with configuring ASDF
