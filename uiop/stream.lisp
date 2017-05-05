@@ -591,10 +591,13 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
       :with prefix-nns = (native-namestring prefix-pn)
       :with results = (progn (ensure-directories-exist prefix-pn)
                              ())
-      :for counter :from (random (expt 36 #-gcl 8 #+gcl 5))
-      :for pathname = (parse-native-namestring
-                       (format nil "~A~36R~@[~A~]~@[.~A~]"
-                               prefix-nns counter suffix (unless (eq type :unspecific) type)))
+      :for pathname = (loop
+			 :for counter :from (random (expt 36 #-gcl 8 #+gcl 5))
+			 :for pathname = (parse-native-namestring
+					 (format nil "~A~36R~@[~A~]~@[.~A~]"
+						 prefix-nns counter suffix (unless (eq type :unspecific) type)))
+			 :while (probe-file* pathname)
+			 :finally (return pathname))
       :for okp = nil :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
