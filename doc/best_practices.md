@@ -823,3 +823,14 @@ operations on a given component, you MAY want to override or wrap around
 the `component-if-feature` method for that component instead of defining
 all those `perform`, `output-files` and `input-files` methods.
 
+## Other
+
+Do not side-effect the current `*readtable*`,
+which is never guaranteed to be writable, and
+may not be what is current when you need the modification.
+If you need modifications to the readtable, use `named-readtables`,
+`reader-interception`, or some other adequate mechanism.
+To bind the readtable, use `named-readtables:in-readtable` or `cl-syntax:in-syntax`
+in each file that needs a non-standard readtable, and/or use an `:around-compile` hook
+to automatically bind it around every file in a module or system.
+
