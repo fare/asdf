@@ -497,7 +497,8 @@ possibly in a different process."
                        :element-type *default-stream-element-type*
                        :external-format *utf-8-external-format*)
       (with-safe-io-syntax ()
-        (write (reify-deferred-warnings) :stream s :pretty t :readably t)
+        (let ((*read-eval* t))
+          (write (reify-deferred-warnings) :stream s :pretty t :readably t))
         (terpri s))))
 
   (defun warnings-file-type (&optional implementation-type)
@@ -545,7 +546,10 @@ re-intern and raise any warnings that are still meaningful."
           (reset-deferred-warnings)
           (dolist (file files)
             (unreify-deferred-warnings
-             (handler-case (safe-read-file-form file)
+             (handler-case
+                 (with-safe-io-syntax ()
+                   (let ((*read-eval* t))
+                     (read-file-form file)))
                (error (c)
                  ;;(delete-file-if-exists file) ;; deleting forces rebuild but prevents debugging
                  (push c file-errors)
