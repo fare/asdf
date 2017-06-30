@@ -75,10 +75,10 @@ or NIL if no the status is considered outside of a specific plan."))
     (:documentation "Status of an action in a plan"))
 
   ;; STAMP   KEEP-P DONE-P NEED-P     symbol bitmap  previously   currently
-  ;; not-nil   T      T      T     =>  GOOD     7    up-to-date   done
+  ;; not-nil   T      T      T     =>  GOOD     7    up-to-date   done (e.g. file previously loaded)
   ;; not-nil   T      T     NIL    =>  HERE     6    up-to-date   unplanned yet done
-  ;; not-nil   T     NIL     T     =>  REDO     5    up-to-date   planned
-  ;; not-nil   T     NIL    NIL    =>  SKIP     4    up-to-date   unplanned
+  ;; not-nil   T     NIL     T     =>  REDO     5    up-to-date   planned (e.g. file to load)
+  ;; not-nil   T     NIL    NIL    =>  SKIP     4    up-to-date   unplanned (e.g. file compiled)
   ;; not-nil  NIL     T      T     =>  DONE     3    out-of-date  done
   ;; not-nil  NIL     T     NIL    =>  WHAT     2    out-of-date  unplanned yet done(?)
   ;;  NIL     NIL    NIL     T     =>  TODO     1    out-of-date  planned
@@ -88,8 +88,8 @@ or NIL if no the status is considered outside of a specific plan."))
   ;; while traversing a node with TRAVERSE-ACTION; it can only happen while checking whether an
   ;; action is up-to-date with ACTION-UP-TO-DATE-P.
   ;;
-  ;; When traversing an action, the +need-bit+ is set,
-  ;; unless the action is u  p-to-date and not needed-in-image (HERE, SKIP).
+  ;; When calling TRAVERSE-ACTION, the +need-bit+ is set,
+  ;; unless the action is up-to-date and not needed-in-image (HERE, SKIP).
   ;; When PERFORMing an action, the +done-bit+ is set.
   ;; When the +need-bit+ is set but not the +done-bit+, the level slot indicates which level of
   ;; OPERATE it was last marked needed for; if it happens to be needed at a higher-level, then
