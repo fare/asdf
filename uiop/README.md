@@ -135,9 +135,6 @@ NB: `(require :asdf)` also works on all implementations but CLISP.
 Every implementation has sported ASDF 3 for years, and if yours only provides
 ASDF 2, we recommend you install ASDF 3 on top of it,
 using the facility in [tools/install-asdf.lisp](../tools/install-asdf.lisp).
-Every implementation has sported ASDF 3 for years, and if yours only provides
-ASDF 2, we recommend you install ASDF 3 on top of it,
-using the facility in [tools/install-asdf.lisp](../tools/install-asdf.lisp).
 
 If you need some functionality only available in a recent version of UIOP,
 but cannot or will not upgrade ASDF, UIOP is also distributed separately;
