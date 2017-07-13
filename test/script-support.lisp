@@ -55,6 +55,8 @@ Some constraints:
     ))
 
 (defvar *debug-asdf* nil)
+(defvar *print-backtrace* t)
+
 (defvar *quit-when-done* t)
 
 (defun verbose (&optional (verbose t) (print verbose))
@@ -403,10 +405,11 @@ is bound, write a message and exit on an error.  If
                      (format *error-output* "~&TEST ABORTED: ~A~&" c))
                    (finish-outputs*)
                    (unless *debug-asdf*
-                     (ignore-errors
-                       (format *error-output* "~&Backtrace:~%")
-                       (acall :print-condition-backtrace
-                              c :count 69 :stream *error-output*))
+                     (when *print-backtrace*
+                       (ignore-errors
+                        (format *error-output* "~&Backtrace:~%")
+                        (acall :print-condition-backtrace
+                               c :count 69 :stream *error-output*)))
                      (leave-test "Script failed" 1)))))
              (funcall thunk)
              (leave-test "Script succeeded" 0)))))
@@ -613,7 +616,8 @@ is bound, write a message and exit on an error.  If
   (format t "Configuring ASDF~%")
   (when (asym :getenvp)
     (format t "Enabling debugging~%")
-    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST"))))
+    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
+    (setf *print-backtrace* (not (acall :getenvp "NO_ASDF_BACKTRACE"))))
   (when *trace-symbols*
     (format t "Tracing~{ ~A~}~%" *trace-symbols*)
     (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s)))))
