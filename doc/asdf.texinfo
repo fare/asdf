@@ -1490,6 +1490,12 @@ simple-component-name := string
 
 pathname-specifier := pathname | string | symbol
 
+version-specifier := string
+                     | (:read-file-form <pathname-specifier> <form-specifier>?)
+                     | (:read-file-line <pathname-specifier> <line-specifier>?)
+line-specifier := :at integer # base zero
+form-specifier := :at [ integer | ( integer+ )]
+
 method-form := (operation-name qual lambda-list @Arest{} body)
 qual := method qualifier?
 
@@ -1689,12 +1695,17 @@ Instead of a string representing the version,
 the @code{:version} argument can be an expression that is resolved to
 such a string using the following trivial domain-specific language:
 in addition to being a literal string, it can be an expression of the form
-@code{(:read-file-form <pathname-or-string> :at <access-at-specifier>)},
-which will be resolved by reading a form in the specified pathname
-(read as a subpathname of the current system if relative or a unix-namestring).
+@code{(:read-file-form <pathname-or-string> [:at <access-at-specifier]>)},
+or @code{(:read-file-line <pathname-or-string> [:at
+<access-at-specifier]?>)}.
+As the name suggests, the former will be resolved by reading a form in the specified pathname
+(read as a subpathname of the current system if relative or a
+unix-namestring), and the latter by reading a line.
 You may use a @code{uiop:access-at} specifier
-with the (optional) @code{:at} keyword,
-by default the specifier is @code{0}, meaning the first form is returned;
+with the @code{:at} keyword,
+by default the specifier is @code{0}, meaning the first form/line is
+returned.
+For @code{:read-file-form},
 subforms can also be specified, with e.g. @code{(1 2 2)} specifying
 ``the third subform (index 2) of the third subform (index 2) of the second form (index 1)''
 in the file (mind the off-by-one error in the English language).

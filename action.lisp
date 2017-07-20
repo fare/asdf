@@ -6,6 +6,7 @@
   (:recycle :asdf/action :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
+  (:import-from :asdf/component #:%additional-input-files)
   #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
   (:export
    #:action #:define-convenience-action-methods
@@ -21,7 +22,8 @@
    #:operation-definition-warning #:operation-definition-error ;; condition
    #:action-valid-p
    #:circular-dependency #:circular-dependency-actions
-   #:call-while-visiting-action #:while-visiting-action))
+   #:call-while-visiting-action #:while-visiting-action
+   #:additional-input-files))
 (in-package :asdf/action)
 
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
@@ -379,10 +381,24 @@ They may rely on the order of the files to discriminate between inputs.
       (assert (length=n-p files 1))
       (first files)))
 
+  (defgeneric additional-input-files (operation component)
+    (:documentation "Additional input files for the operation on this
+    component.  These are files that are inferred, rather than
+    explicitly specified, and these are typically NOT files that
+    undergo operations directly.  Instead, they are files that it is
+    important for ASDF to know about in order to compute operation times,etc."))
+  (define-convenience-action-methods additional-input-files (operation component))
+  (defmethod additional-input-files ((op operation) (comp component))
+      (cdr (assoc op (%additional-input-files comp))))
+
   ;; Memoize input files.
   (defmethod input-files :around (operation component)
     (do-asdf-cache `(input-files ,operation ,component)
-      (call-next-method)))
+      ;; get the additional input files, if any
+      (append (call-next-method)
+              ;; must come after the first, for other code that
+              ;; assumes the first will be the "key" file
+              (additional-input-files operation component))))
 
   ;; By default an action has no input-files.
   (defmethod input-files ((o operation) (c component))

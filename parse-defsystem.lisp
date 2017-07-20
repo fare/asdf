@@ -8,6 +8,10 @@
    :asdf/session :asdf/component :asdf/system :asdf/system-registry
    :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
   (:import-from :asdf/system #:depends-on #:weakly-depends-on)
+  ;; these needed for record-additional-system-input-file
+  (:import-from :asdf/operation #:make-operation)
+  (:import-from :asdf/component #:%additional-input-files)
+  (:import-from :asdf/find-system #:define-op)
   (:export
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
@@ -102,6 +106,27 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
       (sysdef-error-component ":components must be NIL or a list of components."
                               type name components)))
 
+
+  (defun record-additional-system-input-file (pathname component parent)
+    (let* ((record-on (if parent
+                          (loop :with retval
+                                :for par = parent :then (component-parent par)
+                                :while par
+                                :do (setf retval par)
+                                :finally (return retval))
+                          component))
+           (comp (if (typep record-on 'component)
+                     record-on
+                     ;; at this point there will be no parent for RECORD-ON
+                     (find-component record-on nil)))
+           (op (make-operation 'define-op))
+           (cell (or (assoc op (%additional-input-files comp))
+                       (let ((new-cell (list op)))
+                         (push new-cell (%additional-input-files comp))
+                         new-cell))))
+      (pushnew pathname (cdr cell) :test 'pathname-equal)
+      (values)))
+
   ;; Given a form used as :version specification, in the context of a system definition
   ;; in a file at PATHNAME, for given COMPONENT with given PARENT, normalize the form
   ;; to an acceptable ASDF-format version.
@@ -122,12 +147,16 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
                     (case (first form)
                       ((:read-file-form)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-form (subpathname pathname subpath)
-                                              :at at :package :asdf-user)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-form path
+                                                :at at :package :asdf-user))))
                       ((:read-file-line)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-line (subpathname pathname subpath)
-                                              :at at)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-line (subpathname pathname subpath)
+                                                :at at))))
                       (otherwise
                        (invalid))))
                    (t

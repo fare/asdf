@@ -6,6 +6,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade
         :asdf/session :asdf/component :asdf/system :asdf/operation :asdf/action :asdf/lisp-action
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
+  (:import-from #:asdf/component #:%additional-input-files)
   (:export
    #:find-system #:locate-system #:load-asd #:define-op
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition))
@@ -108,7 +109,8 @@
        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                      (coerce-name s) pathname)
        ;; dependencies will depend on what's loaded via definition-dependency-list
-       (unset-asdf-cache-entry `(component-depends-on ,o ,s)))
+       (unset-asdf-cache-entry `(component-depends-on ,o ,s))
+       (unset-asdf-cache-entry `(input-files ,o ,s)))
      (load* pathname :external-format (encoding-external-format (detect-encoding pathname)))))
 
   (defun load-asd (pathname &key name)
@@ -291,4 +293,3 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         (dolist (o `(,@(when (primary-system-p component) '(define-op))
                        prepare-op compile-op load-op))
           (setf (gethash (make-operation o) cot) 0))))))
-

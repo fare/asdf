@@ -64,7 +64,7 @@
      (stamp
       :type (or integer boolean) :initarg :stamp :reader status-stamp
       :documentation "STAMP associated with the ACTION if it has been completed already in some
-previous sessino or image, T if it was done and builtin the image, or NIL if it needs to be done.")
+previous session or image, T if it was done and builtin the image, or NIL if it needs to be done.")
      (level
       :type fixnum :initarg :level :initform 0 :reader status-level
       :documentation "the highest (operate-level) at which the action was needed")
