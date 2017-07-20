@@ -203,18 +203,23 @@
   (DBG "cleaning up")
   (clear-fasls defsystem))
 
+;; The test should work on ASDF3 and later:
+;; (this is THE bug that motivated the rewrite from ASDF 2 to ASDF 3).
+(nest
+ #-asdf3 (signals error)
+ ;; TODO: figure out why ABCL and XCL require this with-asdf-session.
+ #+(and asdf3.3 (or abcl xcl)) (with-asdf-session () (load-system "asdf"))
+ (test-defsystem :asdf))
 
-(cond
-  #+asdf3 ;; TODO: figure out why ABCL and XCL fail to recompile anything.
-  ((and #+(or abcl xcl) (use-cache-p :asdf))
-   (test-defsystem :asdf))
-  (t (signals error (test-defsystem :asdf))))
-
+;; Genera's and Lispworks' defsystem have a bug fix, though
+;; users need to manually specify non-default dependencies
 #+(or genera lispworks)
 (test-defsystem :native)
 
+;; Allegro's defsystem has the bug
 #+(or allegro)
 (signals error (test-defsystem :native))
 
-#+mkdefsystem
+;; MK-DEFSYSTEM has the bug
+#+mk-defsystem
 (signals error (test-defsystem :mk-defsystem))
