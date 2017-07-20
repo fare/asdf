@@ -122,7 +122,8 @@
                         ;; Segregate output by ABI.
                         ;; You could replace "asdf" below by the name of your project,
                         ;; or not need it at all if everything is under your source-directory.
-                        (,source-directory (,output-directory :implementation "asdf"))
+                        ((,source-directory :**/ :*.*.*)
+                         (,output-directory :implementation "asdf" :**/ :*.*.*))
                         ;; In a fully controlled build, we shouldn't be using code outside
                         ;; our source-directory, but in case we do, we still want to control the output,
                         ;; and easily detect the fact by looking at this directory
