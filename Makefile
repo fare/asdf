@@ -86,7 +86,7 @@ all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 print-%  : ; @echo $* = $($*)
 
 # Making ASDF itself should be our first, default, target:
-build/asdf.lisp: show-version $(all_lisp)
+build/asdf.lisp: $(all_lisp)
 	mkdir -p build
 	rm -f $@
 	cat $(all_lisp) > $@
