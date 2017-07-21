@@ -5,6 +5,7 @@
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/operation
+   :asdf/find-component ;; used by ECL
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/parse-defsystem)
   (:export
    #:bundle-op #:bundle-type #:program-system
@@ -526,7 +527,7 @@ which is probably not what you want; you probably need to tweak your output tran
 
   (defun linkable-system (x)
     (or (if-let (s (find-system x))
-          (and (system-source-file x) s))
+          (and (system-source-file x) (output-files 'lib-op x) s))
         (if-let (p (system-module-pathname (coerce-name x)))
           (make-prebuilt-system x p))))
 
@@ -543,7 +544,8 @@ which is probably not what you want; you probably need to tweak your output tran
         `((lib-op
            ,@(unless (no-uiop c)
                (list (linkable-system "cmp")
-                     (unless (or (gethash "uiop" deps) (gethash "asdf" deps))
+                     (unless (or (and (gethash "uiop" deps) (linkable-system "uiop"))
+                                 (and (gethash "asdf" deps) (linkable-system "asdf")))
                        (or (linkable-system "uiop")
                            (linkable-system "asdf")
                            "asdf")))))

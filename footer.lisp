@@ -4,6 +4,7 @@
 (uiop/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
   (:use :uiop/common-lisp :uiop
+        :asdf/system ;; used by ECL
         :asdf/upgrade :asdf/system-registry :asdf/operate :asdf/bundle)
   ;; Happily, all those implementations all have the same module-provider hook interface.
   #+(or abcl clasp cmucl clozure ecl mkcl sbcl)
