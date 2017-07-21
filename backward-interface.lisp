@@ -6,7 +6,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/system-registry :asdf/operation :asdf/action
    :asdf/lisp-action :asdf/plan :asdf/operate
-   :asdf/find-system :asdf/parse-defsystem :asdf/output-translations)
+   :asdf/find-system :asdf/parse-defsystem :asdf/output-translations :asdf/bundle)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
@@ -17,7 +17,8 @@
    #:component-property
    #:run-shell-command
    #:system-definition-pathname #:system-registered-p #:require-system
-   #:explain))
+   #:explain
+   #+ecl #:make-build))
 (in-package :asdf/backward-interface)
 
 ;; NB: the warning status of these functions may have to be distinguished later,
@@ -226,3 +227,52 @@ system or its dependencies if it has already been loaded."
     (declare (ignore keys))
     (unless (component-loaded-p system)
       (load-system system))))
+
+;;; This function is for backward compatibility with ECL only.
+#+ecl
+(with-asdf-deprecation (:style-warning "3.2" :warning "9999")
+  (defun make-build (system &rest args
+                     &key (monolithic nil) (type :fasl) (move-here nil move-here-p)
+                       prologue-code epilogue-code no-uiop
+                       prefix-lisp-object-files postfix-lisp-object-files extra-object-files
+                       &allow-other-keys)
+    (let* ((operation (asdf/bundle::select-bundle-operation type monolithic))
+           (move-here-path (if (and move-here
+                                    (typep move-here '(or pathname string)))
+                               (ensure-pathname move-here :namestring :lisp :ensure-directory t)
+                               (system-relative-pathname system "asdf-output/")))
+           (extra-build-args (remove-plist-keys
+                              '(:monolithic :type :move-here
+                                :prologue-code :epilogue-code :no-uiop
+                                :prefix-lisp-object-files :postfix-lisp-object-files
+                                :extra-object-files)
+                              args))
+           (build-system (if (subtypep operation 'image-op)
+                             (eval `(defsystem "asdf.make-build"
+                                      :class program-system
+                                      :source-file nil
+                                      :pathname ,(system-source-directory system)
+                                      :build-operation ,operation
+                                      :build-pathname ,(subpathname move-here-path
+                                                                    (file-namestring (first (output-files operation system))))
+                                      :depends-on (,(coerce-name system))
+                                      :prologue-code ,prologue-code
+                                      :epilogue-code ,epilogue-code
+                                      :no-uiop ,no-uiop
+                                      :prefix-lisp-object-files ,prefix-lisp-object-files
+                                      :postfix-lisp-object-files ,postfix-lisp-object-files
+                                      :extra-object-files ,extra-object-files
+                                      :extra-build-args ,extra-build-args))
+                             system))
+           (files (output-files operation build-system)))
+      (operate operation build-system)
+      (if (or move-here
+              (and (null move-here-p) (member operation '(program-op image-op))))
+          (loop :with dest-path = (resolve-symlinks* (ensure-directories-exist move-here-path))
+            :for f :in files
+            :for new-f = (make-pathname :name (pathname-name f)
+                                        :type (pathname-type f)
+                                        :defaults dest-path)
+            :do (rename-file-overwriting-target f new-f)
+            :collect new-f)
+          files))))

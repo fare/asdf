@@ -527,7 +527,7 @@ which is probably not what you want; you probably need to tweak your output tran
 
   (defun linkable-system (x)
     (or (if-let (s (find-system x))
-          (and (system-source-file x) (output-files 'lib-op x) s))
+          (and (output-files 'lib-op s) s))
         (if-let (p (system-module-pathname (coerce-name x)))
           (make-prebuilt-system x p))))
 

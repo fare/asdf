@@ -31,11 +31,11 @@
    #:prepare-source-op #:load-source-op #:test-op #:define-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
+   #:component-depends-on ; backward-compatible name rather than action-depends-on
    #:input-files #:additional-input-files
    #:output-files #:output-file #:perform #:perform-with-restarts
    #:operation-done-p #:explain #:action-description #:component-sideway-dependencies
    #:needed-in-image-p
-   #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #:program-system
    #:basic-compile-bundle-op #:prepare-bundle-op
@@ -53,20 +53,15 @@
    #:operation-monolithic-p
    #:required-components
    #:component-loaded-p
-
    #:component #:parent-component #:child-component #:system #:module
    #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file
    #:file-type #:source-file-type
-
    #:register-preloaded-system #:sysdef-preloaded-system-search
    #:register-immutable-system #:sysdef-immutable-system-search
-
    #:package-inferred-system #:register-system-packages
-   #:package-system ;; backward-compatibility during migration, to be removed in a further release.
-
-   #:component-children          ; component accessors
+   #:component-children
    #:component-children-by-name
    #:component-pathname
    #:component-relative-pathname
@@ -76,13 +71,6 @@
    #:component-system
    #:component-encoding
    #:component-external-format
-
-   #:component-depends-on ; backward-compatible name rather than action-depends-on
-   #:module-components ; backward-compatibility
-   #:operation-on-warnings #:operation-on-failure ; backward-compatibility
-   #:component-property ; backward-compatibility
-   #:traverse ; backward-compatibility
-
    #:system-description
    #:system-long-description
    #:system-author
@@ -101,20 +89,15 @@
    #:system-defsystem-depends-on
    #:system-depends-on
    #:system-weakly-depends-on
-
    #:*system-definition-search-functions*   ; variables
    #:*central-registry*
    #:*compile-file-warnings-behaviour*
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
-   #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
-
    #:asdf-version
-
    #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
    #:compile-warned-warning #:compile-failed-warning
-   #:operation-error #:compile-failed #:compile-warned #:compile-error ;; backward compatibility
    #:error-name
    #:error-pathname
    #:load-system-definition-error
@@ -128,20 +111,16 @@
    #:duplicate-names #:non-toplevel-system #:non-system-system #:bad-system-name #:system-out-of-date
    #:package-inferred-system-missing-package-error
    #:operation-definition-warning #:operation-definition-error
-
    #:try-recompiling ; restarts
    #:retry
    #:accept
    #:coerce-entry-to-directory
    #:remove-entry-from-registry
    #:clear-configuration-and-retry
-
-
    #:*encoding-detection-hook*
    #:*encoding-external-format-hook*
    #:*default-encoding*
    #:*utf-8-external-format*
-
    #:clear-configuration
    #:*output-translations-parameter*
    #:initialize-output-translations
@@ -160,7 +139,6 @@
    #:clear-source-registry
    #:ensure-source-registry
    #:process-source-registry
-   #:system-registered-p ;; DEPRECATED
    #:registered-system #:registered-systems #:already-loaded-systems
    #:resolve-location
    #:asdf-message
@@ -173,5 +151,11 @@
    #:system-source-registry
    #:user-source-registry-directory
    #:system-source-registry-directory
-   ))
 
+   ;; The symbols below are all DEPRECATED, do not use. To be removed in a further release.
+   #:*asdf-verbose* #:run-shell-command
+   #:component-load-dependencies #:system-registered-p #:package-system
+   #+ecl #:make-build
+   #:operation-on-warnings #:operation-on-failure #:operation-error
+   #:compile-failed #:compile-warned #:compile-error
+   #:module-components #:component-property #:traverse))
