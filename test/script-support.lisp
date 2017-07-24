@@ -449,7 +449,7 @@ is bound, write a message and exit on an error.  If
   (quietly (load (asdf-fasl tag))))
 
 (defun register-directory (dir)
-  (pushnew dir (symbol-value (asym :*central-registry*))))
+  (pushnew dir (symbol-value (asym :*central-registry*)) :test #'equal))
 
 (defun load-asdf-system (&rest keys)
   (quietly
@@ -659,10 +659,14 @@ is bound, write a message and exit on an error.  If
   t)
 
 (defun frob-packages ()
-  (format t "Frob packages~%")
-  (use-package :asdf :asdf-test)
-  (when (find-package :uiop) (use-package :uiop :asdf-test))
-  (when (find-package :asdf/session) (use-package :asdf/session :asdf-test))
+  (cond
+    ((find-package :asdf)
+     (format t "Frob packages~%")
+     (use-package :asdf :asdf-test)
+     (when (find-package :uiop) (use-package :uiop :asdf-test))
+     (when (find-package :asdf/session) (use-package :asdf/session :asdf-test)))
+    (t
+     (format t "NB: No packages to frob, because ASDF not loaded yet.")))
   (setf *package* (find-package :asdf-test))
   t)
 
@@ -673,12 +677,17 @@ is bound, write a message and exit on an error.  If
                    (and (member :asdf2 *features*) (acall :version-satisfies (acall :asdf-version) "2.11.4"))))
     (leave-test "UIOP will break ASDF < 2.011.4 - skipping test." 0))
   (configure-asdf)
-  (register-directory *asdf-directory*)
+  ;; do NOT include *asdf-directory*, which would defeat the purpose by causing an upgrade
   (register-directory *uiop-directory*)
   (register-directory *test-directory*)
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading uiop~%")
   (quietly
    (acall :oos (asym :load-op) :uiop))
-  (acall :oos (asym :load-op) :test-module-depend))
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading test-module-depend~%")
+  (acall :oos (asym :load-op) :test-module-depend)
+  (format t "done loading~%"))
 
 (defun load-asdf (&optional tag)
   (load-asdf-fasl tag)

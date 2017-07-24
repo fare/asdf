@@ -5,6 +5,7 @@
 (uiop/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/system :asdf/system-registry)
+  #+abcl (:import-from :asdf/find-system #:initialize-source-registry) ;; to upgrade from 3.1.x
   (:export
    #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
