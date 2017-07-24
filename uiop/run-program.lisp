@@ -409,7 +409,7 @@ or whether it's already taken care of by the implementation's underlying run-pro
         (reduce/strcat
          (os-cond
           ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
-          ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
+          ((os-windows-p) `(,@redirections " (" ,@chdir ,normalized ")")))))))
 
   (defun %system (command &rest keys &key directory
                                        input (if-input-does-not-exist :error)
