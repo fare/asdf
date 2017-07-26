@@ -7,7 +7,6 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
   (:import-from :asdf/component #:%additional-input-files)
-  #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
   (:export
    #:action #:define-convenience-action-methods
    #:action-description #:format-action
@@ -431,7 +430,8 @@ They may rely on the order of the files to discriminate between inputs.
 
 Updates the action's COMPONENT-OPERATION-TIME to match the COMPUTE-ACTION-STAMP
 using the JUST-DONE flag."))
-  (defgeneric compute-action-stamp (plan operation component &key just-done)
+  (defgeneric compute-action-stamp (plan- operation component &key just-done)
+    ;; NB: using plan- rather than plan above allows clisp to upgrade from 2.26(!)
     (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
 * PLAN is a plan object modelling future effects of actions,

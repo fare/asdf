@@ -3,9 +3,9 @@
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
 (uiop/package:define-package :asdf/source-registry
-  (:recycle :asdf/source-registry :asdf)
+  ;; NB: asdf/find-system allows upgrade from <=3.2.1 that have initialize-source-registry there
+  (:recycle :asdf/source-registry :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/system :asdf/system-registry)
-  #+abcl (:import-from :asdf/find-system #:initialize-source-registry) ;; to upgrade from 3.1.x
   (:export
    #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry

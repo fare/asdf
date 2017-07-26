@@ -7,7 +7,6 @@
         :asdf/session :asdf/component :asdf/system :asdf/operation :asdf/action :asdf/lisp-action
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
   (:import-from #:asdf/component #:%additional-input-files)
-  #+abcl (:intern #:initialize-source-registry) ;; to upgrade from 3.1.x
   (:export
    #:find-system #:locate-system #:load-asd #:define-op
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition))

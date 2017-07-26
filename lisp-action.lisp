@@ -173,7 +173,7 @@ an OPERATION and a COMPONENT."
   (defmethod input-files ((o compile-op) (c system))
     (when (and *warnings-file-type* (not (builtin-system-p c)))
       ;; The most correct way to do it would be to use:
-      ;; (traverse-sub-actions o c :other-systems nil :keep-operation 'compile-op :keep-component 'cl-source-file)
+      ;; (collect-dependencies o c :other-systems nil :keep-operation 'compile-op :keep-component 'cl-source-file)
       ;; but it's expensive and we don't care too much about file order or ASDF extensions.
       (loop :for sub :in (sub-components c :type 'cl-source-file)
             :nconc (remove-if-not 'warnings-file-p (output-files o sub)))))
