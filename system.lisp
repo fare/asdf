@@ -2,15 +2,15 @@
 ;;;; Systems
 
 (uiop/package:define-package :asdf/system
-  (:recycle :asdf :asdf/system)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
+  (:recycle :asdf :asdf/system :asdf/find-system)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component)
   (:export
-   #:system #:proto-system
+   #:system #:proto-system #:undefined-system #:reset-system-class
    #:system-source-file #:system-source-directory #:system-relative-pathname
-   #:reset-system
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:system-defsystem-depends-on #:system-depends-on #:system-weakly-depends-on
+   #:definition-dependency-list #:definition-dependency-set #:system-defsystem-depends-on
+   #:system-depends-on #:system-weakly-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
    #:homepage #:system-homepage
@@ -18,6 +18,7 @@
    #:mailto #:system-mailto
    #:long-name #:system-long-name
    #:source-control #:system-source-control
+   #:coerce-name #:primary-system-name #:primary-system-p #:coerce-filename
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -59,7 +60,14 @@ NB: This interface is subject to change. Please contact ASDF maintainers if you 
   (defclass proto-system () ; slots to keep when resetting a system
     ;; To preserve identity for all objects, we'd need keep the components slots
     ;; but also to modify parse-component-form to reset the recycled objects.
-    ((name) (source-file) #|(children) (children-by-names)|#)
+    ((name)
+     (source-file)
+     ;; These two slots contains the *inferred* dependencies of define-op,
+     ;; from loading the .asd file, as list and as set.
+     (definition-dependency-list
+         :initform nil :accessor definition-dependency-list)
+     (definition-dependency-set
+         :initform (list-to-hash-set nil) :accessor definition-dependency-set))
     (:documentation "PROTO-SYSTEM defines the elements of identity that are preserved when
 a SYSTEM is redefined and its class is modified."))
 
@@ -85,6 +93,7 @@ a SYSTEM is redefined and its class is modified."))
      (entry-point
       :initform nil :initarg :entry-point :accessor component-entry-point)
      (source-file :initform nil :initarg :source-file :accessor system-source-file)
+     ;; This slot contains the *declared* defsystem-depends-on dependencies
      (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
                            :initform nil)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
@@ -93,12 +102,52 @@ a SYSTEM is redefined and its class is modified."))
     (:documentation "SYSTEM is the base class for top-level components that users may request
 ASDF to build."))
 
+  (defclass undefined-system (system) ()
+    (:documentation "System that was not defined yet."))
 
-  (defun reset-system (system &rest keys &key &allow-other-keys)
+  (defun reset-system-class (system new-class &rest keys &key &allow-other-keys)
     "Erase any data from a SYSTEM except its basic identity, then reinitialize it
 based on supplied KEYS."
-    (change-class (change-class system 'proto-system) 'system)
+    (change-class (change-class system 'proto-system) new-class)
     (apply 'reinitialize-instance system keys)))
+
+
+;;; Canonicalizing system names
+
+(with-upgradability ()
+  (defun coerce-name (name)
+    "Given a designator for a component NAME, return the name as a string.
+The designator can be a COMPONENT (designing its name; note that a SYSTEM is a component),
+a SYMBOL (designing its name, downcased), or a STRING (designing itself)."
+    (typecase name
+      (component (component-name name))
+      (symbol (string-downcase name))
+      (string name)
+      (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
+
+  (defun primary-system-name (system-designator)
+    "Given a system designator NAME, return the name of the corresponding primary system,
+after which the .asd file is named. That's the first component when dividing the name
+as a string by / slashes. A component designates its system."
+    (etypecase system-designator
+      (string (if-let (p (position #\/ system-designator))
+                (subseq system-designator 0 p) system-designator))
+      (symbol (primary-system-name (coerce-name system-designator)))
+      (component (primary-system-name (coerce-name (component-system system-designator))))))
+
+  (defun primary-system-p (system)
+    "Given a system designator SYSTEM, return T if it designates a primary system, or else NIL.
+Also return NIL if system is neither a SYSTEM nor a string designating one."
+    (typecase system
+      (string (not (find #\/ system)))
+      (system (primary-system-p (coerce-name system)))))
+
+  (defun coerce-filename (name)
+    "Coerce a system designator NAME into a string suitable as a filename component.
+The (current) transformation is to replace characters /:\\ each by --,
+the former being forbidden in a filename component.
+NB: The onus is unhappily on the user to avoid clashes."
+    (frob-substrings (coerce-name name) '("/" ":" "\\") "--")))
 
 
 ;;;; Pathnames

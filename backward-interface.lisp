@@ -3,9 +3,10 @@
 
 (uiop/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
-   :asdf/lisp-action :asdf/plan :asdf/operate :asdf/output-translations)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
+   :asdf/component :asdf/system :asdf/system-registry :asdf/operation :asdf/action
+   :asdf/lisp-action :asdf/plan :asdf/operate
+   :asdf/find-system :asdf/parse-defsystem :asdf/output-translations :asdf/bundle)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
@@ -15,13 +16,14 @@
    #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
-   #:system-definition-pathname
-   #:explain))
+   #:system-definition-pathname #:system-registered-p #:require-system
+   #:explain
+   #+ecl #:make-build))
 (in-package :asdf/backward-interface)
 
 ;; NB: the warning status of these functions may have to be distinguished later,
 ;; as some get removed faster than the others in client code.
-(with-asdf-deprecation (:style-warning "3.2")
+(with-asdf-deprecation (:style-warning "3.2" :warning "3.4")
 
   ;; These conditions from ASDF 1 and 2 are used by many packages in Quicklisp;
   ;; but ASDF3 replaced them with somewhat different variants of uiop:compile-condition
@@ -208,3 +210,69 @@ DEPRECATED. Use ASDF:ACTION-DESCRIPTION and/or ASDF::FORMAT-ACTION instead."))
     (define-convenience-action-methods explain (operation component)))
   (defmethod explain ((o operation) (c component))
     (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c))))
+
+(with-asdf-deprecation (:style-warning "3.3")
+  (defun system-registered-p (name)
+    "DEPRECATED. Return a generalized boolean that is true if a system of given NAME was registered already.
+NAME is a system designator, to be normalized by COERCE-NAME.
+The value returned if true is a pair of a timestamp and a system object."
+    (if-let (system (registered-system name))
+      (cons (if-let (primary-system (registered-system (primary-system-name name)))
+              (component-operation-time 'define-op primary-system))
+            system)))
+
+  (defun require-system (system &rest keys &key &allow-other-keys)
+    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
+system or its dependencies if it has already been loaded."
+    (declare (ignore keys))
+    (unless (component-loaded-p system)
+      (load-system system))))
+
+;;; This function is for backward compatibility with ECL only.
+#+ecl
+(with-asdf-deprecation (:style-warning "3.2" :warning "9999")
+  (defun make-build (system &rest args
+                     &key (monolithic nil) (type :fasl) (move-here nil move-here-p)
+                       prologue-code epilogue-code no-uiop
+                       prefix-lisp-object-files postfix-lisp-object-files extra-object-files
+                       &allow-other-keys)
+    (let* ((operation (asdf/bundle::select-bundle-operation type monolithic))
+           (move-here-path (if (and move-here
+                                    (typep move-here '(or pathname string)))
+                               (ensure-pathname move-here :namestring :lisp :ensure-directory t)
+                               (system-relative-pathname system "asdf-output/")))
+           (extra-build-args (remove-plist-keys
+                              '(:monolithic :type :move-here
+                                :prologue-code :epilogue-code :no-uiop
+                                :prefix-lisp-object-files :postfix-lisp-object-files
+                                :extra-object-files)
+                              args))
+           (build-system (if (subtypep operation 'image-op)
+                             (eval `(defsystem "asdf.make-build"
+                                      :class program-system
+                                      :source-file nil
+                                      :pathname ,(system-source-directory system)
+                                      :build-operation ,operation
+                                      :build-pathname ,(subpathname move-here-path
+                                                                    (file-namestring (first (output-files operation system))))
+                                      :depends-on (,(coerce-name system))
+                                      :prologue-code ,prologue-code
+                                      :epilogue-code ,epilogue-code
+                                      :no-uiop ,no-uiop
+                                      :prefix-lisp-object-files ,prefix-lisp-object-files
+                                      :postfix-lisp-object-files ,postfix-lisp-object-files
+                                      :extra-object-files ,extra-object-files
+                                      :extra-build-args ,extra-build-args))
+                             system))
+           (files (output-files operation build-system)))
+      (operate operation build-system)
+      (if (or move-here
+              (and (null move-here-p) (member operation '(program-op image-op))))
+          (loop :with dest-path = (resolve-symlinks* (ensure-directories-exist move-here-path))
+            :for f :in files
+            :for new-f = (make-pathname :name (pathname-name f)
+                                        :type (pathname-type f)
+                                        :defaults dest-path)
+            :do (rename-file-overwriting-target f new-f)
+            :collect new-f)
+          files))))

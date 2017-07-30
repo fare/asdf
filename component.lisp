@@ -2,10 +2,11 @@
 ;;;; Components
 
 (uiop/package:define-package :asdf/component
-  (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade)
+  (:recycle :asdf/component :asdf/find-component :asdf)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session)
   (:export
    #:component #:component-find-path
+   #:find-component ;; methods defined in find-component
    #:component-name #:component-pathname #:component-relative-pathname
    #:component-parent #:component-system #:component-parent-pathname
    #:child-component #:parent-component #:module
@@ -29,7 +30,6 @@
    #:sub-components
 
    ;; conditions
-   #:system-definition-error ;; top level, moved here because this is the earliest place for it.
    #:duplicate-names
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
@@ -80,15 +80,6 @@ or NIL for top-level components (a.k.a. systems)"))
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
   (defgeneric source-file-type (component system)
     (:documentation "DEPRECATED. Use the FILE-TYPE of a COMPONENT instead."))
-
-  (define-condition system-definition-error (error) ()
-    ;; [this use of :report should be redundant, but unfortunately it's not.
-    ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
-    ;; over print-object; this is always conditions::%print-condition for
-    ;; condition objects, which in turn does inheritance of :report options at
-    ;; run-time.  fortunately, inheritance means we only need this kludge here in
-    ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
-    #+cmucl (:report print-object))
 
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))
@@ -147,8 +138,14 @@ or NIL for top-level components (a.k.a. systems)"))
      ;; For backward-compatibility, this slot is part of component rather than of child-component. ASDF4: stop it.
      (parent :initarg :parent :initform nil :reader component-parent)
      (build-operation
-      :initarg :build-operation :initform nil :reader component-build-operation))
+      :initarg :build-operation :initform nil :reader component-build-operation)
+     ;; Cache for ADDITIONAL-INPUT-FILES function.
+     (additional-input-files :accessor %additional-input-files :initform nil))
     (:documentation "Base class for all components of a build"))
+
+  (defgeneric find-component (base path &key registered)
+    (:documentation "Find a component by resolving the PATH starting from BASE parent.
+If REGISTERED is true, only search currently registered systems."))
 
   (defun component-find-path (component)
     "Return a path from a root system to the COMPONENT.

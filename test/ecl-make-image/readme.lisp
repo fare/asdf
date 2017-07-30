@@ -49,6 +49,8 @@
                      :defaults *load-truename*)
       asdf:*central-registry*)
 
+;; Create hellow using program-op
+(delete-file-if-exists +standalone-exe+)
 (asdf:make "hellow")
 
 ;;
@@ -57,11 +59,37 @@
 (format t "
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
-;;; TESTING A STANDALONE EXECUTABLE
+;;; TESTING A STANDALONE EXECUTABLE. Also test :no-uiop t
 ;;;
 
 ")
-(uiop:run-program (format nil "./~A" +standalone-exe+) :output *standard-output*)
+(assert-equal
+ (uiop:run-program (format nil "./~A" +standalone-exe+) :output :lines)
+ '("Good morning sunshine!" "Hello world!" "Good bye sunshine."))
+
+
+(format t "
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; AGAIN USING MAKE-BUILD. Also test uiop.
+;;;
+
+")
+;;; Now create an executable using the legacy make-build interface
+(delete-file +standalone-exe+)
+(asdf:make-build :hellow
+                 :type :program
+                 :move-here "./"
+                 :prologue-code "printf(\"In the beginning, there was nothing.\\n\");fflush(stdout);"
+                 :epilogue-code '(progn
+                                  (uiop:format! t "~%The end.~%")
+                                  (uiop:quit 0))
+                 ;;:no-uiop t
+                 :ld-flags
+                 (list (namestring (compile-file-pathname "hello_aux.c" :type :object))))
+(assert-equal
+ (uiop:run-program (format nil "./~A" +standalone-exe+) :output :lines)
+ '("In the beginning, there was nothing." "Hello world!" "The end."))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

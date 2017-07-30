@@ -1,5 +1,7 @@
 ;;; -*- Lisp -*-
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (load-system 'test-module-depend)
 
 ;; test that it compiled
@@ -27,7 +29,8 @@
 (touch-file file1.fasl :timestamp (- file3-date 90))
 (touch-file file2.fasl :timestamp (- file3-date 30))
 (touch-file file3.fasl :timestamp (- file3-date 15))
+(reset-session-visited)
 (load-system 'test-module-depend)
-(assert-compare (>= (get-file-stamp file2.fasl) file3-date))
+(assert-compare (>= (- (get-file-stamp file2.fasl) file3-date) 0))
 ;; does this properly go to the second level?
-(assert-compare (>= (get-file-stamp file3.fasl) file3-date))
+(assert-compare (>= (- (get-file-stamp file3.fasl) file3-date) 0))

@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session)
   (:export
    #:operation
    #:*operations* #:make-operation #:find-operation

@@ -20,6 +20,7 @@
 
 (assert-equal 0 l-operation:*x*)
 
+(reset-session)
 (make :test-defsystem-depends-on-2)
 
 (assert-equal 2 l-operation:*x*) ;; perform called twice, on file and on system.
@@ -29,10 +30,13 @@
   :build-operation "does-not-exist"
   :components ((:file "file3")))
 
-(signals asdf::formatted-system-definition-error (make :test-defsystem-depends-on-3))
+(reset-session)
+(signals asdf::formatted-system-definition-error
+         (handler-bind ((system-out-of-date 'continue)) (make :test-defsystem-depends-on-3)))
 
 (defparameter *newsym* (gentemp (symbol-name 'feature) :keyword))
 
+(reset-session)
 ;;; FIXME: the following form triggers bug https://bugs.launchpad.net/asdf/+bug/1445638
 (eval `(def-test-system test-defsystem-depends-on-4
          :defsystem-depends-on ((:feature ,*newsym* "test-defsystem-depends-on-3"))))
@@ -40,10 +44,17 @@
 (assert (find-system "test-defsystem-depends-on-4"))
 
 (progn
-  (signals asdf:missing-dependency (def-test-system unloadable-system
-                                     :defsystem-depends-on (nonexistent-system)))
-  (assert (not (system-registered-p "unloadable-system"))))
+  (reset-session)
+  (signals missing-dependency (def-test-system unloadable-system
+                                  :defsystem-depends-on (nonexistent-system)))
+  (assert (not (registered-system "unloadable-system"))))
 
 (progn
-  (signals asdf:missing-dependency (find-system "test-defsystem-depends-on-missing-system"))
-  (assert (not (system-registered-p "test-defsystem-depends-on-missing-system"))))
+  (signals missing-dependency
+           (handler-bind ((system-out-of-date 'continue)) (find-system "test-defsystem-depends-on-missing-system")))
+  (assert (not (asdf::registered-system "test-defsystem-depends-on-missing-system"))))
+
+(progn
+  (signals asdf::system-definition-error
+           (handler-bind ((system-out-of-date 'continue)) (find-system "test-defsystem-depends-on-circular")))
+  (assert (not (asdf::registered-system "test-defsystem-depends-on-circular"))))

@@ -6,6 +6,8 @@ don't cause full rebuilds all the time...
 
 (in-package :asdf-test)
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (defparameter s
   '(def-test-system static-and-serial
     :version "0.1"

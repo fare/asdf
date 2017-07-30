@@ -7,6 +7,7 @@
   ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
   (string-trim " " (remove (code-char 13) x)))
 
+;;#+(and clisp os-windows) (ext:without-package-lock () (trace ext:run-shell-command))
 (os-cond
  ((os-unix-p)
   (DBG "Testing echo ok 1 via run-program as a list")
@@ -14,12 +15,10 @@
                 (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
  ((os-windows-p)
   (DBG "Testing ipconfig /all via run-progam as a string")
-  ;;; FIXME: known breakage
-  #+(and ecl os-windows)
-  (errors parameter-error
-          (run-program "ipconfig /all"))
-  #-(and ecl os-windows)
-  (run-program "ipconfig /all")
+  ;; Interestingly, "ipconfig /all" fails on the msys2 bash, but not on the cygwin bash.
+  (nest
+   #+ecl (errors parameter-error) ;; FIXME: known breakage
+   (run-program "ipconfig /all"))
   (DBG "Testing ipconfig /all via run-progam as a list")
   (run-program '("ipconfig" "/all"))))
 

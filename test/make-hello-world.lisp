@@ -28,7 +28,6 @@
 
 
 (defun make-hello-bundle (operation)
-  (operate 'load-bundle-op :hello-world-example)
   (operate operation :hello-world-example)
   #+mkcl (add-mkcl-dll (asdf::output-file operation :hello-world-example))
   (quit 0))

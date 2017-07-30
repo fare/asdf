@@ -4,7 +4,8 @@
 (uiop/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
   (:use :uiop/common-lisp :uiop
-        :asdf/upgrade :asdf/find-system :asdf/operate :asdf/bundle)
+        :asdf/system ;; used by ECL
+        :asdf/upgrade :asdf/system-registry :asdf/operate :asdf/bundle)
   ;; Happily, all those implementations all have the same module-provider hook interface.
   #+(or abcl clasp cmucl clozure ecl mkcl sbcl)
   (:import-from #+abcl :sys #+(or clasp cmucl ecl) :ext #+clozure :ccl #+mkcl :mk-ext #+sbcl sb-ext
@@ -67,7 +68,7 @@
     (setf excl:*warn-on-nested-reader-conditionals* uiop/common-lisp::*acl-warn-save*))
 
   ;; Advertise the features we provide.
-  (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf3.2 :asdf-package-system)) (pushnew f *features*))
+  (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf3.2 :asdf3.3)) (pushnew f *features*))
 
   ;; Provide both lowercase and uppercase, to satisfy more people, especially LispWorks users.
   (provide "asdf") (provide "ASDF")

@@ -5,15 +5,20 @@
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/cache :asdf/component :asdf/system
-   :asdf/find-system :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
+   :asdf/session :asdf/component :asdf/system :asdf/system-registry
+   :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
   (:import-from :asdf/system #:depends-on #:weakly-depends-on)
+  ;; these needed for record-additional-system-input-file
+  (:import-from :asdf/operation #:make-operation)
+  (:import-from :asdf/component #:%additional-input-files)
+  (:import-from :asdf/find-system #:define-op)
   (:export
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
    #:non-toplevel-system #:non-system-system #:bad-system-name
-   #:sysdef-error-component #:check-component-input))
+   #:sysdef-error-component #:check-component-input
+   #:explain))
 (in-package :asdf/parse-defsystem)
 
 ;;; Pathname
@@ -101,6 +106,27 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
       (sysdef-error-component ":components must be NIL or a list of components."
                               type name components)))
 
+
+  (defun record-additional-system-input-file (pathname component parent)
+    (let* ((record-on (if parent
+                          (loop :with retval
+                                :for par = parent :then (component-parent par)
+                                :while par
+                                :do (setf retval par)
+                                :finally (return retval))
+                          component))
+           (comp (if (typep record-on 'component)
+                     record-on
+                     ;; at this point there will be no parent for RECORD-ON
+                     (find-component record-on nil)))
+           (op (make-operation 'define-op))
+           (cell (or (assoc op (%additional-input-files comp))
+                       (let ((new-cell (list op)))
+                         (push new-cell (%additional-input-files comp))
+                         new-cell))))
+      (pushnew pathname (cdr cell) :test 'pathname-equal)
+      (values)))
+
   ;; Given a form used as :version specification, in the context of a system definition
   ;; in a file at PATHNAME, for given COMPONENT with given PARENT, normalize the form
   ;; to an acceptable ASDF-format version.
@@ -121,12 +147,16 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
                     (case (first form)
                       ((:read-file-form)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-form (subpathname pathname subpath)
-                                              :at at :package :asdf-user)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-form path
+                                                :at at :package :asdf-user))))
                       ((:read-file-line)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-line (subpathname pathname subpath)
-                                              :at at)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-line (subpathname pathname subpath)
+                                                :at at))))
                       (otherwise
                        (invalid))))
                    (t
@@ -288,7 +318,7 @@ system names contained using COERCE-NAME. Return the result."
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in the asdf-cache.
     (nest
-     (with-asdf-cache ())
+     (with-asdf-session ())
      (let* ((name (coerce-name name))
             (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))))
      (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))))
@@ -307,13 +337,12 @@ system names contained using COERCE-NAME. Return the result."
                             :collect :it)))
                (load-systems* deps)
                dep-forms))
-            (registered (system-registered-p name))
-            (registered! (if registered
-                             (rplaca registered (get-file-stamp source-file))
-                             (register-system
-                              (make-instance 'system :name name :source-file source-file))))
-            (system (reset-system (cdr registered!)
-                                  :name name :source-file source-file))
+            (system (or (find-system-if-being-defined name)
+                        (if-let (registered (registered-system name))
+                          (reset-system-class registered 'undefined-system
+                                              :name name :source-file source-file)
+                          (register-system (make-instance 'undefined-system
+                                                          :name name :source-file source-file)))))
             (component-options
              (append
               (remove-plist-keys '(:defsystem-depends-on :class) options)
@@ -329,7 +358,7 @@ system names contained using COERCE-NAME. Return the result."
        (unless (subtypep class 'system)
          (error 'non-system-system :name name :class-name (class-name class)))
        (unless (eq (type-of system) class)
-         (change-class system class)))
+         (reset-system-class system class)))
      (parse-component-form nil (list* :module name :pathname directory component-options))))
 
   (defmacro defsystem (name &body options)

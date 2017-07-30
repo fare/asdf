@@ -7,6 +7,8 @@
 
 (in-package :asdf-test)
 
+(setf asdf/session:*asdf-session* nil)
+
 (disable-deferred-warnings-check)
 
 (def-test-system :undefined-variables

@@ -106,32 +106,32 @@ previously-loaded version of ASDF."
 
 ;;; Upon upgrade, specially frob some functions and classes that are being incompatibly redefined
 (when-upgrading ()
-  (let ((redefined-functions ;; List of functions that changes incompatibly since 2.27:
-         ;; gf signature changed (should NOT happen), defun that became a generic function,
-         ;; method removed that will mess up with new ones (especially :around :before :after,
-         ;; more specific or call-next-method'ed method) and/or semantics otherwise modified. Oops.
-         ;; NB: it's too late to do anything about functions in UIOP!
-         ;; If you introduce some critical incompatibility there, you must change the function name.
-         ;; Note that we don't need do anything about functions that changed incompatibly
-         ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
-         ;; Also note that we don't include the defgeneric=>defun, because they are
-         ;; done directly with defun* and need not trigger a punt on data.
-         ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
-         '(#:component-depends-on #:input-files ;; methods removed before 3.1.2
-           #:find-component ;; gf modified in 3.1.7.20
-           ))
-        (redefined-classes
-         ;; redefining the classes causes interim circularities
-         ;; with the old ASDF during upgrade, and many implementations bork
-         #-clozure ()
-         #+clozure
-         '((#:compile-concatenated-source-op (#:operation) ())
-           (#:compile-bundle-op (#:operation) ())
-           (#:concatenate-source-op (#:operation) ())
-           (#:dll-op (#:operation) ())
-           (#:lib-op (#:operation) ())
-           (#:monolithic-compile-bundle-op (#:operation) ())
-           (#:monolithic-concatenate-source-op (#:operation) ()))))
+  (let* ((previous-version (first *previous-asdf-versions*))
+         (redefined-functions ;; List of functions that changes incompatibly since 2.27:
+          ;; gf signature changed (should NOT happen), defun that became a generic function,
+          ;; method removed that will mess up with new ones (especially :around :before :after,
+          ;; more specific or call-next-method'ed method) and/or semantics otherwise modified. Oops.
+          ;; NB: it's too late to do anything about functions in UIOP!
+          ;; If you introduce some critical incompatibility there, you must change the function name.
+          ;; Note that we don't need do anything about functions that changed incompatibly
+          ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
+          ;; Also note that we don't include the defgeneric=>defun, because they are
+          ;; done directly with defun* and need not trigger a punt on data.
+          ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
+          `(,@(when (version<= previous-version "3.1.2") '(#:component-depends-on #:input-files)) ;; crucial methods *removed* before 3.1.2
+            ,@(when (version<= previous-version "3.1.7.20") '(#:find-component))))
+         (redefined-classes
+          ;; redefining the classes causes interim circularities
+          ;; with the old ASDF during upgrade, and many implementations bork
+          #-clozure ()
+          #+clozure
+          '((#:compile-concatenated-source-op (#:operation) ())
+            (#:compile-bundle-op (#:operation) ())
+            (#:concatenate-source-op (#:operation) ())
+            (#:dll-op (#:operation) ())
+            (#:lib-op (#:operation) ())
+            (#:monolithic-compile-bundle-op (#:operation) ())
+            (#:monolithic-concatenate-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
       :for sym = (find-symbol* name :asdf nil)
       :do (when sym (fmakunbound sym)))

@@ -10,7 +10,7 @@
                       `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
-(setf asdf/cache:*asdf-cache* nil)
+(setf asdf/session:*asdf-session* nil)
 
 (DBG :logical
      (logical-pathname-translations "ASDF")

@@ -3,24 +3,26 @@
 
 (uiop/package:define-package :asdf/action
   (:nicknames :asdf-action)
-  (:recycle :asdf/action :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
+  (:recycle :asdf/action :asdf/plan :asdf)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
-  #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
+  (:import-from :asdf/component #:%additional-input-files)
   (:export
    #:action #:define-convenience-action-methods
-   #:action-description
-   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation #:non-propagating-operation
+   #:action-description #:format-action
+   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation
+   #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
-   #:action-status #:action-stamp #:action-done-p
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
-   #:action-path #:find-action #:stamp #:done-p
+   #:action-path #:find-action
    #:operation-definition-warning #:operation-definition-error ;; condition
-   ))
+   #:action-valid-p
+   #:circular-dependency #:circular-dependency-actions
+   #:call-while-visiting-action #:while-visiting-action
+   #:additional-input-files))
 (in-package :asdf/action)
 
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
@@ -49,9 +51,10 @@ and a class-name or class designates the canonical instance of the designated cl
 (with-upgradability ()
   (defun action-path (action)
     "A readable data structure that identifies the action."
-    (let ((o (action-operation action))
-          (c (action-component action)))
-      (cons (type-of o) (component-find-path c))))
+    (when action
+      (let ((o (action-operation action))
+            (c (action-component action)))
+        (cons (type-of o) (component-find-path c)))))
   (defun find-action (path)
     "Reconstitute an action from its action-path"
     (destructuring-bind (o . c) path (make-action (make-operation o) (find-component () c)))))
@@ -109,7 +112,7 @@ and a class-name or class designates the canonical instance of the designated cl
                     ,if-no-component))))))))
 
 
-;;;; self-description
+;;;; Self-description
 (with-upgradability ()
   (defgeneric action-description (operation component)
     (:documentation "returns a phrase that describes performing this operation
@@ -125,6 +128,42 @@ Use it in FORMAT control strings as ~/asdf-action:format-action/"
     (assert (null colon-p)) (assert (null at-sign-p))
     (destructuring-bind (operation . component) action
       (princ (action-description operation component) stream))))
+
+
+;;;; Detection of circular dependencies
+(with-upgradability ()
+  (defun (action-valid-p) (operation component)
+    "Is this action valid to include amongst dependencies?"
+    ;; If either the operation or component was resolved to nil, the action is invalid.
+    ;; :if-feature will invalidate actions on components for which the features don't apply.
+    (and operation component
+         (if-let (it (component-if-feature component)) (featurep it) t)))
+
+  (define-condition circular-dependency (system-definition-error)
+    ((actions :initarg :actions :reader circular-dependency-actions))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+                       (circular-dependency-actions c)))))
+
+  (defun call-while-visiting-action (operation component fun)
+    "Detect circular dependencies"
+    (with-asdf-session ()
+      (with-accessors ((action-set visiting-action-set)
+                       (action-list visiting-action-list)) *asdf-session*
+        (let ((action (cons operation component)))
+          (when (gethash action action-set)
+            (error 'circular-dependency :actions
+                   (member action (reverse action-list) :test 'equal)))
+          (setf (gethash action action-set) t)
+          (push action action-list)
+          (unwind-protect
+               (funcall fun)
+            (pop action-list)
+            (setf (gethash action action-set) nil))))))
+
+  ;; Syntactic sugar for call-while-visiting-action
+  (defmacro while-visiting-action ((o c) &body body)
+    `(call-while-visiting-action ,o ,c #'(lambda () ,@body))))
 
 
 ;;;; Dependencies
@@ -269,7 +308,7 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
  don't. In the future this functionality will be removed, and the default will be no propagation."
     (uiop/version::notify-deprecated-function
      (version-deprecation *asdf-version* :style-warning "3.2")
-     'backward-compatible-depends-on)
+     `(backward-compatible-depends-on :for-operation ,o))
     `(,@(sideway-operation-depends-on o c)
       ,@(when (typep c 'parent-component) (downward-operation-depends-on o c))))
 
@@ -341,10 +380,24 @@ They may rely on the order of the files to discriminate between inputs.
       (assert (length=n-p files 1))
       (first files)))
 
+  (defgeneric additional-input-files (operation component)
+    (:documentation "Additional input files for the operation on this
+    component.  These are files that are inferred, rather than
+    explicitly specified, and these are typically NOT files that
+    undergo operations directly.  Instead, they are files that it is
+    important for ASDF to know about in order to compute operation times,etc."))
+  (define-convenience-action-methods additional-input-files (operation component))
+  (defmethod additional-input-files ((op operation) (comp component))
+      (cdr (assoc op (%additional-input-files comp))))
+
   ;; Memoize input files.
   (defmethod input-files :around (operation component)
     (do-asdf-cache `(input-files ,operation ,component)
-      (call-next-method)))
+      ;; get the additional input files, if any
+      (append (call-next-method)
+              ;; must come after the first, for other code that
+              ;; assumes the first will be the "key" file
+              (additional-input-files operation component))))
 
   ;; By default an action has no input-files.
   (defmethod input-files ((o operation) (c component))
@@ -377,7 +430,8 @@ They may rely on the order of the files to discriminate between inputs.
 
 Updates the action's COMPONENT-OPERATION-TIME to match the COMPUTE-ACTION-STAMP
 using the JUST-DONE flag."))
-  (defgeneric compute-action-stamp (plan operation component &key just-done)
+  (defgeneric compute-action-stamp (plan- operation component &key just-done)
+    ;; NB: using plan- rather than plan above allows clisp to upgrade from 2.26(!)
     (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
 * PLAN is a plan object modelling future effects of actions,
@@ -393,29 +447,17 @@ Returns two values:
 * a boolean DONE-P that indicates whether the action has actually been done,
   and both its output-files and its in-image side-effects are up to date."))
 
-  (defclass action-status ()
-    ((stamp
-      :initarg :stamp :reader action-stamp
-      :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done.")
-     (done-p
-      :initarg :done-p :reader action-done-p
-      :documentation "a boolean, true iff the action was already done (before any planned action)."))
-    (:documentation "Status of an action"))
-
-  (defmethod print-object ((status action-status) stream)
-    (print-unreadable-object (status stream :type t)
-      (with-slots (stamp done-p) status
-        (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p))))
-
   (defmethod component-operation-time ((o operation) (c component))
     (gethash o (component-operation-times c)))
 
   (defmethod (setf component-operation-time) (stamp (o operation) (c component))
+    (assert stamp () "invalid null stamp for ~A" (action-description o c))
     (setf (gethash o (component-operation-times c)) stamp))
 
   (defmethod mark-operation-done ((o operation) (c component))
-    (setf (component-operation-time o c) (compute-action-stamp nil o c :just-done t))))
+    (let ((stamp (compute-action-stamp nil o c :just-done t)))
+      (assert stamp () "Failed to compute a stamp for completed action ~A" (action-description o c))1
+      (setf (component-operation-time o c) stamp))))
 
 
 ;;;; Perform
@@ -424,6 +466,8 @@ in some previous image, or T if it needs to be done.")
     (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
+  (defmethod perform :around ((o operation) (c component))
+    (while-visiting-action (o c) (call-next-method)))
   (defmethod perform :before ((o operation) (c component))
     (ensure-all-directories-exist (output-files o c)))
   (defmethod perform :after ((o operation) (c component))

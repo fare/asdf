@@ -4,8 +4,9 @@
 (uiop/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
-   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
+   :asdf/component :asdf/system :asdf/operation
+   :asdf/find-component ;; used by ECL
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/parse-defsystem)
   (:export
    #:bundle-op #:bundle-type #:program-system
    #:bundle-system #:bundle-pathname-type #:direct-dependency-files
@@ -323,9 +324,9 @@ or of opaque libraries shipped along the source code."))
     ;; your component-depends-on method must gather the correct dependencies in the correct order.
     (while-collecting (collect)
       (map-direct-dependencies
-       t o c #'(lambda (sub-o sub-c)
-                 (loop :for f :in (funcall key sub-o sub-c)
-                       :when (funcall test f) :do (collect f))))))
+       o c #'(lambda (sub-o sub-c)
+               (loop :for f :in (funcall key sub-o sub-c)
+                 :when (funcall test f) :do (collect f))))))
 
   (defun pathname-type-equal-function (type)
     #'(lambda (p) (equalp (pathname-type p) type)))
@@ -441,7 +442,7 @@ or of opaque libraries shipped along the source code."))
                                                        :keep-operation 'basic-load-op))
                  (while-collecting (x) ;; resolve the sideway-dependencies of s
                    (map-direct-dependencies
-                    t 'load-op s
+                    'load-op s
                     #'(lambda (o c)
                         (when (and (typep o 'load-op) (typep c 'system))
                           (x c)))))))
@@ -496,7 +497,6 @@ which is probably not what you want; you probably need to tweak your output tran
     (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-bundle-op) (s precompiled-system))
-    #+xcl (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
 #| ;; Example use:
@@ -527,7 +527,7 @@ which is probably not what you want; you probably need to tweak your output tran
 
   (defun linkable-system (x)
     (or (if-let (s (find-system x))
-          (and (system-source-file x) s))
+          (and (output-files 'lib-op s) s))
         (if-let (p (system-module-pathname (coerce-name x)))
           (make-prebuilt-system x p))))
 
@@ -544,7 +544,8 @@ which is probably not what you want; you probably need to tweak your output tran
         `((lib-op
            ,@(unless (no-uiop c)
                (list (linkable-system "cmp")
-                     (unless (or (gethash "uiop" deps) (gethash "asdf" deps))
+                     (unless (or (and (gethash "uiop" deps) (linkable-system "uiop"))
+                                 (and (gethash "asdf" deps) (linkable-system "asdf")))
                        (or (linkable-system "uiop")
                            (linkable-system "asdf")
                            "asdf")))))

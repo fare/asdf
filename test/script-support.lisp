@@ -32,7 +32,7 @@ Some constraints:
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
    #:quietly #:join-namestrings
-   #:clear-cache))
+   #:reset-session #:reset-session-visited))
 
 (in-package :asdf-test)
 
@@ -55,6 +55,8 @@ Some constraints:
     ))
 
 (defvar *debug-asdf* nil)
+(defvar *print-backtrace* t)
+
 (defvar *quit-when-done* t)
 
 (defun verbose (&optional (verbose t) (print verbose))
@@ -337,12 +339,12 @@ Some constraints:
           (assert-equal (file-write-date file) stamp))
       ;; else
       (progn
-        (unless (asymval :*asdf-cache*)
-          (error "Trying to use *ASDF-CACHE* in TOUCH-FILE, but cache is not initialized."))
+        (unless (asymval :*asdf-session*)
+          (error "Trying to use the ASDF session cache in TOUCH-FILE, but it is not initialized."))
         (acall :register-file-stamp file stamp)))))
 
 (defun mark-file-deleted (file)
-  (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
+  (unless (asymval :*asdf-session*) (error "Y U NO use asdf session?"))
   (acall :register-file-stamp (acall :normalize-namestring file) nil))
 
 (defun hash-table->alist (table)
@@ -403,12 +405,13 @@ is bound, write a message and exit on an error.  If
                      (format *error-output* "~&TEST ABORTED: ~A~&" c))
                    (finish-outputs*)
                    (unless *debug-asdf*
-                     (ignore-errors
-                       (format *error-output* "~&Backtrace:~%")
-                       (acall :print-condition-backtrace
-                              c :count 69 :stream *error-output*))
+                     (when *print-backtrace*
+                       (ignore-errors
+                        (format *error-output* "~&Backtrace:~%")
+                        (acall :print-condition-backtrace
+                               c :count 69 :stream *error-output*)))
                      (leave-test "Script failed" 1)))))
-             (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
+             (funcall thunk)
              (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -446,7 +449,7 @@ is bound, write a message and exit on an error.  If
   (quietly (load (asdf-fasl tag))))
 
 (defun register-directory (dir)
-  (pushnew dir (symbol-value (asym :*central-registry*))))
+  (pushnew dir (symbol-value (asym :*central-registry*)) :test #'equal))
 
 (defun load-asdf-system (&rest keys)
   (quietly
@@ -613,7 +616,8 @@ is bound, write a message and exit on an error.  If
   (format t "Configuring ASDF~%")
   (when (asym :getenvp)
     (format t "Enabling debugging~%")
-    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST"))))
+    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
+    (setf *print-backtrace* (not (acall :getenvp "NO_ASDF_BACKTRACE"))))
   (when *trace-symbols*
     (format t "Tracing~{ ~A~}~%" *trace-symbols*)
     (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s)))))
@@ -631,31 +635,38 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (funcall
-   ;; Old versions of ASDF don't always use with-asdf-cache in locate system, but need it.
-   ;; So we do it for them for the sake of testing upgrade from these old versions.
-   ;; Yet older versions of ASDF don't even have this cache, so then we don't.
-   (or (asym :call-with-asdf-cache) 'funcall)
-   (lambda ()
-     (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
-       (format t "Comparing directories~%")
-       (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-         (assert-pathname-equal-helper ;; not always EQUAL (!)
-          '*test-directory* *test-directory*
-          '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
-         (unless (equal *test-directory* x)
-           (format t "Interestingly, while *test-directory* has components~% ~S~%~
-                 ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-                   (pathname-components *test-directory*)
-                   (pathname-components x)))
-         (setf *test-directory* x)))))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
+    (format t "Comparing directories~%")
+    (let ((x (acall
+              :pathname-directory-pathname
+              ;; Some old versions of ASDF want locate-system to be surrounded by with-asdf-cache
+              ;; so we do it for them for the sake of testing upgrade from these old versions.
+              ;; Yet older versions of ASDF don't even have this session cache, so then we don't.
+              ;; Newer versions of ASDF implicitly use with-asdf-session (successor of the cache)
+              ;; without our having to wrap it.
+              (funcall
+               (or (asym :call-with-asdf-cache) 'funcall)
+               (lambda () (nth-value 2 (acall :locate-system :test-asdf)))))))
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
+      (unless (equal *test-directory* x)
+        (format t "Interestingly, while *test-directory* has components~% ~S~%~
+              ASDF finds the ASDs in~% ~S~%Using the latter.~%"
+                (pathname-components *test-directory*)
+                (pathname-components x)))
+      (setf *test-directory* x)))
   t)
 
 (defun frob-packages ()
-  (format t "Frob packages~%")
-  (use-package :asdf :asdf-test)
-  (when (find-package :uiop) (use-package :uiop :asdf-test))
-  (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
+  (cond
+    ((find-package :asdf)
+     (format t "Frob packages~%")
+     (use-package :asdf :asdf-test)
+     (when (find-package :uiop) (use-package :uiop :asdf-test))
+     (when (find-package :asdf/session) (use-package :asdf/session :asdf-test)))
+    (t
+     (format t "NB: No packages to frob, because ASDF not loaded yet.")))
   (setf *package* (find-package :asdf-test))
   t)
 
@@ -666,12 +677,17 @@ is bound, write a message and exit on an error.  If
                    (and (member :asdf2 *features*) (acall :version-satisfies (acall :asdf-version) "2.11.4"))))
     (leave-test "UIOP will break ASDF < 2.011.4 - skipping test." 0))
   (configure-asdf)
-  (register-directory *asdf-directory*)
+  ;; do NOT include *asdf-directory*, which would defeat the purpose by causing an upgrade
   (register-directory *uiop-directory*)
   (register-directory *test-directory*)
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading uiop~%")
   (quietly
    (acall :oos (asym :load-op) :uiop))
-  (acall :oos (asym :load-op) :test-module-depend))
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading test-module-depend~%")
+  (acall :oos (asym :load-op) :test-module-depend)
+  (format t "done loading~%"))
 
 (defun load-asdf (&optional tag)
   (load-asdf-fasl tag)
@@ -680,7 +696,7 @@ is bound, write a message and exit on an error.  If
 (defun debug-asdf ()
   (setf *debug-asdf* t)
   (setf *quit-when-done* nil)
-  (setf *package* (find-package :asdf-test)))
+  (frob-packages))
 
 (defun just-load-asdf-fasl () (load-asdf-fasl))
 
@@ -741,14 +757,14 @@ is bound, write a message and exit on an error.  If
     (assert (asymval '#:*file3* :test-package))))
 
 (defun join-namestrings (namestrings)
-  (with-output-to-string (s)
-    (loop :with separator = (acall :inter-directory-separator)
-          :for (n . morep) :on namestrings
-          :do (format s "~A~@[~C~]" n (and morep separator)))))
+  (format nil (format nil "~~{~~A~~^~A~~}" (acall :inter-directory-separator)) namestrings))
 
-(defun clear-cache ()
-  ;; Or, should we preserve the timestamps?
-  (clrhash (asymval :*asdf-cache*)))
+(defun reset-session ()
+  (set (asym :*asdf-session*) nil))
+
+(defun reset-session-visited ()
+  (clrhash (acall '#:visited-actions (asymval '#:*asdf-session*))))
+
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

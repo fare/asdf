@@ -2,6 +2,7 @@
 
 ;;; test retrying finding location of an ASDF system.
 
+(setf *asdf-session* nil)
 
 (in-package asdf-test)
 (defparameter *old-registry* asdf:*central-registry*)
@@ -21,7 +22,7 @@
 (DBG "Correctly failed to find system.")
 (defvar *attempts* 0)
 (assert
- (with-asdf-cache (:override t)
+ (with-asdf-session (:override t)
    (handler-bind
        ((asdf:missing-component
          #'(lambda (c)
@@ -45,12 +46,8 @@
 (def-test-system test-missing-dependency
   :depends-on ("test-asdf/force1")
   :components ((:file "file2")))
-;; (trace find-system)
-;; (trace find-component)
-;; (trace asdf::component-find-path)
-;; (trace operate)
 (setf *attempts* 0)
-(with-asdf-cache (:override t)
+(with-asdf-session (:override t)
   (flet ((handle-missing (c)
            (if (zerop *attempts*)
                (let ((missing (asdf::missing-requires c)))
@@ -66,7 +63,7 @@
                  (DBG "After invoking restart, CENTRAL-REGISTRY is:"
                       asdf:*central-registry*))
                ;; avoid infinite looping
-               (leave-test 11 "Infinite loop while catching MISSING-COMPONENT"))))
+               (leave-test "Infinite loop while catching MISSING-COMPONENT" 11))))
     (handler-bind
         ((asdf:missing-dependency-of-version
           #'(lambda (c)

@@ -30,4 +30,7 @@ use a wild pathname instead." module)))
     (compute-children-by-name self)
     (values)))
 
+(defmethod input-files ((o compile-op) (c wild-module)) ())
+(defmethod input-files ((o load-op) (c wild-module)) ())
+
 (export 'wild-module)

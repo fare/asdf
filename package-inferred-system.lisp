@@ -4,8 +4,9 @@
 (uiop:define-package :asdf/package-inferred-system
   (:recycle :asdf/package-inferred-system :asdf/package-system :asdf)
   (:use :uiop/common-lisp :uiop
-        :asdf/defsystem ;; Using the old name of :asdf/parse-defsystem for compatibility
-        :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/lisp-action)
+        :asdf/upgrade :asdf/session
+        :asdf/component :asdf/system :asdf/system-registry :asdf/lisp-action
+        :asdf/parse-defsystem)
   (:export
    #:package-inferred-system #:sysdef-package-inferred-system-search
    #:package-system ;; backward compatibility only. To be removed.

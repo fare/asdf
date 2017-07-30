@@ -74,7 +74,7 @@
 (assert-equal (component-version (registered-system "require-system/preloaded")) "1.0")
 
 (DBG "- System `preloaded-system' won't be reloaded on `require-system' when cache is empty")
-(clear-cache)
+(reset-session)
 (assert-equal (component-version (registered-system "require-system/preloaded")) "1.0")
 (require-system "require-system/preloaded")
 (assert-equal (component-version (registered-system "require-system/preloaded")) "1.0")
@@ -138,7 +138,7 @@
 (assert (component-loaded-p "require-system/immutable")) ;; *YES* marked loaded!
 
 (DBG "- System `immutable-system' won't be reloaded when cache is empty")
-(clear-cache)
+(reset-session)
 (load-system "require-system/immutable")
 (assert-equal (component-version (registered-system "require-system/immutable")) "1.0")
 
@@ -154,7 +154,7 @@
 (assert-equal (component-version (registered-system "require-system/ordinary")) "1.0")
 
 (DBG "- Load-system loads system from the disk")
-(clear-cache)
+(reset-session)
 (load-system "require-system/ordinary")
 (assert-equal (component-version (registered-system "require-system/ordinary")) "2.0")
 
@@ -190,8 +190,8 @@
 ;; Prevent ASDF from finding the modules as ASDF systems on ECL, MKCL, SBCL (and maybe more).
 (setf asdf::*system-definition-search-functions*
       (remove 'asdf::sysdef-source-registry-search asdf::*system-definition-search-functions*))
-(asdf::clear-defined-systems)
-(clear-cache)
+(asdf::clear-registered-systems)
+(reset-session)
 
 
 (defun has-module-p (x)

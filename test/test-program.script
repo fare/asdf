@@ -22,7 +22,7 @@
 
 (assert (find-system :hello-world-example))
 
-;; Try to load lisp-invocation from xcvb
+;; Try to load lisp-invocation from ext/ or from the user environment.
 (initialize-source-registry
  `(:source-registry
    (:directory ,*asdf-directory*)
@@ -139,14 +139,23 @@
       (format t "~:[But no TEST-PACKAGE :-(~;And TEST-PACKAGE~]!~%" (find-package :test-package))
       (format t "~:[And no ASDF~;But ASDF :-( ~]!~%" (find-package :asdf))
       #+ecl (si:quit 0) #+mkcl (mk-ext:quit :exit-code 0)))
+  (DBG :run (output-file 'program-op 'hello-no-uiop)
+       (component-depends-on 'program-op 'hello-no-uiop)
+       (input-files 'program-op 'hello-no-uiop)
+       (component-depends-on 'lib-op 'hello-no-uiop)
+       (input-files 'lib-op 'hello-no-uiop)
+       (asdf/bundle::linkable-system "hello-no-uiop"))
   (operate 'program-op 'hello-no-uiop :force t)
-  (DBG :run (output-file 'program-op 'hello-no-uiop))
   (assert-equal
    (run-program `(,(native-namestring (output-file 'program-op 'hello-no-uiop)))
                 :output :lines :error-output t)
    '("Look ma, no UIOP!" "And TEST-PACKAGE!" "And no ASDF!"))
 
   (DBG "Now create an program with explicit ASDF dependency, without registered ASDF (use implementation-provided prebuilt)")
+  (clear-system :asdf)
+  (setf *central-registry* nil)
+  (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
+  (DBG :foo (system-source-file :asdf))
   (assert-pathname-equal
    (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
    (truename (subpathname (lisp-implementation-directory) #+mkcl "contrib/" #-mkcl nil)))
@@ -168,8 +177,8 @@
 
   (DBG "Now create an program with explicit ASDF dependency")
   (register-directory *asdf-directory*)
-  (with-asdf-cache (:override t)
-    (load-asd (subpathname *asdf-directory* "asdf.asd")) ;; force re-loading ASDF, from source
+  (load-asd (subpathname *asdf-directory* "asdf.asd")) ;; force re-loading ASDF, from source
+  (with-asdf-session (:override t)
     (assert-pathname-equal
      (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
      (truename (resolve-output "asdf/")))

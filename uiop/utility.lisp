@@ -82,8 +82,9 @@ to supersede any previous definition."
 (with-upgradability ()
   (defvar *uiop-debug-utility*
     '(or (ignore-errors
-          (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp"))
-      (symbol-call :uiop/pathname :subpathname (user-homedir-pathname) "common-lisp/asdf/uiop/contrib/debug.lisp"))
+           (probe-file (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp")))
+      (probe-file (symbol-call :uiop/pathname :subpathname
+                   (user-homedir-pathname) "common-lisp/asdf/uiop/contrib/debug.lisp")))
     "form that evaluates to the pathname to your favorite debugging utilities")
 
   (defmacro uiop-debug (&rest keys)
@@ -103,7 +104,7 @@ to supersede any previous definition."
 ;;; Flow control
 (with-upgradability ()
   (defmacro nest (&rest things)
-    "Macro to do keep code nesting and indentation under control." ;; Thanks to mbaringer
+    "Macro to keep code nesting and indentation under control." ;; Thanks to mbaringer
     (reduce #'(lambda (outer inner) `(,@outer ,inner))
             things :from-end t))
 
@@ -374,26 +375,26 @@ If optional ERROR argument is NIL, return NIL instead of an error when the symbo
                     (string (standard-case-symbol-name package-designator)))
                   error)))
 
-;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
+;;; stamps: a REAL or a boolean where T=-infinity, NIL=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype stamp () '(or real boolean)))
 (with-upgradability ()
   (defun stamp< (x y)
     (etypecase x
-      (null (and y t))
-      ((eql t) nil)
+      ((eql t) (not (eql y t)))
       (real (etypecase y
-              (null nil)
-              ((eql t) t)
-              (real (< x y))))))
+              ((eql t) nil)
+              (real (< x y))
+              (null t)))
+      (null nil)))
   (defun stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
   (defun stamp*< (&rest list) (stamps< list))
   (defun stamp<= (x y) (not (stamp< y x)))
   (defun earlier-stamp (x y) (if (stamp< x y) x y))
-  (defun stamps-earliest (list) (reduce 'earlier-stamp list :initial-value t))
+  (defun stamps-earliest (list) (reduce 'earlier-stamp list :initial-value nil))
   (defun earliest-stamp (&rest list) (stamps-earliest list))
   (defun later-stamp (x y) (if (stamp< x y) y x))
-  (defun stamps-latest (list) (reduce 'later-stamp list :initial-value nil))
+  (defun stamps-latest (list) (reduce 'later-stamp list :initial-value t))
   (defun latest-stamp (&rest list) (stamps-latest list))
   (define-modify-macro latest-stamp-f (&rest stamps) latest-stamp))
 

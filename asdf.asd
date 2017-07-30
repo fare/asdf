@@ -21,7 +21,13 @@
 
 #+asdf3
 (defsystem "asdf/driver"
-  :depends-on ("uiop"))
+  ;; This is the same as "uiop", but used for transclusion in asdf.lisp.
+  ;; Because asdf.asd can't afford to depend on reading uiop.asd
+  ;; (which would cause circularity, since everything depends on reading asdf.asd),
+  ;; we can't "just" :depends-on ("uiop") like we used to do.
+  :pathname "uiop"
+  :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
+  :components #.(getf (read-file-form (subpathname *load-pathname* "uiop/uiop.asd") :at 2) :components))
 
 #+asdf3
 (defsystem "asdf/defsystem"
@@ -40,28 +46,31 @@
   :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
   :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
-  :depends-on ("asdf/prelude" "uiop")
+  :depends-on ("asdf/prelude" "asdf/driver")
   :encoding :utf-8
   :components
   ((:file "upgrade")
-   (:file "cache" :depends-on ("upgrade"))
-   (:file "component" :depends-on ("upgrade"))
+   (:file "session" :depends-on ("upgrade"))
+   (:file "component" :depends-on ("session"))
+   (:file "operation" :depends-on ("session"))
    (:file "system" :depends-on ("component"))
-   (:file "find-system" :depends-on ("system" "cache"))
-   (:file "find-component" :depends-on ("find-system"))
-   (:file "operation" :depends-on ("find-system"))
-   (:file "action" :depends-on ("find-component" "operation"))
+   (:file "system-registry" :depends-on ("system"))
+   (:file "action" :depends-on ("session" "system" "operation"))
    (:file "lisp-action" :depends-on ("action"))
-   (:file "plan" :depends-on ("lisp-action"))
+   (:file "find-component" :depends-on ("component"))
+   (:file "forcing" :depends-on ("operation" "system-registry"))
+   (:file "plan" :depends-on ("lisp-action" "find-component" "forcing"))
    (:file "operate" :depends-on ("plan"))
-   (:file "parse-defsystem" :depends-on ("cache" "system" "lisp-action" "operate"))
-   (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
-   (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
+   (:file "find-system" :depends-on ("system-registry" "operate"))
+   (:file "parse-defsystem" :depends-on ("system-registry" "lisp-action" "operate"
+                                                           "find-system"))
+   (:file "bundle" :depends-on ("lisp-action" "parse-defsystem"))
+   (:file "concatenate-source" :depends-on ("bundle"))
+   (:file "package-inferred-system" :depends-on ("parse-defsystem"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
-   (:file "package-inferred-system" :depends-on ("system" "find-system" "parse-defsystem"))
-   (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "backward-internals" :depends-on ("find-system" "parse-defsystem"))
+   (:file "backward-interface" :depends-on ("output-translations"))
    (:file "interface" :depends-on
           ("parse-defsystem" "concatenate-source"
            "output-translations" "source-registry" "package-inferred-system"
@@ -85,4 +94,3 @@
   #+asdf3 :builtin-system-p #+asdf3 t
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op "asdf/defsystem"))))
-

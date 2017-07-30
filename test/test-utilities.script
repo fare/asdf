@@ -1,6 +1,5 @@
 ;;; -*- Lisp -*-
 
-#+(and sbcl os-windows) (trace sb-ext:run-program)
 (proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
 
 (defun getcwd-from-run-program ()
@@ -210,8 +209,6 @@
   '(;; slots names
     asdf/action:accept
     asdf/action:action
-    asdf/action:done-p
-    asdf/action:stamp
     asdf/bundle:prologue-code
     asdf/bundle:epilogue-code
     asdf/component:absolute-pathname
@@ -241,16 +238,6 @@
     asdf/component:sideway-dependencies
     asdf/component:version
     asdf/operation:feature
-    asdf/plan:index
-    asdf/plan:forced
-    asdf/plan:forced-not
-    asdf/plan:planned-action-count
-    asdf/plan:planned-output-action-count
-    asdf/plan:planned-p
-    asdf/plan:total-action-count
-    asdf/plan:visited-actions
-    asdf/plan:visiting-action-set
-    asdf/plan:visiting-action-list
     asdf/system:bug-tracker
     asdf/system:build-pathname
     asdf/system:system-defsystem-depends-on
@@ -263,8 +250,8 @@
     ;; restarts
     asdf/action:accept
     asdf/find-component:retry
-    asdf/find-system:coerce-entry-to-directory
-    asdf/find-system:remove-entry-from-registry
+    asdf/system-registry:coerce-entry-to-directory
+    asdf/system-registry:remove-entry-from-registry
     asdf/lisp-action:try-recompiling
     ;; types
     asdf/bundle:user-system
@@ -280,10 +267,10 @@
     ;; backward compatibility upgrade only
     asdf/backward-interface:on-failure
     asdf/backward-interface:on-warnings
-    asdf/find-system:contrib-sysdef-search
-    asdf/find-system:sysdef-find-asdf
+    asdf/system-registry:contrib-sysdef-search
+    asdf/system-registry:sysdef-find-asdf
     ;; restart
-    asdf/cache:clear-configuration-and-retry
+    asdf/session:clear-configuration-and-retry
     ))
 
 (defun defined-symbol-p (symbol)
@@ -316,15 +303,14 @@
 (ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/d/"))
 (ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/e/"))
 (register-directory *asdf-directory*)
-(register-directory *uiop-directory*)
 (let ((new-file (subpathname *build-directory* "deleteme/a/1.x")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :uiop) new-file))
+  (copy-file (system-source-file :asdf) new-file))
 (let ((new-file (subpathname *build-directory* "deleteme/a/b/2")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :uiop) new-file))
+  (copy-file (system-source-file :asdf) new-file))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))

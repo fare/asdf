@@ -3,20 +3,19 @@
 
 (uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
-   :asdf/component :asdf/system :asdf/operation :asdf/action
-   :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
+        :asdf/component :asdf/system :asdf/system-registry :asdf/find-component
+        :asdf/operation :asdf/action :asdf/lisp-action :asdf/forcing :asdf/plan)
   (:export
-   #:operate #:oos
-   #:build-op #:make
+   #:operate #:oos #:build-op #:make
    #:load-system #:load-systems #:load-systems*
-   #:compile-system #:test-system #:require-system
-   #:module-provide-asdf
-   #:component-loaded-p #:already-loaded-systems))
+   #:compile-system #:test-system #:require-system #:module-provide-asdf
+   #:component-loaded-p #:already-loaded-systems
+   #:recursive-operate))
 (in-package :asdf/operate)
 
 (with-upgradability ()
-  (defgeneric operate (operation component &key &allow-other-keys)
+  (defgeneric operate (operation component &key)
     (:documentation
      "Operate does mainly four things for the user:
 
@@ -31,6 +30,7 @@ The entire computation is wrapped in WITH-COMPILATION-UNIT and error handling co
 If a VERSION argument is supplied, then operate also ensures that the system found satisfies it
 using the VERSION-SATISFIES method.
 If a PLAN-CLASS argument is supplied, that class is used for the plan.
+If a PLAN-OPTIONS argument is supplied, the options are passed to the plan.
 
 The :FORCE or :FORCE-NOT argument to OPERATE can be:
   T to force the inside of the specified system to be rebuilt (resp. not),
@@ -46,52 +46,60 @@ But do NOT depend on it, for this is deprecated behavior."))
   (define-convenience-action-methods operate (operation component &key)
     :if-no-component (error 'missing-component :requires component))
 
-  (defvar *in-operate* nil
-    "Are we in operate?")
-
   ;; This method ensures that an ASDF upgrade is attempted as the very first thing,
   ;; with suitable state preservation in case in case it actually happens,
   ;; and that a few suitable dynamic bindings are established.
   (defmethod operate :around (operation component &rest keys
                               &key verbose
                                 (on-warnings *compile-file-warnings-behaviour*)
-                                (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
+                                (on-failure *compile-file-failure-behaviour*))
     (nest
-     (with-asdf-cache ())
-     (let ((in-operate *in-operate*)
-           (*in-operate* t)
-           (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
-            (etypecase operation
-              (operation (let ((name (type-of operation)))
-                           #'(lambda () (make-operation name))))
-              ((or symbol string) (constantly operation))))
-           (component-path (typecase component ;; to remake the component after ASDF upgrade
-                             (component (component-find-path component))
-                             (t component)))))
-     ;; Before we operate on any system, make sure ASDF is up-to-date,
-     ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
-     (progn
-       (unless in-operate
+     (with-asdf-session ())
+     (let* ((operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
+             (etypecase operation
+               (operation (let ((name (type-of operation)))
+                            #'(lambda () (make-operation name))))
+               ((or symbol string) (constantly operation))))
+            (component-path (typecase component ;; to remake the component after ASDF upgrade
+                              (component (component-find-path component))
+                              (t component)))
+            (system-name (labels ((first-name (x)
+                                    (etypecase x
+                                      ((or string symbol) x) ; NB: includes the NIL case.
+                                      (cons (or (first-name (car x)) (first-name (cdr x)))))))
+                           (coerce-name (first-name component-path)))))
+       (apply 'make-forcing :performable-p t :system system-name keys)
+       ;; Before we operate on any system, make sure ASDF is up-to-date,
+       ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
+       (unless (asdf-upgraded-p (toplevel-asdf-session))
+         (setf (asdf-upgraded-p (toplevel-asdf-session)) t)
          (when (upgrade-asdf)
            ;; If we were upgraded, restart OPERATE the hardest of ways, for
            ;; its function may have been redefined.
            (return-from operate
-             (apply 'operate (funcall operation-remaker) component-path keys)))))
+             (with-asdf-session (:override t :override-cache t)
+               (apply 'operate (funcall operation-remaker) component-path keys))))))
       ;; Setup proper bindings around any operate call.
      (let* ((*verbose-out* (and verbose *standard-output*))
             (*compile-file-warnings-behaviour* on-warnings)
-            (*compile-file-failure-behaviour* on-failure))
-       (call-next-method))))
+            (*compile-file-failure-behaviour* on-failure)))
+     (unwind-protect
+          (progn
+            (incf (operate-level))
+            (call-next-method))
+       (decf (operate-level)))))
 
   (defmethod operate :before ((operation operation) (component component)
-                              &key version &allow-other-keys)
+                              &key version)
     (unless (version-satisfies component version)
-      (error 'missing-component-of-version :requires component :version version)))
+      (error 'missing-component-of-version :requires component :version version))
+    (record-dependency nil operation component))
 
   (defmethod operate ((operation operation) (component component)
-                      &rest keys &key plan-class &allow-other-keys)
-    (let ((plan (apply 'make-plan plan-class operation component keys)))
-      (apply 'perform-plan plan keys)
+                      &key plan-class plan-options)
+    (let ((plan (apply 'make-plan plan-class operation component
+                       :forcing (forcing *asdf-session*) plan-options)))
+      (perform-plan plan)
       (values operation plan)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
@@ -99,8 +107,19 @@ But do NOT depend on it, for this is deprecated behavior."))
 
   (setf (documentation 'oos 'function)
         (format nil "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"
-                (documentation 'operate 'function))))
+                (documentation 'operate 'function)))
 
+  (define-condition recursive-operate (warning)
+    ((operation :initarg :operation :reader condition-operation)
+     (component :initarg :component :reader condition-component)
+     (action :initarg :action :reader condition-action))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Deprecated recursive use of (~S '~S '~S) while visiting ~S ~
+- please use proper dependencies instead~@:>")
+                       'operate
+                       (type-of (condition-operation c))
+                       (component-find-path (condition-component c))
+                       (action-path (condition-action c)))))))
 
 ;;;; Common operations
 (when-upgrading ()
@@ -160,17 +179,11 @@ defaults to LOAD-OP, to load it in current image."
     "Has the given COMPONENT been successfully loaded in the current image (yet)?
 Note that this returns true even if the component is not up to date."
     (if-let ((component (find-component component () :registered t)))
-      (action-already-done-p nil (make-operation 'load-op) component)))
+      (nth-value 1 (component-operation-time (make-operation 'load-op) component))))
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"
-    (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*))))
-
-  (defun require-system (system &rest keys &key &allow-other-keys)
-    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
-system or its dependencies if they have already been loaded."
-    (unless (component-loaded-p system)
-      (apply 'load-system system :force-not (already-loaded-systems) keys))))
+    (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*)))))
 
 
 ;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
@@ -229,7 +242,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
         (let ((*modules-being-required* (cons module-name *modules-being-required*))
               #+sbcl (sb-impl::*requiring* (remove module-name sb-impl::*requiring* :test 'equal)))
           (handler-bind
-              ((style-warning #'muffle-warning)
+              (((or style-warning recursive-operate) #'muffle-warning)
                (missing-component (constantly nil))
                (fatal-condition
                 #'(lambda (e)
@@ -238,7 +251,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
             (let ((*verbose-out* (make-broadcast-stream)))
               (let ((system (find-system system-name nil)))
                 (when system
-                  (require-system system-name :verbose nil)
+                  ;; Do not use require-system after all, use load-system:
+                  ;; on the one hand, REQUIRE already uses *MODULES* not to load something twice,
+                  ;; on the other hand, REQUIRE-SYSTEM uses FORCE-NOT which may conflict with
+                  ;; the toplevel session forcing settings.
+                  (load-system system :verbose nil)
                   t)))))))))
 
 
@@ -247,29 +264,16 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
     (let ((systems-being-defined
-           (when *asdf-cache*
+           (when *asdf-session*
              (prog1
-                 (loop :for k :being :the hash-keys :of *asdf-cache*
+                 (loop :for k :being :the hash-keys :of (asdf-cache)
                    :when (eq (first k) 'find-system) :collect (second k))
-               (clrhash *asdf-cache*)))))
+               (clrhash (asdf-cache))))))
       ;; Regardless, clear defined systems, since they might be invalid
       ;; after an incompatible ASDF upgrade.
-      (clear-defined-systems)
+      (clear-registered-systems)
       ;; The configuration also may have to be upgraded.
       (upgrade-configuration)
       ;; If we were in the middle of an operation, be sure to restore the system being defined.
       (dolist (s systems-being-defined) (find-system s nil))))
-  (register-hook-function '*post-upgrade-cleanup-hook* 'restart-upgraded-asdf)
-
-  ;; The following function's symbol is from asdf/find-system.
-  ;; It is defined here to resolve what would otherwise be forward package references.
-  (defun mark-component-preloaded (component)
-    "Mark a component as preloaded."
-    (let ((component (find-component component nil :registered t)))
-      ;; Recurse to children, so asdf/plan will hopefully be happy.
-      (map () 'mark-component-preloaded (component-children component))
-      ;; Mark the timestamps of the common lisp-action operations as 0.
-      (let ((times (component-operation-times component)))
-        (dolist (o '(load-op compile-op prepare-op))
-          (setf (gethash (make-operation o) times) 0))))))
-
+  (register-hook-function '*post-upgrade-cleanup-hook* 'restart-upgraded-asdf))
