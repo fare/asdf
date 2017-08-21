@@ -1,3 +1,13 @@
+cl-asdf (2:3.3.0-1) unstable; urgency=low
+  * Build-plans: Extensively revised the build plan process so that
+ :DEFSYSTEM-DEPENDS-ON would work correctly, even when depended
+    on systems change (didn't work before).
+  * ASDF&UIOP: Fix dependencies from ASDF to UIOP.
+  * Tests: tests for new capabilities and bugs.
+  * Documentation: a number of improvements and clarifications.
+
+  -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 20 August 2017 21:00:00 -0500
+
 cl-asdf (2:3.2.1-1) unstable; urgency=low
 
   New release:
