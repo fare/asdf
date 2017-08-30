@@ -255,7 +255,6 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 (with-upgradability ()
   (defun hostname ()
     "return the hostname of the current host"
-    ;; Note: untested on RMCL
     #+(or abcl clasp clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
     #+cormanlisp "localhost" ;; is there a better way? Does it matter?
     #+allegro (symbol-call :excl.osi :gethostname)
