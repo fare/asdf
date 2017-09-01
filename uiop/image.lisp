@@ -48,8 +48,9 @@ when the image is restarted, but before the entry point is called.")
 before the image dump hooks are called and before the image is dumped.")
 
   (defvar *image-dump-hook* nil
-    "Functions to call (in order) when before an image is dumped")
+    "Functions to call (in order) when before an image is dumped"))
 
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype fatal-condition ()
     `(and serious-condition #+clozure (not ccl:process-reset))))
 
