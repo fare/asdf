@@ -267,9 +267,10 @@ argument to pass to the internal RUN-PROGRAM"
             #+lispworks
             ;; a signal is only returned on LispWorks 7+
             (multiple-value-bind (exit-code signal)
-                (funcall #+lispworks7+ #'sys:pipe-exit-status
-                         #-lispworks7+ #'sys:pid-exit-status
-                         process :wait nil)
+                (symbol-call :sys
+                             #+lispworks7+ :pipe-exit-status
+                             #-lispworks7+ :pid-exit-status
+                             process :wait nil)
               (cond ((null exit-code) :running)
                     ((null signal) (values :exited exit-code))
                     (t (values :signaled signal))))
@@ -342,9 +343,10 @@ might otherwise be irrevocably lost."
                         (if (eq status :signaled)
                             (values nil code)
                             code))
-                #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
-                                     #-lispworks7+ #'sys:pid-exit-status
-                                     process :wait t)
+                #+lispworks (symbol-call :sys
+                                         #+lispworks7+ :pipe-exit-status
+                                         #-lispworks7+ :pid-exit-status
+                                         process :wait t)
                 #+mkcl (let ((code (mkcl:join-process process)))
                          (if (stringp code)
                              (values nil (%mkcl-signal-to-number code))
