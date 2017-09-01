@@ -36,6 +36,7 @@ Therefore, all slots of all operations MUST have :allocation :class and no inita
     (print-unreadable-object (o stream :type t :identity nil)))
 
   ;;; Override previous methods (from 3.1.7 and earlier) and add proper error checking.
+  #-genera ;; Genera adds its own system initargs, e.g. clos-internals:storage-area 8
   (defmethod initialize-instance :after ((o operation) &rest initargs &key &allow-other-keys)
     (unless (null initargs)
       (parameter-error "~S does not accept initargs" 'operation))))
