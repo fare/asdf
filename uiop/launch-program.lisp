@@ -182,7 +182,20 @@ argument to pass to the internal RUN-PROGRAM"
     (symbol-value (find-symbol signal :mk-unix)))
 
   (defclass process-info ()
-    ((process :initform nil)
+    (;; The process field is highly platform-, implementation-, and
+     ;; even version-dependent.
+     ;; Prior to LispWorks 7, the only information that
+     ;; `sys:run-shell-command` with `:wait nil` was certain to return
+     ;; is a PID (e.g. when all streams are nil), hence we stored it
+     ;; and used `sys:pid-exit-status` to obtain an exit status
+     ;; later. That is still what we do.
+     ;; From LispWorks 7 on, if `sys:run-shell-command` does not
+     ;; return a proper stream, we are instead given a dummy stream.
+     ;; We can thus always store a stream and use
+     ;; `sys:pipe-exit-status` to obtain an exit status later.
+     ;; The advantage of dealing with streams instead of PID is the
+     ;; availability of functions like `sys:pipe-kill-process`.
+     (process :initform nil)
      (input-stream :initform nil)
      (output-stream :initform nil)
      (bidir-stream :initform nil)
@@ -637,18 +650,18 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
            (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))
          (prop 'process process))
        #+lispworks
+       ;; See also the comments on the process-info class
        (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
          (cond
            ((or (plusp mode) (eq error-output :stream))
             (prop 'process #+lispworks7+ io-or-pid #-lispworks7+ pid-or-nil)
             (when (plusp mode)
-              (prop (ecase mode
-                      (1 'input-stream)
-                      (2 'output-stream)
-                      (3 'bidir-stream)) io-or-pid))
+              (prop (ecase mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream))
+                    io-or-pid))
             (when (eq error-output :stream)
               (prop 'error-stream err-or-nil)))
-           ;; lispworks6 returns (pid), lispworks7 returns (io err pid) of which we keep io
+           ;; Prior to Lispworks 7, this returned (pid); now it
+           ;; returns (io err pid) of which we keep io.
            (t (prop 'process io-or-pid)))))
      process-info)))
 
