@@ -292,11 +292,15 @@ argument to pass to the internal RUN-PROGRAM"
                              #-lispworks7+ :pid-exit-status
                              process :wait nil)
               (%code-to-status exit-code signal-code))
-            #+mkcl (let ((status (mk-ext:process-status process))
-                         (code (mk-ext:process-exit-code process)))
-                     (if (stringp code)
-                         (values :signaled (%mkcl-signal-to-number code))
-                         (values status code)))
+            #+mkcl (let ((status (mk-ext:process-status process)))
+                     (if (eq status :exited)
+                         ;; Only call mk-ext:process-exit-code when
+                         ;; necessary since it leads to another waitpid()
+                         (let ((code (mk-ext:process-exit-code process)))
+                           (if (stringp code)
+                               (values :signaled (%mkcl-signal-to-number code))
+                               (values :exited code)))
+                         status))
             #+sbcl (let ((status (sb-ext:process-status process)))
                      (if (eq status :running)
                          :running
