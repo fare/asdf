@@ -309,7 +309,9 @@ argument to pass to the internal RUN-PROGRAM"
           (:signaled (let ((%code (%signal-to-exit-code code)))
                        (setf (slot-value process-info 'exit-code) %code
                              (slot-value process-info 'signal-code) code))))
-        (values status code))))
+        (if code
+            (values status code)
+            status))))
 
   (defun process-alive-p (process-info)
     "Check if a process has yet to exit."
