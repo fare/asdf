@@ -277,8 +277,12 @@ argument to pass to the internal RUN-PROGRAM"
                         (%code-to-status exit-code signal-code))
             #+clozure (ccl:external-process-status process)
             #+(or cmucl scl) (let ((status (ext:process-status process)))
-                               (values status (if (member status '(:exited :signaled))
-                                                  (ext:process-exit-code process))))
+                               (if (member status '(:exited :signaled))
+                                   ;; Calling ext:process-exit-code on
+                                   ;; processes that are still alive
+                                   ;; yields an undefined result
+                                   (values status (ext:process-exit-code process))
+                                   status))
             #+ecl (ext:external-process-status process)
             #+lispworks
             ;; a signal is only returned on LispWorks 7+
