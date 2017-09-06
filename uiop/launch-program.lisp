@@ -298,8 +298,12 @@ argument to pass to the internal RUN-PROGRAM"
                          (values :signaled (%mkcl-signal-to-number code))
                          (values status code)))
             #+sbcl (let ((status (sb-ext:process-status process)))
-                     (values status (if (member status '(:exited :signaled))
-                                        (sb-ext:process-exit-code process)))))
+                     (if (eq status :running)
+                         :running
+                         ;; sb-ext:process-exit-code can also be
+                         ;; called for stopped processes to determine
+                         ;; the signal that stopped them
+                         (values status (sb-ext:process-exit-code process)))))
         (case status
           (:exited (setf (slot-value process-info 'exit-code) code))
           (:signaled (let ((%code (%signal-to-exit-code code)))
