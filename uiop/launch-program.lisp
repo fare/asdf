@@ -308,8 +308,8 @@ argument to pass to the internal RUN-PROGRAM"
       #+abcl (sys:process-alive-p (slot-value process-info 'process))
       #+(or cmucl scl) (ext:process-alive-p (slot-value process-info 'process))
       #+sbcl (sb-ext:process-alive-p (slot-value process-info 'process))
-      #-(or abcl cmucl sbcl scl) (member (%process-status process-info)
-                                         '(:running :sleeping))))
+      #-(or abcl cmucl sbcl scl) (find (%process-status process-info)
+                                       '(:running :stopped :continued :resumed))))
 
   (defun wait-process (process-info)
     "Wait for the process to terminate, if it is still running.
