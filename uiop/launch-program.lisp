@@ -176,6 +176,11 @@ argument to pass to the internal RUN-PROGRAM"
   (defun %signal-to-exit-code (signum)
     (+ 128 signum))
 
+  (defun %code-to-status (exit-code signal-code)
+    (cond ((null exit-code) :running)
+          ((null signal-code) (values :exited exit-code))
+          (t (values :signaled signal-code))))
+
   #+mkcl
   (defun %mkcl-signal-to-number (signal)
     (require :mk-unix)
@@ -266,41 +271,51 @@ argument to pass to the internal RUN-PROGRAM"
     (if-let (process (slot-value process-info 'process))
       (multiple-value-bind (status code)
           (progn
-            #+allegro (multiple-value-bind (exit-code pid signal)
+            #+allegro (multiple-value-bind (exit-code pid signal-code)
                           (sys:reap-os-subprocess :pid process :wait nil)
                         (assert pid)
-                        (cond ((null exit-code) :running)
-                              ((null signal) (values :exited exit-code))
-                              (t (values :signaled signal))))
+                        (%code-to-status exit-code signal-code))
             #+clozure (ccl:external-process-status process)
             #+(or cmucl scl) (let ((status (ext:process-status process)))
-                               (values status (if (member status '(:exited :signaled))
-                                                  (ext:process-exit-code process))))
+                               (if (member status '(:exited :signaled))
+                                   ;; Calling ext:process-exit-code on
+                                   ;; processes that are still alive
+                                   ;; yields an undefined result
+                                   (values status (ext:process-exit-code process))
+                                   status))
             #+ecl (ext:external-process-status process)
             #+lispworks
             ;; a signal is only returned on LispWorks 7+
-            (multiple-value-bind (exit-code signal)
+            (multiple-value-bind (exit-code signal-code)
                 (symbol-call :sys
                              #+lispworks7+ :pipe-exit-status
                              #-lispworks7+ :pid-exit-status
                              process :wait nil)
-              (cond ((null exit-code) :running)
-                    ((null signal) (values :exited exit-code))
-                    (t (values :signaled signal))))
-            #+mkcl (let ((status (mk-ext:process-status process))
-                         (code (mk-ext:process-exit-code process)))
-                     (if (stringp code)
-                         (values :signaled (%mkcl-signal-to-number code))
-                         (values status code)))
+              (%code-to-status exit-code signal-code))
+            #+mkcl (let ((status (mk-ext:process-status process)))
+                     (if (eq status :exited)
+                         ;; Only call mk-ext:process-exit-code when
+                         ;; necessary since it leads to another waitpid()
+                         (let ((code (mk-ext:process-exit-code process)))
+                           (if (stringp code)
+                               (values :signaled (%mkcl-signal-to-number code))
+                               (values :exited code)))
+                         status))
             #+sbcl (let ((status (sb-ext:process-status process)))
-                     (values status (if (member status '(:exited :signaled))
-                                        (sb-ext:process-exit-code process)))))
+                     (if (eq status :running)
+                         :running
+                         ;; sb-ext:process-exit-code can also be
+                         ;; called for stopped processes to determine
+                         ;; the signal that stopped them
+                         (values status (sb-ext:process-exit-code process)))))
         (case status
           (:exited (setf (slot-value process-info 'exit-code) code))
           (:signaled (let ((%code (%signal-to-exit-code code)))
                        (setf (slot-value process-info 'exit-code) %code
                              (slot-value process-info 'signal-code) code))))
-        (values status code))))
+        (if code
+            (values status code)
+            status))))
 
   (defun process-alive-p (process-info)
     "Check if a process has yet to exit."
