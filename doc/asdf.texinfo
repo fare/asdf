@@ -5818,7 +5818,7 @@ then ASDF will reconfigure itself.
 Otherwise, you will have to configure ASDF 2 (or older) to find ASDF 3,
 then configure ASDF 3.
 Notably, @var{*central-registry*} is not maintained across upgrades from ASDF 2.
-@xref{reinitializeASDFAfterUpgrade,note about ASDF reconfiguration after upgrade}
+@xref{reinitializeASDFAfterUpgrade,note about ASDF reconfiguration after upgrade}.
 
 Problems like this may be experienced if one loads Quicklisp
 (which as of this writing bundles an obsolete ASDF version 2.26),
