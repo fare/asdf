@@ -55,9 +55,9 @@ but can be an arbitrary expression returning a tag to be princ'ed first;
 if the expression returns NIL, nothing is printed.
 EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
 with their source code then their return values being printed each time.
-The last expresion is *always* evaluated and its multiple values are returned,
+The last expression is *always* evaluated and its multiple values are returned,
 but its source and return values are only printed if TAG was not NIL;
-previous expressions are not evaluated at all if TAG returned NIL.
+previous expressions are not evaluated at all if TAG was NIL.
 The macro expansion has relatively low overhead in space or time."
   (let* ((last-expr (car (last exprs)))
          (other-exprs (butlast exprs))
