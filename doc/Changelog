@@ -9,14 +9,15 @@ cl-asdf (2:3.3.0-1) unstable; urgency=low
   * Internals: to support the above, many ASDF internals have changed.
     ASDF now has the notion of multiple build phases to a common build session
     (which generalizes the previous build cache). ASDF considers loading a .asd
-    file as an operation DEFINE-OP, and tracks as dependencies files mentionned
-    during in :load-file-form statements and such. Some code has moved to new
-    files or among old files, and accordingly as for packages. Actions are now
-    uniformly represented as a cons of an operation and a component, where
-    sometimes just the class-of the operation was preserved. Forcing must be
-    uniform across all phases of a same build session. Fix the protocol for
-    resetting systems being (re)defined, allowing for subclasses to define
-    default slot values. Remove *load-system-operation*, as the current
+    file as an operation DEFINE-OP, and tracks as dependencies files mentioned
+    during in :LOAD-FILE-FORM statements, etc. Some code has moved to new
+    files or among old files, and between packages. Actions are now
+    uniformly represented as a CONS of an OPERATION and a COMPONENT, where
+    in some cases previously only the class of the operation was
+    preserved. Forcing is constrained to be uniform across all phases of a
+    top level ASDF operation invocation. Fixed the protocol for
+    resetting systems being (re)defined, allowing subclasses to define
+    default slot values. Remove *LOAD-SYSTEM-OPERATION*, as the current
     maintainer of ECL, for which it was originally designed, decided
     that it could never be made to work properly, after all.
   * ASDF&UIOP: Tweak dependencies between ASDF and UIOP. To avoid DEFINE-OP
@@ -28,9 +29,9 @@ cl-asdf (2:3.3.0-1) unstable; urgency=low
   * Feature: a new feature :asdf3.3
   * ECL: restored the deprecated function MAKE-BUILD, removed in 3.2.0,
     in a way that works on top of supported APIs (we still recommend you migrate
-    to said support APIs). Also stop using the deprecated compute-init-name.
-  * Deprecation: starting to emit STYLE-WARNINGS for deprecated
-    functions.  Will gradually escalate to true warnings and then errors.
+    to these supported APIs). Also stop using the deprecated COMPUTE-INIT-NAME.
+  * Deprecation: starting to emit STYLE-WARNINGs for deprecated
+    functions.  Will gradually escalate to true WARNINGs and then ERRORs.
 
   -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 20 August 2017 21:00:00 -0500
 
