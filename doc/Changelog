@@ -29,6 +29,8 @@ cl-asdf (2:3.3.0-1) unstable; urgency=low
   * ECL: restored the deprecated function MAKE-BUILD, removed in 3.2.0,
     in a way that works on top of supported APIs (we still recommend you migrate
     to said support APIs). Also stop using the deprecated compute-init-name.
+  * Deprecation: starting to emit STYLE-WARNINGS for deprecated
+    functions.  Will gradually escalate to true warnings and then errors.
 
   -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 20 August 2017 21:00:00 -0500
 
