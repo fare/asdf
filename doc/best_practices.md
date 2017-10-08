@@ -177,8 +177,8 @@ Two years seems to be the time it takes for a release of ASDF
 to become ubiquitously available by default on all implementations;
 and, remember, if a user must use an older implementation,
 he can always trivially install a newer ASDF on top of it.
-Thus, by 2019, people should not be shy about
-dropping support for ASDF versions older than 3.2 or 3.3.
+Thus, by October 2019, people should not be shy about
+dropping support for ASDF versions older than 3.3.
 And even before then, if you need a recent ASDF, just document it,
 and tell your users to upgrade their implementation and/or
 install a recent ASDF on top of their implementation's.
@@ -441,8 +441,9 @@ instead of less documented or less portable alternatives.
 You MUST NOT use `asdf:run-shell-command`, `asdf:system-definition-pathname`,
 or other deprecated functions that were once recommended in the time of ASDF 1.
 They will be removed in the near future (one to two year horizon).
-ASDF 3.2 will issue a `style-warning` when you do, and ASDF 3.3 will issue a full `warning`,
-which will break the SBCL build.
+ASDF 3.2 or 3.3 will issue a `style-warning` when you do, and
+some future version of ASDF will issue a full `warning`,
+which will then break the SBCL build.
 See `backward-interface.lisp` for a list of deprecated function — or just heed the damn warnings.
 
 ### Simple Testing
@@ -616,7 +617,7 @@ As ASDF maintainer, I now consider this in bad taste:
   * Third, it interferes with ASDF's capacity to detect legitimate vs illegitimate
     recursive uses of `operate` at places that defeat tracking of dependencies.
   * Fourth, it adds a lot of complexity for dubious gain: at a time you had to type
-    `(asdf:operate 'load-op :foo)`, `(require :foo)` may have been a nice short-hand,
+    `(asdf:operate 'asdf:load-op :foo)`, `(require :foo)` may have been a nice short-hand,
     but it isn't such a great gain over `(asdf:make :foo)`.
   * Fifth, SBCL now uses ASDF 3's `compile-bundle-op` to create a fasl
     during the build of SBCL itself, and that fasl can latter be loaded at runtime without ASDF.
@@ -625,7 +626,7 @@ As ASDF maintainer, I now consider this in bad taste:
 Similarly, in ASDF 2.21 I added a function `require-system`
 that used to called `load-system` with `:force-not (already-loaded-systems)`,
 which was a nice hack at the time, that I latter used as part of the `cl:require` hook.
-That was all a big mistake, as `:force-not` interfere with the ability to keep a coherent plan
+That was all a big mistake, as `:force-not` interferes with the ability to keep a coherent plan
 across recursive uses of `asdf:operate` as required by builds that involve `:defsystem-depends-on`
 and other ASDF extensions.
 These days, this function only checks whether the requested component is already loaded,
@@ -790,14 +791,15 @@ You MUST NOT call `asdf:clear-system` or in any way interfere with the build
 while in a `perform` method.
 
 You SHOULD NOT define methods on `asdf:operate` --- most of the time it's totally the wrong thing
-because users would be "operating" on your system, but on their system that depends on it.
+because users would *not* be "operating" on *your* system, but on *their* system that depends on it.
 Instead you SHOULD define methods on `asdf:perform`, `asdf:component-depends-on`, etc.
 
 ### Defining ASDF Extensions
 
 #### Source File Types
 
-You MUST NOT define methods on `source-file-type`. This bad ASDF 1 interface must die.
+You MUST NOT define methods on `source-file-type`.
+This bad ASDF 1 interface must die and will be removed in a future version of ASDF.
 Instead, override the slot `type` for your file class and provide a proper `:initform`, as in:
 
     (defclass cl-source-file.l (cl-source-file) ((type :initform "l")))

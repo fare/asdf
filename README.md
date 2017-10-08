@@ -4,10 +4,13 @@ ASDF: Another System Definition Facility
 For general information about ASDF, consult the web page:
 <https://common-lisp.net/project/asdf/>
 
-For instructions on how to use it, read the manual:
+For some reference documentation, read the manual:
 <https://common-lisp.net/project/asdf/asdf.html>
 
-Below is a guide for ASDF developers; it is not meant for ASDF users.
+For a guide on how to use it, read our "best practices" document:
+<https://github.com/fare/asdf/blob/master/doc/best_practices.md>
+
+Below is a guide for ASDF developers. It is not meant for ASDF users.
 
 [TOC]
 
@@ -198,7 +201,8 @@ How do I navigate this source tree?
 *   [uiop/](uiop/)
     * Utilities of Implementation- and OS- Portability,
       the portability layer of ASDF. It has its own [README](uiop/README.md),
-      and functions all have docstrings.
+      and exported functions should all have docstrings and other ones comment,
+      or once again it's a bug.
 
 *   [Makefile](Makefile)
     *   The classical `Makefile` used for development purposes.
@@ -209,9 +213,9 @@ How do I navigate this source tree?
 *   [bin/](bin/)
     *   [bump-version](bin/bump-version) --
         a script to bump the version of ASDF, used by the classic `Makefile`.
-        Use it with e.g. `./bin/bump-version 3.3.0`
+        Use it with e.g. `./bin/bump-version 3.4.5`
         to test with the next version number before you release.
-        NB: ASDF's version number notably affect the behavior of ASDF
+        NB: ASDF's version number notably affects the behavior of ASDF
         with respect to deprecated functions.
 
 *   [tools/](tools/)
@@ -224,6 +228,7 @@ How do I navigate this source tree?
             system definition for asdf-tools
         *   `*.lisp` -- the source code for the `asdf-tools` system,
             except for the few files below.
+            Check the `.asd` file for the order in which to read them.
     *   Also a couple scripts to help ASDF users:
         *   [load-asdf.lisp](tools/load-asdf.lisp) --
             a working example script to load, configure and use ASDF
@@ -284,7 +289,7 @@ How do I navigate this source tree?
     * External dependencies, that can be populated with `make ext`
       or equivalently with `git submodule update --init`.
       Depopulate it with `make noext`
-	  or equivalently with: `submodule deinit .`
+      or equivalently with: `submodule deinit .`
 
 *   [README.md](README.md)
     * This file.
