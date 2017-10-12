@@ -54,7 +54,7 @@ Use the preferred lisp implementation"
               ;; Or we could do it in a more heavy handed way.
               ;; A better solution would be to do any output operations in a temporary workspace,
               ;; which would allow test parallelization.
-              (if (with-failure-context (:fail-fast nil)
+              (if (with-failure-context (:muffle-failures t)
                     (run-test-lisp
                      (format nil "testing ~A on ~(~A~)" test-script lisp)
                      `((load "test/script-support.lisp")
@@ -85,6 +85,6 @@ Ran ~D tests, ~D passed, ~D failed~
 (deftestcmd test (lisp test-scripts)
   "run all normal tests but upgrade tests
 Use the preferred lisp implementation"
-  (without-stopping () (doc) (test-clean-load lisp) (test-scripts lisp test-scripts)))
+  (without-stopping () (test-basic lisp) (test-scripts lisp test-scripts)))
 
 (defalias %t test)

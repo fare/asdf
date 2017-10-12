@@ -2,8 +2,7 @@
 ;;;; Support to build (compile and load) Lisp files
 
 (uiop/package:define-package :uiop/lisp-build
-  (:nicknames :asdf/lisp-build)
-  (:recycle :uiop/lisp-build :asdf/lisp-build :asdf)
+  (:nicknames :asdf/lisp-build) ;; OBSOLETE, used by slime/contrib/swank-asdf.lisp
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/eval :uiop/image)
   (:export
@@ -66,20 +65,20 @@ This can help you produce more deterministic output for FASLs."))
         #+clisp '() ;; system::*optimize* is a constant hash-table! (with non-constant contents)
         #+clozure '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety*
                     ccl::*nx-debug* ccl::*nx-cspeed*)
-        #+(or cmu scl) '(c::*default-cookie*)
-        #+(and ecl (not clasp)) (unless (use-ecl-byte-compiler-p) '(c::*speed* c::*space* c::*safety* c::*debug*))
+        #+(or cmucl scl) '(c::*default-cookie*)
         #+clasp '()
+        #+ecl (unless (use-ecl-byte-compiler-p) '(c::*speed* c::*space* c::*safety* c::*debug*))
         #+gcl '(compiler::*speed* compiler::*space* compiler::*compiler-new-safety* compiler::*debug*)
         #+lispworks '(compiler::*optimization-level*)
         #+mkcl '(si::*speed* si::*space* si::*safety* si::*debug*)
         #+sbcl '(sb-c::*policy*)))
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
-    #-(or abcl allegro clasp clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl scl xcl)
     (warn "~S does not support ~S. Please help me fix that."
           'get-optimization-settings (implementation-type))
-    #+(or abcl allegro clasp clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
-    (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
+    #+(or abcl allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl scl xcl)
+    (let ((settings '(speed space safety debug compilation-speed #+(or cmucl scl) c::brevity)))
       #.`(loop #+(or allegro clozure)
                ,@'(:with info = #+allegro (sys:declaration-information 'optimize)
                    #+clozure (ccl:declaration-information 'optimize nil))
@@ -88,7 +87,7 @@ This can help you produce more deterministic output for FASLs."))
                :for y = (or #+(or allegro clozure) (second (assoc x info)) ; normalize order
                             #+clisp (gethash x system::*optimize* 1)
                             #+(or abcl clasp ecl mkcl xcl) (symbol-value v)
-                            #+(or cmu scl) (slot-value c::*default-cookie*
+                            #+(or cmucl scl) (slot-value c::*default-cookie*
                                                        (case x (compilation-speed 'c::cspeed)
                                                              (otherwise x)))
                             #+lispworks (slot-value compiler::*optimization-level* x)
@@ -130,7 +129,7 @@ This can help you produce more deterministic output for FASLs."))
   (defvar *usual-uninteresting-conditions*
     (append
      ;;#+clozure '(ccl:compiler-warning)
-     #+cmu '("Deleting unreachable code.")
+     #+cmucl '("Deleting unreachable code.")
      #+lispworks '("~S being redefined in ~A (previously in ~A)."
                    "~S defined more than once in ~A.") ;; lispworks gets confused by eval-when.
      #+sbcl
@@ -315,7 +314,7 @@ Simple means made of symbols, numbers, characters, simple-strings, pathnames, co
                         :warning-type warning-type
                         :args (destructuring-bind (fun . more) args
                                 (cons (symbolify-function-name fun) more))))))
-  #+(or cmu scl)
+  #+(or cmucl scl)
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit
     ;; To be passed through the above reify/unreify link, it must be a "simple-sexp"
@@ -367,7 +366,7 @@ WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings sup
             (if-let (dw ccl::*outstanding-deferred-warnings*)
               (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
                 (ccl::deferred-warnings.warnings mdw))))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (when lisp::*in-compilation-unit*
       ;; Try to send nothing through the pipe if nothing needs to be accumulated
       `(,@(when c::*undefined-warnings*
@@ -413,7 +412,7 @@ One of three functions required for deferred-warnings support in ASDF."
                   (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
       (appendf (ccl::deferred-warnings.warnings dw)
                (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (dolist (item reified-deferred-warnings)
       ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
       ;; For *undefined-warnings*, the adjustment is a list of initargs.
@@ -476,7 +475,7 @@ One of three functions required for deferred-warnings support in ASDF."
     (if-let (dw ccl::*outstanding-deferred-warnings*)
       (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
         (setf (ccl::deferred-warnings.warnings mdw) nil)))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (when lisp::*in-compilation-unit*
       (setf c::*undefined-warnings* nil
             c::*compiler-error-count* 0
@@ -498,7 +497,8 @@ possibly in a different process."
                        :element-type *default-stream-element-type*
                        :external-format *utf-8-external-format*)
       (with-safe-io-syntax ()
-        (write (reify-deferred-warnings) :stream s :pretty t :readably t)
+        (let ((*read-eval* t))
+          (write (reify-deferred-warnings) :stream s :pretty t :readably t))
         (terpri s))))
 
   (defun warnings-file-type (&optional implementation-type)
@@ -546,7 +546,10 @@ re-intern and raise any warnings that are still meaningful."
           (reset-deferred-warnings)
           (dolist (file files)
             (unreify-deferred-warnings
-             (handler-case (safe-read-file-form file)
+             (handler-case
+                 (with-safe-io-syntax ()
+                   (let ((*read-eval* t))
+                     (read-file-form file)))
                (error (c)
                  ;;(delete-file-if-exists file) ;; deleting forces rebuild but prevents debugging
                  (push c file-errors)
@@ -642,46 +645,48 @@ possibly in a different process. Otherwise just call THUNK."
     "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
 the file only actually created if the compilation was successful,
-even though your implementation may not do that, and including
-an optional call to an user-provided consistency check function COMPILE-CHECK;
+even though your implementation may not do that. It also checks an optional
+user-provided consistency function COMPILE-CHECK to determine success;
 it will call this function if not NIL at the end of the compilation
 with the arguments sent to COMPILE-FILE*, except with :OUTPUT-FILE TMP-FILE
 where TMP-FILE is the name of a temporary output-file.
 It also checks two flags (with legacy british spelling from ASDF1),
 *COMPILE-FILE-FAILURE-BEHAVIOUR* and *COMPILE-FILE-WARNINGS-BEHAVIOUR*
 with appropriate implementation-dependent defaults,
-and if a failure (respectively warnings) are reported by COMPILE-FILE
-with consider it an error unless the respective behaviour flag
+and if a failure (respectively warnings) are reported by COMPILE-FILE,
+it will consider that an error unless the respective behaviour flag
 is one of :SUCCESS :WARN :IGNORE.
 If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
-    #+(or clasp ecl) (when (and object-file (equal (compile-file-type) (pathname object-file)))
-            (format t "Whoa, some funky ASDF upgrade switched ~S calling convention for ~S and ~S~%"
-                    'compile-file* output-file object-file)
-            (rotatef output-file object-file))
+    #+(or clasp ecl)
+    (when (and object-file (equal (compile-file-type) (pathname object-file)))
+      (format t "Whoa, some funky ASDF upgrade switched ~S calling convention for ~S and ~S~%"
+              'compile-file* output-file object-file)
+      (rotatef output-file object-file))
     (let* ((keywords (remove-plist-keys
                       `(:output-file :compile-check :warnings-file
                                      #+clisp :lib-file #+(or clasp ecl mkcl) :object-file) keys))
            (output-file
              (or output-file
                  (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
+           (physical-output-file (physicalize-pathname output-file))
            #+(or clasp ecl)
            (object-file
              (unless (use-ecl-byte-compiler-p)
                (or object-file
-                   #+ecl(compile-file-pathname output-file :type :object)
+                   #+ecl (compile-file-pathname output-file :type :object)
                    #+clasp (compile-file-pathname output-file :output-type :object))))
            #+mkcl
            (object-file
              (or object-file
                  (compile-file-pathname output-file :fasl-p nil)))
-           (tmp-file (tmpize-pathname output-file))
+           (tmp-file (tmpize-pathname physical-output-file))
            #+sbcl
            (cfasl-file (etypecase emit-cfasl
                          (null nil)
-                         ((eql t) (make-pathname :type "cfasl" :defaults output-file))
+                         ((eql t) (make-pathname :type "cfasl" :defaults physical-output-file))
                          (string (parse-namestring emit-cfasl))
                          (pathname emit-cfasl)))
            #+sbcl
@@ -720,17 +725,23 @@ it will filter them appropriately."
                            #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (list object-file))))
                   (or (not compile-check)
                       (apply compile-check input-file
-                             :output-file #-(or clasp ecl) output-file #+(or clasp ecl) tmp-file
+                             :output-file output-truename
                              keywords))))
-           (delete-file-if-exists output-file)
+           (delete-file-if-exists physical-output-file)
            (when output-truename
              #+clasp (when output-truename (rename-file-overwriting-target tmp-file output-truename))
-             #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
+             ;; see CLISP bug 677
+             #+clisp
+             (progn
+               (setf tmp-lib (make-pathname :type "lib" :defaults output-truename))
+               (unless lib-file (setf lib-file (make-pathname :type "lib" :defaults physical-output-file)))
+               (rename-file-overwriting-target tmp-lib lib-file))
              #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
-             (rename-file-overwriting-target output-truename output-file)
-             (setf output-truename (truename output-file)))
+             (rename-file-overwriting-target output-truename physical-output-file)
+             (setf output-truename (truename physical-output-file)))
            #+clasp (delete-file-if-exists tmp-file)
-           #+clisp (delete-file-if-exists tmp-lib))
+           #+clisp (progn (delete-file-if-exists tmp-file) ;; this one works around clisp BUG 677
+                          (delete-file-if-exists tmp-lib))) ;; this one is "normal" defensive cleanup
           (t ;; error or failed check
            (delete-file-if-exists output-truename)
            #+clisp (delete-file-if-exists tmp-lib)
@@ -763,11 +774,10 @@ it will filter them appropriately."
 (with-upgradability ()
   (defun combine-fasls (inputs output)
     "Combine a list of FASLs INPUTS into a single FASL OUTPUT"
-    #-(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl)
-    (error "~A does not support ~S~%inputs ~S~%output  ~S"
-           (implementation-type) 'combine-fasls inputs output)
+    #-(or abcl allegro clisp clozure cmucl lispworks sbcl scl xcl)
+    (not-implemented-error 'combine-fasls "~%inputs: ~S~%output: ~S" inputs output)
     #+abcl (funcall 'sys::concatenate-fasls inputs output) ; requires ABCL 1.2.0
-    #+(or allegro clisp cmu sbcl scl xcl) (concatenate-files inputs output)
+    #+(or allegro clisp cmucl sbcl scl xcl) (concatenate-files inputs output)
     #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
     #+lispworks
     (let (fasls)

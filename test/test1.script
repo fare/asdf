@@ -1,5 +1,7 @@
 ;;; -*- Lisp -*-
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 ;; We need use the pathnames used by ASDF.
 (defparameter test1.asd (system-source-file 'test1))
 (defparameter file1.lisp (component-pathname (find-component 'test1 "file1")))
@@ -20,7 +22,6 @@
 (touch-file file2.lisp :timestamp *date* :offset 200)
 (assert-equal (get-file-stamp file1.lisp) (+ *date* 100))
 (assert-equal (get-file-stamp file2.lisp) (+ *date* 200))
-
 (DBG "loading test1")
 (load-system 'test1)
 
@@ -41,7 +42,6 @@
 (clear-system 'test1)
 
 (DBG "load again")
-;;(trace input-files asdf::compute-action-stamp)
 (defparameter *plan* (nth-value 1 (operate 'load-op 'test1)))
 (DBG "check that file1 is _not_ recompiled, but file2 is")
 (assert (in-plan-p *plan* '(compile-op "test1" "file2")))

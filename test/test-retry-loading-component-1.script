@@ -6,7 +6,7 @@
 
 (defvar *caught-error* nil)
 (delete-file-if-exists (test-source "try-reloading-dependency.asd"))
-(with-asdf-cache (:override t)
+(with-asdf-session (:override t)
 (handler-bind
     ((error #'(lambda (c)
                 (format t "~&Caught error ~s" c)

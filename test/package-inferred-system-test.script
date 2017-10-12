@@ -1,3 +1,5 @@
+;;-*- Lisp -*-
+
 (register-directory (subpathname *test-directory* "package-inferred-system-test/"))
 (load-system :package-inferred-system-test/a/x)
 (load-system :package-inferred-system-test/d)
@@ -5,4 +7,8 @@
 (signals package-inferred-system-missing-package-error (load-system :package-inferred-system-test/e))
 
 ;; No such file.
-(signals missing-component (load-system :package-inferred-system-test/f))
+(signals missing-component
+         (handler-bind ((system-out-of-date 'continue)) (load-system :package-inferred-system-test/f)))
+
+;; Test that around-compile is inherited by inferred systems.
+(assert-equal 3 (symbol-call :package-inferred-system-test/a :add10 1)) ;; add10 must have been compiled in base 2

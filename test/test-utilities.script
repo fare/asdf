@@ -1,6 +1,5 @@
 ;;; -*- Lisp -*-
 
-#+(and sbcl os-windows) (trace sb-ext:run-program)
 (proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
 
 (defun getcwd-from-run-program ()
@@ -23,11 +22,11 @@
 (defun simplify-pathname-directory-component (dir)
   (setf dir (normalize-pathname-directory-component dir))
   (loop
-   :with head = (progn
-                  (unless (and (consp dir) (cdr dir)) (return dir))
-                  (subseq dir 0 1))
-   :with tail = (rest dir)
-   :for (next rest) :on tail :do
+    :with head = (progn
+                   (unless (and (consp dir) (cdr dir)) (return dir))
+                   (subseq dir 0 1))
+    :with tail = (rest dir)
+    :for next :in tail :do
    (unless (equal next ".")
      (when (member next '(".." :up) :test 'equal) (setf next :back))
      (setf head (merge-pathname-directory-components (list :relative next) head)))
@@ -210,12 +209,8 @@
   '(;; slots names
     asdf/action:accept
     asdf/action:action
-    asdf/action:done-p
-    asdf/action:stamp
     asdf/bundle:prologue-code
-    asdf/bundle:build-args
     asdf/bundle:epilogue-code
-    asdf/bundle:name-suffix
     asdf/component:absolute-pathname
     asdf/component:around-compile
     asdf/component:author
@@ -242,19 +237,7 @@
     asdf/component:relative-pathname
     asdf/component:sideway-dependencies
     asdf/component:version
-    asdf/lisp-action:flags
     asdf/operation:feature
-    asdf/operation:original-initargs
-    asdf/plan:index
-    asdf/plan:forced
-    asdf/plan:forced-not
-    asdf/plan:planned-action-count
-    asdf/plan:planned-output-action-count
-    asdf/plan:planned-p
-    asdf/plan:total-action-count
-    asdf/plan:visited-actions
-    asdf/plan:visiting-action-set
-    asdf/plan:visiting-action-list
     asdf/system:bug-tracker
     asdf/system:build-pathname
     asdf/system:system-defsystem-depends-on
@@ -267,12 +250,13 @@
     ;; restarts
     asdf/action:accept
     asdf/find-component:retry
-    asdf/find-system:coerce-entry-to-directory
-    asdf/find-system:remove-entry-from-registry
+    asdf/system-registry:coerce-entry-to-directory
+    asdf/system-registry:remove-entry-from-registry
     asdf/lisp-action:try-recompiling
     ;; types
     asdf/bundle:user-system
     #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
+    uiop/image:fatal-condition
     ;; on some implementations only
     asdf/bundle:bundle-system
     asdf/bundle:static-library
@@ -281,13 +265,12 @@
     uiop/os:read-little-endian
     uiop/os:read-null-terminated-string
     ;; backward compatibility upgrade only
-    asdf/backward-internals:make-sub-operation
     asdf/backward-interface:on-failure
     asdf/backward-interface:on-warnings
-    asdf/find-system:contrib-sysdef-search
-    asdf/find-system:sysdef-find-asdf
+    asdf/system-registry:contrib-sysdef-search
+    asdf/system-registry:sysdef-find-asdf
     ;; restart
-    asdf/cache:clear-configuration-and-retry
+    asdf/session:clear-configuration-and-retry
     ))
 
 (defun defined-symbol-p (symbol)
@@ -305,12 +288,12 @@
           :collect symbol))
 
 (defun fishy-asdf-exported-symbols ()
-  (remove-duplicates
-   (loop :for package :in (list-all-packages)
-         :when (and (string-prefix-p "ASDF/" (package-name package))
-                    (not (equal (package-name package) "ASDF/COMMON-LISP")))
-           :nconc (fishy-exported-symbols package))
-   :from-end t))
+  (loop :for package :in (list-all-packages)
+    :when (and (or (string-prefix-p "ASDF/" (package-name package))
+                   (string-prefix-p "UIOP/" (package-name package)))
+               (not (equal (package-name package) "UIOP/COMMON-LISP")))
+    :append (let ((fishy (fishy-exported-symbols package)))
+              (when fishy (list (cons (package-name package) (mapcar 'symbol-name fishy)))))))
 
 (assert-equal nil (fishy-asdf-exported-symbols))
 
@@ -320,15 +303,14 @@
 (ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/d/"))
 (ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/e/"))
 (register-directory *asdf-directory*)
-(register-directory *uiop-directory*)
 (let ((new-file (subpathname *build-directory* "deleteme/a/1.x")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :uiop) new-file))
+  (copy-file (system-source-file :asdf) new-file))
 (let ((new-file (subpathname *build-directory* "deleteme/a/b/2")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :uiop) new-file))
+  (copy-file (system-source-file :asdf) new-file))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))
@@ -394,13 +376,13 @@
            (lambda-string (string lambda-char)))
       (assert (= 1 (character-type-index lambda-char)))
       (assert-equal (strings-common-element-type (list #\a nil (strcat "hello, " lambda-string "world")))
-                    #-lispworks 'character #+lispworks7 'lw:bmp-char #+(and lispworks (not lispworks7)) 'lw:simple-char)
+                    #-lispworks 'character #+lispworks7+ 'lw:bmp-char #+(and lispworks (not lispworks7+)) 'lw:simple-char)
       (when (< 65536 char-code-limit)
         (let* ((amagi (format nil "~a~a" (code-char #x120BC) (code-char #x12104))))
-          (assert (= #+lispworks7 2 #-lispworks7 1 (character-type-index (first-char amagi))))
+          (assert (= #+lispworks7+ 2 #-lispworks7+ 1 (character-type-index (first-char amagi))))
           (assert-equal (strings-common-element-type (list #\a nil amagi lambda-string))
-                        #+(or (not lispworks) lispworks7) 'character
-                        #+(and lispworks (not lispworks7)) 'lw:simple-char))))))
+                        #+(or (not lispworks) lispworks7+) 'character
+                        #+(and lispworks (not lispworks7+)) 'lw:simple-char))))))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))
@@ -457,6 +439,7 @@
   (assert-equal (multiple-value-list (ensure-gethash 1 h 3)) '(2 t))
   (assert-equal (multiple-value-list (ensure-gethash 1 h '(error "foo"))) '(2 t))
   (signals parse-error (ensure-gethash 2 h '(error parse-error)))
+  (assert-equal (multiple-value-list (ensure-gethash 2 h (lambda () 5))) '(5 nil))
   (assert-equal (multiple-value-list (gethash 3 h nil)) '(nil nil))
   (assert-equal (multiple-value-list (ensure-gethash 3 h nil)) '(nil nil))
   (assert-equal (multiple-value-list (gethash 3 h 4)) '(nil t))

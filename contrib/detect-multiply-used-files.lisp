@@ -1,6 +1,6 @@
 (uiop:define-package :detect-multiply-used-files
   (:nicknames :asdf/contrib/detect-multiply-used-files)
-  (:use :asdf :uiop :common-lisp)
+  (:use :asdf/component :asdf/system-registry :uiop :common-lisp)
   (:export #:find-fishy-components #:register-component-files #:*file-components*))
 
 (in-package :detect-multiply-used-files)
@@ -20,7 +20,7 @@
 
 (defun find-fishy-components ()
   (clrhash *file-components*)
-  (map () 'register-component-files (table-keys asdf::*defined-systems*))
+  (map () 'register-component-files (table-keys *registered-systems*))
   (loop :for p :in (sort (table-keys *file-components*) 'string<)
         :for l = (gethash p *file-components*)
         :when (and (file-pathname-p p) (not (length=n-p l 1)))

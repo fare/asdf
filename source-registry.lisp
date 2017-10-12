@@ -3,8 +3,9 @@
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
 (uiop/package:define-package :asdf/source-registry
-  (:recycle :asdf/source-registry :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
+  ;; NB: asdf/find-system allows upgrade from <=3.2.1 that have initialize-source-registry there
+  (:recycle :asdf/source-registry :asdf/find-system :asdf)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/system :asdf/system-registry)
   (:export
    #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
@@ -29,20 +30,26 @@
   (define-condition invalid-source-registry (invalid-configuration warning)
     ((format :initform (compatfmt "~@<Invalid source registry ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 
-  ;; Using ack 1.2 exclusions
+  ;; Default list of directories under which the source-registry tree search won't recurse
   (defvar *default-source-registry-exclusions*
-    '(".bzr" ".cdv"
+    '(;;-- Using ack 1.2 exclusions
+      ".bzr" ".cdv"
       ;; "~.dep" "~.dot" "~.nib" "~.plst" ; we don't support ack wildcards
       ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
       "_sgbak" "autom4te.cache" "cover_db" "_build"
-      "debian")) ;; debian often builds stuff under the debian directory... BAD.
+      ;;-- debian often builds stuff under the debian directory... BAD.
+      "debian"))
 
+  ;; Actual list of directories under which the source-registry tree search won't recurse
   (defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
+  ;; The state of the source-registry after search in configured locations
   (defvar *source-registry* nil
     "Either NIL (for uninitialized), or an equal hash-table, mapping
 system names to pathnames of .asd files")
 
+  ;; Saving the user-provided parameter to the source-registry, if any,
+  ;; so we can recompute the source-registry after code upgrade.
   (defvar *source-registry-parameter* nil)
 
   (defun source-registry-initialized-p ()
@@ -55,7 +62,7 @@ system names to pathnames of .asd files")
   (register-clear-configuration-hook 'clear-source-registry)
 
   (defparameter *wild-asd*
-    (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
+    (make-pathname :directory nil :name *wild* :type "asd" :version :newest))
 
   (defun directory-asd-files (directory)
     (directory-files directory *wild-asd*))
@@ -69,6 +76,8 @@ system names to pathnames of .asd files")
     "Should :tree entries of the source-registry recurse in subdirectories
 after having found a .asd file? True by default.")
 
+  ;; When walking down a filesystem tree, if in a directory there is a .cl-source-registry.cache,
+  ;; read its contents instead of further recursively querying the filesystem.
   (defun process-source-registry-cache (directory collect)
     (let ((cache (ignore-errors
                   (safe-read-file-form (subpathname directory ".cl-source-registry.cache")))))
@@ -79,15 +88,23 @@ after having found a .asd file? True by default.")
   (defun collect-sub*directories-asd-files
       (directory &key (exclude *default-source-registry-exclusions*) collect
                    (recurse-beyond-asds *recurse-beyond-asds*) ignore-cache)
-    (collect-sub*directories
-     directory
-     #'(lambda (dir)
-         (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
-           (let ((asds (collect-asds-in-directory dir collect)))
-             (or recurse-beyond-asds (not asds)))))
-     #'(lambda (x)
-         (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
-     (constantly nil)))
+    (let ((visited (make-hash-table :test 'equalp)))
+      (flet ((collectp (dir)
+               (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
+                 (let ((asds (collect-asds-in-directory dir collect)))
+                   (or recurse-beyond-asds (not asds)))))
+             (recursep (x)                    ; x will be a directory pathname
+               (and
+                (not (member (car (last (pathname-directory x))) exclude :test #'equal))
+                (flet ((pathname-key (x)
+                         (namestring (truename* x))))
+                  (let ((visitedp (gethash (pathname-key x) visited)))
+                    (if visitedp nil
+                        (setf (gethash (pathname-key x) visited) t)))))))
+      (collect-sub*directories directory #'collectp #'recursep (constantly nil)))))
+
+
+  ;;; Validate the configuration forms
 
   (defun validate-source-registry-directive (directive)
     (or (member directive '(:default-registry))
@@ -115,6 +132,9 @@ after having found a .asd file? True by default.")
     (validate-configuration-directory
      directory :source-registry 'validate-source-registry-directive
                :invalid-form-reporter 'invalid-source-registry))
+
+
+  ;;; Parse the configuration string
 
   (defun parse-source-registry-string (string &key location)
     (cond
@@ -179,8 +199,8 @@ after having found a .asd file? True by default.")
     `(:source-registry
       #+(or clasp ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
       :inherit-configuration
-      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
-      #+cmu (:tree #p"modules:")
+      #+mkcl (:tree ,(translate-logical-pathname "SYS:"))
+      #+cmucl (:tree #p"modules:")
       #+scl (:tree #p"file://modules/")))
   (defun default-user-source-registry ()
     `(:source-registry
@@ -208,7 +228,10 @@ after having found a .asd file? True by default.")
   (defun environment-source-registry ()
     (getenv "CL_SOURCE_REGISTRY"))
 
-  (defgeneric* (process-source-registry) (spec &key inherit register))
+
+  ;;; Process the source-registry configuration
+
+  (defgeneric process-source-registry (spec &key inherit register))
 
   (defun* (inherit-source-registry) (inherit &key register)
     (when inherit
@@ -266,6 +289,8 @@ after having found a .asd file? True by default.")
       (dolist (directive (cdr (validate-source-registry-form form)))
         (process-source-registry-directive directive :inherit inherit :register register))))
 
+
+  ;; Flatten the user-provided configuration into an ordered list of directories and trees
   (defun flatten-source-registry (&optional (parameter *source-registry-parameter*))
     (remove-duplicates
      (while-collecting (collect)
@@ -278,8 +303,22 @@ after having found a .asd file? True by default.")
                         (collect (list directory :recurse recurse :exclude exclude))))))
      :test 'equal :from-end t))
 
+  ;; MAYBE: move this utility function to uiop/pathname and export it?
+  (defun pathname-directory-depth (p)
+    (length (normalize-pathname-directory-component (pathname-directory p))))
+
+  (defun preferred-source-path-p (x y)
+    "Return T iff X is to be preferred over Y as a source path"
+    (let ((lx (pathname-directory-depth x))
+          (ly (pathname-directory-depth y)))
+      (or (< lx ly)
+          (and (= lx ly)
+               (string< (namestring x)
+                        (namestring y))))))
+
   ;; Will read the configuration and initialize all internal variables.
-  (defun compute-source-registry (&optional (parameter *source-registry-parameter*) (registry *source-registry*))
+  (defun compute-source-registry (&optional (parameter *source-registry-parameter*)
+                                    (registry *source-registry*))
     (dolist (entry (flatten-source-registry parameter))
       (destructuring-bind (directory &key recurse exclude) entry
         (let* ((h (make-hash-table :test 'equal))) ; table to detect duplicates
@@ -295,18 +334,21 @@ after having found a .asd file? True by default.")
                                 ;; instead of (load-system 'foo)
                                 (string-downcase name)
                                 name)))
-                 (cond
-                   ((gethash name registry) ; already shadowed by something else
-                    nil)
-                   ((gethash name h) ; conflict at current level
-                    (when *verbose-out*
-                      (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
-                                found several entries for ~A - picking ~S over ~S~:>")
-                            directory recurse name (gethash name h) asd)))
-                   (t
-                    (setf (gethash name registry) asd)
-                    (setf (gethash name h) asd))))))
-          h)))
+                 (unless (gethash name registry) ; already shadowed by something else
+                   (if-let (old (gethash name h))
+                     ;; If the name appears multiple times,
+                     ;; prefer the one with the shallowest directory,
+                     ;; or if they have same depth, compare unix-namestring with string<
+                     (multiple-value-bind (better worse)
+                         (if (preferred-source-path-p asd old)
+                             (progn (setf (gethash name h) asd) (values asd old))
+                             (values old asd))
+                       (when *verbose-out*
+                         (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
+                                              found several entries for ~A - picking ~S over ~S~:>")
+                               directory recurse name better worse)))
+                     (setf (gethash name h) asd))))))
+          (maphash #'(lambda (k v) (setf (gethash k registry) v)) h))))
     (values))
 
   (defun initialize-source-registry (&optional (parameter *source-registry-parameter*))

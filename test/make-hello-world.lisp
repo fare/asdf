@@ -19,16 +19,15 @@
 (defun add-mkcl-dll (pathname)
   ;; make sure mkcl-X.X.X.dll is the same directory as the executable
   (let* ((dll-orig (subpathname (si::self-truename)
-                                (strcat #-windows "../lib/"
-                                        "mkcl_" (lisp-implementation-version)
+                                (strcat #-os-windows "../lib/"
+                                        "mkcl_" (si:mkcl-version)
                                         "." (asdf/bundle:bundle-pathname-type :shared-library))))
-         (dll-dest (subpathname pathname (strcat #-windows "../lib/" (file-namestring dll-orig)))))
+         (dll-dest (subpathname pathname (strcat #-os-windows "../lib/" (file-namestring dll-orig)))))
     (ensure-directories-exist dll-dest)
     (copy-file dll-orig dll-dest)))
 
 
 (defun make-hello-bundle (operation)
-  (operate 'load-bundle-op :hello-world-example)
   (operate operation :hello-world-example)
   #+mkcl (add-mkcl-dll (asdf::output-file operation :hello-world-example))
   (quit 0))

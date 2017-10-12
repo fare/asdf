@@ -15,7 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
-   #:deftest #:is #:signals #:errors #:with-expected-failure
+   #:deftest #:is #:signals #:does-not-signal #:errors #:with-expected-failure
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -31,16 +31,21 @@ Some constraints:
    #:leave-test #:def-test-system
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
-   #:quietly #:join-namestrings))
+   #:quietly #:join-namestrings
+   #:reset-session #:reset-session-visited))
 
 (in-package :asdf-test)
 
 #+(and ecl (not ecl-bytecmp)) (require :cmp)
 
 (declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
-                   #+(or cmu scl) (c::brevity 2)))
+                   #+(or cmucl scl) (c::brevity 2)))
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
-                     #+(or cmu scl) (c::brevity 2) #+(or cmu scl) (ext:inhibit-warnings 3)))
+                     #+(or cmucl scl) (c::brevity 2) #+(or cmucl scl) (ext:inhibit-warnings 3)))
+
+#+clasp
+(unless (assoc "script" si:*load-hooks* :test #'equal)
+  (push (cons "script" 'si:load-source) si:*load-hooks*))
 
 (defparameter *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
@@ -50,6 +55,8 @@ Some constraints:
     ))
 
 (defvar *debug-asdf* nil)
+(defvar *print-backtrace* t)
+
 (defvar *quit-when-done* t)
 
 (defun verbose (&optional (verbose t) (print verbose))
@@ -122,17 +129,27 @@ Some constraints:
        (,condition (,x)
          (format *error-output* "~&Received signal ~S~%" ,x)
          (finish-output *error-output*)
-         t)
+         ,x)
        (:no-error (&rest ,x)
          (error "Expression ~S fails to raise condition ~S, instead returning~{ ~S~}"
-                ',sexp ',condition ,x))
-       (t (,x)
-         (error "Expression ~S raises signal ~S, not ~S" ',sexp ,x ',condition)))))
-(defmacro errors (condition sexp)
+                ',sexp ',condition ,x)))))
+(defmacro does-not-signal (condition sexp &aux (x (gensym)))
+  `(progn
+     (format *error-output* "~&Checking that ~S does NOT signal ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (handler-case
+         ,sexp
+       (,condition (,x)
+         (error "~&Condition signaled: ~S~%" ,x))
+       (:no-error (&rest ,x)
+         t))))
+(defmacro errors (condition sexp &aux (x (gensym)))
   `(progn
      (format *error-output* "~&Checking whether ~S signals error ~S~%" ',sexp ',condition)
      (finish-output *error-output*)
-     (assert-equal ',condition (type-of (nth-value 1 (ignore-errors ,sexp))))))
+     (let ((,x (nth-value 1 (ignore-errors ,sexp))))
+       (assert-equal ',condition (type-of ,x))
+       ,x)))
 (defmacro with-expected-failure ((&optional condition) &body body)
   `(call-with-expected-failure ,condition (lambda () ,@body)))
 (defun call-with-expected-failure (condition thunk)
@@ -158,7 +175,7 @@ Some constraints:
 (defun assert-pathname-equal-helper (qx x qy y)
   (cond
     ((equal x y)
-     (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
+     (format t "~S and~%~S both evaluate to same path:~%  ~S~%" qx qy x))
     #+mkcl
     ((acall :pathname-equal x y)
      (format t "~S and ~S evaluate to functionaly equivalent paths, respectively:~%  ~S~%and~%  ~S~%" qx qy x y))
@@ -205,9 +222,41 @@ Some constraints:
 ;; We still want to work despite and host/device funkiness,
 ;; so we do it the hard way.
 (defparameter *test-directory*
-  (truename
-   (make-pathname :name nil :type nil :version nil
-                  :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
+  ;; the following is annoyingly named "test-getenv" to avoid symbol clash
+  ;; later when we use UIOP.
+  (flet ((test-getenv (x)
+           (declare (ignorable x))
+           #+(or abcl clasp clisp ecl xcl) (ext:getenv x)
+           #+allegro (sys:getenv x)
+           #+clozure (ccl:getenv x)
+           #+cmucl (unix:unix-getenv x)
+           #+scl (cdr (assoc x ext:*environment-list* :test #'string=))
+           #+cormanlisp
+           (let* ((buffer (ct:malloc 1))
+                  (cname (ct:lisp-string-to-c-string x))
+                  (needed-size (win:getenvironmentvariable cname buffer 0))
+                  (buffer1 (ct:malloc (1+ needed-size))))
+             (prog1 (if (zerop (win:getenvironmentvariable cname buffer1 needed-size))
+                        nil
+                      (ct:c-string-to-lisp-string buffer1))
+               (ct:free buffer)
+               (ct:free buffer1)))
+           #+gcl (system:getenv x)
+           #+genera nil
+           #+lispworks (lispworks:environment-variable x)
+           #+mcl (ccl:with-cstrs ((name x))
+                                 (let ((value (_getenv name)))
+                                   (unless (ccl:%null-ptr-p value)
+                                     (ccl:%get-cstring value))))
+           #+mkcl (#.(or (find-symbol "GETENV" :si) (find-symbol "GETENV" :mk-ext)) x)
+           #+sbcl (sb-ext:posix-getenv x)
+           #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+           (error "~S is not supported on your implementation" 'getenv)))
+    (or (test-getenv "ASDF_TEST_DIRECTORY")
+        (truename
+         (make-pathname :name nil :type nil :version nil
+                        :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))))
+
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
 (defparameter *asdf-directory*
@@ -222,10 +271,11 @@ Some constraints:
         (:case-sensitive-lower :mlisp)
         (:case-insensitive-upper :alisp))
       #+armedbear :abcl
-      #+(or clasp ecl) (or #+ecl-bytecmp :ecl_bytecodes :ecl)
+      #+ecl (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+clisp :clisp
+      #+clasp :clasp
       #+clozure :ccl
-      #+cmu :cmucl
+      #+cmucl :cmucl
       #+corman :cormanlisp
       #+digitool :mcl
       #+gcl :gcl
@@ -279,19 +329,22 @@ Some constraints:
 (defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
-    (if (and (asymval :*asdf-cache*) (not in-filesystem))
-        (acall :register-file-stamp file stamp)
+    (if in-filesystem
         (multiple-value-bind (sec min hr day month year)
             (decode-universal-time stamp)
-          (unless in-filesystem
-            (error "Y U NO use stamp cache?"))
           (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
                            ,(acall :native-namestring file)))
-          (assert-equal (file-write-date file) stamp)))))
+          (assert-equal (file-write-date file) stamp))
+      ;; else
+      (progn
+        (unless (asymval :*asdf-session*)
+          (error "Trying to use the ASDF session cache in TOUCH-FILE, but it is not initialized."))
+        (acall :register-file-stamp file stamp)))))
+
 (defun mark-file-deleted (file)
-  (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
+  (unless (asymval :*asdf-session*) (error "Y U NO use asdf session?"))
   (acall :register-file-stamp (acall :normalize-namestring file) nil))
 
 (defun hash-table->alist (table)
@@ -306,7 +359,7 @@ Some constraints:
   #+clisp (ext:quit code)
   #+clozure (ccl:quit code)
   #+cormanlisp (win32:exitprocess code)
-  #+(or cmu scl) (unix:unix-exit code)
+  #+(or cmucl scl) (unix:unix-exit code)
   #+gcl (system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -317,7 +370,7 @@ Some constraints:
              (cond
                (exit `(,exit :code code :abort t))
                (quit* `(,quit* :unix-status code :recklessly-p t))))
-  #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+  #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
 
@@ -335,29 +388,31 @@ code (an integer, 0 for success), up as exit code."
 (defmacro with-test ((&optional) &body body)
   `(call-with-test (lambda () ,@body)))
 
+(deftype test-fatal-condition ()
+    `(and serious-condition #+ccl (not ccl:process-reset)))
+
 (defun call-with-test (thunk)
   "Unless the environment variable DEBUG_ASDF_TEST
 is bound, write a message and exit on an error.  If
 *asdf-test-debug* is true, enter the debugger."
   (redirect-outputs)
   (let ((result
-          (catch :asdf-test-done
-            (handler-bind
-                ((error (lambda (c)
-                          (ignore-errors
-                           (format *error-output* "~&TEST ABORTED: ~A~&" c))
-                          (finish-outputs*)
-                          (cond
-                            (*debug-asdf*
-                             (format t "~&It's your baby, fix it!~%")
-                             (break))
-                            (t
-                             (ignore-errors
-                              (acall :print-condition-backtrace
-                                     c :count 69 :stream *error-output*))
-                             (leave-test "Script failed" 1))))))
-              (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
-              (leave-test "Script succeeded" 0)))))
+         (catch :asdf-test-done
+           (handler-bind
+               ((test-fatal-condition
+                 (lambda (c)
+                   (ignore-errors
+                     (format *error-output* "~&TEST ABORTED: ~A~&" c))
+                   (finish-outputs*)
+                   (unless *debug-asdf*
+                     (when *print-backtrace*
+                       (ignore-errors
+                        (format *error-output* "~&Backtrace:~%")
+                        (acall :print-condition-backtrace
+                               c :count 69 :stream *error-output*)))
+                     (leave-test "Script failed" 1)))))
+             (funcall thunk)
+             (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
 
@@ -394,7 +449,7 @@ is bound, write a message and exit on an error.  If
   (quietly (load (asdf-fasl tag))))
 
 (defun register-directory (dir)
-  (pushnew dir (symbol-value (asym :*central-registry*))))
+  (pushnew dir (symbol-value (asym :*central-registry*)) :test #'equal))
 
 (defun load-asdf-system (&rest keys)
   (quietly
@@ -413,7 +468,7 @@ is bound, write a message and exit on an error.  If
                  #+sbcl
                  ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
                    #'muffle-warning)
-                 #-(or cmu scl)
+                 #-(or cmucl scl)
                  ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
                  (style-warning
                    #'(lambda (w)
@@ -454,7 +509,7 @@ is bound, write a message and exit on an error.  If
             ;; CMUCL: ?
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
-            #+(or clasp clisp cmu ecl scl xcl) (good :expected-style-warnings)
+            #+(or clasp clisp cmucl ecl scl xcl) (good :expected-style-warnings)
             (and upgradep (good :unexpected-style-warnings))
             (bad :unexpected-style-warnings)))
           (t (good :success)))))))
@@ -474,7 +529,7 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
-    (ecase (with-asdf-conditions () (maybe-compile-asdf))
+    (ecase (with-asdf-conditions (t) (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
       (:previously-compiled
@@ -561,7 +616,8 @@ is bound, write a message and exit on an error.  If
   (format t "Configuring ASDF~%")
   (when (asym :getenvp)
     (format t "Enabling debugging~%")
-    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST"))))
+    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
+    (setf *print-backtrace* (not (acall :getenvp "NO_ASDF_BACKTRACE"))))
   (when *trace-symbols*
     (format t "Tracing~{ ~A~}~%" *trace-symbols*)
     (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s)))))
@@ -581,25 +637,36 @@ is bound, write a message and exit on an error.  If
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
   (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
     (format t "Comparing directories~%")
-    (acall :call-with-asdf-cache
-             #'(lambda ()
-                 (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-                   (assert-pathname-equal-helper ;; not always EQUAL (!)
-                    '*test-directory* *test-directory*
-                    '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
-                   (unless (equal *test-directory* x)
-                     (format t "Interestingly, while *test-directory* has components~% ~S~%~
-                 ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-                             (pathname-components *test-directory*)
-                             (pathname-components x)))
-                   (setf *test-directory* x)))))
+    (let ((x (acall
+              :pathname-directory-pathname
+              ;; Some old versions of ASDF want locate-system to be surrounded by with-asdf-cache
+              ;; so we do it for them for the sake of testing upgrade from these old versions.
+              ;; Yet older versions of ASDF don't even have this session cache, so then we don't.
+              ;; Newer versions of ASDF implicitly use with-asdf-session (successor of the cache)
+              ;; without our having to wrap it.
+              (funcall
+               (or (asym :call-with-asdf-cache) 'funcall)
+               (lambda () (nth-value 2 (acall :locate-system :test-asdf)))))))
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
+      (unless (equal *test-directory* x)
+        (format t "Interestingly, while *test-directory* has components~% ~S~%~
+              ASDF finds the ASDs in~% ~S~%Using the latter.~%"
+                (pathname-components *test-directory*)
+                (pathname-components x)))
+      (setf *test-directory* x)))
   t)
 
 (defun frob-packages ()
-  (format t "Frob packages~%")
-  (use-package :asdf :asdf-test)
-  (when (find-package :uiop) (use-package :uiop :asdf-test))
-  (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
+  (cond
+    ((find-package :asdf)
+     (format t "Frob packages~%")
+     (use-package :asdf :asdf-test)
+     (when (find-package :uiop) (use-package :uiop :asdf-test))
+     (when (find-package :asdf/session) (use-package :asdf/session :asdf-test)))
+    (t
+     (format t "NB: No packages to frob, because ASDF not loaded yet.")))
   (setf *package* (find-package :asdf-test))
   t)
 
@@ -610,12 +677,17 @@ is bound, write a message and exit on an error.  If
                    (and (member :asdf2 *features*) (acall :version-satisfies (acall :asdf-version) "2.11.4"))))
     (leave-test "UIOP will break ASDF < 2.011.4 - skipping test." 0))
   (configure-asdf)
-  (register-directory *asdf-directory*)
+  ;; do NOT include *asdf-directory*, which would defeat the purpose by causing an upgrade
   (register-directory *uiop-directory*)
   (register-directory *test-directory*)
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading uiop~%")
   (quietly
    (acall :oos (asym :load-op) :uiop))
-  (acall :oos (asym :load-op) :test-module-depend))
+  (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
+  (format t "loading test-module-depend~%")
+  (acall :oos (asym :load-op) :test-module-depend)
+  (format t "done loading~%"))
 
 (defun load-asdf (&optional tag)
   (load-asdf-fasl tag)
@@ -624,7 +696,7 @@ is bound, write a message and exit on an error.  If
 (defun debug-asdf ()
   (setf *debug-asdf* t)
   (setf *quit-when-done* nil)
-  (setf *package* (find-package :asdf-test)))
+  (frob-packages))
 
 (defun just-load-asdf-fasl () (load-asdf-fasl))
 
@@ -685,10 +757,14 @@ is bound, write a message and exit on an error.  If
     (assert (asymval '#:*file3* :test-package))))
 
 (defun join-namestrings (namestrings)
-  (with-output-to-string (s)
-    (loop :with separator = (acall :inter-directory-separator)
-          :for (n . morep) :on namestrings
-          :do (format s "~A~@[~C~]" n (and morep separator)))))
+  (format nil (format nil "~~{~~A~~^~A~~}" (acall :inter-directory-separator)) namestrings))
+
+(defun reset-session ()
+  (set (asym :*asdf-session*) nil))
+
+(defun reset-session-visited ()
+  (clrhash (acall '#:visited-actions (asymval '#:*asdf-session*))))
+
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

@@ -1,6 +1,6 @@
 (defpackage :test-asdf/dll-test (:use)) ;; dummy, for package-inferred-system dependencies.
 
-#+(and ecl (not clasp))
+#+ecl
 (ffi:clines "
 extern int sample_function();
 

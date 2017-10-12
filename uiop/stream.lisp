@@ -2,8 +2,6 @@
 ;;;; Utilities related to streams
 
 (uiop/package:define-package :uiop/stream
-  (:nicknames :asdf/stream)
-  (:recycle :uiop/stream :asdf/stream :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname :uiop/filesystem)
   (:export
    #:*default-stream-element-type*
@@ -23,6 +21,7 @@
    #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
    #:read-file-forms #:read-file-form #:safe-read-file-form
    #:println #:writeln
+   #:file-stream-p #:file-or-synonym-stream-p
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
@@ -33,7 +32,7 @@
 
 (with-upgradability ()
   (defvar *default-stream-element-type*
-    (or #+(or abcl cmu cormanlisp scl xcl) 'character
+    (or #+(or abcl cmucl cormanlisp scl xcl) 'character
         #+lispworks 'lw:simple-char
         :default)
     "default element-type for open (depends on the current CL implementation)")
@@ -44,7 +43,7 @@
   (defun setup-stdin ()
     (setf *stdin*
           #.(or #+clozure 'ccl::*stdin*
-                #+(or cmu scl) 'system:*stdin*
+                #+(or cmucl scl) 'system:*stdin*
                 #+(or clasp ecl) 'ext::+process-standard-input+
                 #+sbcl 'sb-sys:*stdin*
                 '*standard-input*)))
@@ -55,7 +54,7 @@
   (defun setup-stdout ()
     (setf *stdout*
           #.(or #+clozure 'ccl::*stdout*
-                #+(or cmu scl) 'system:*stdout*
+                #+(or cmucl scl) 'system:*stdout*
                 #+(or clasp ecl) 'ext::+process-standard-output+
                 #+sbcl 'sb-sys:*stdout*
                 '*standard-output*)))
@@ -67,7 +66,7 @@
     (setf *stderr*
           #.(or #+allegro 'excl::*stderr*
                 #+clozure 'ccl::*stderr*
-                #+(or cmu scl) 'system:*stderr*
+                #+(or cmucl scl) 'system:*stderr*
                 #+(or clasp ecl) 'ext::+process-error-output+
                 #+sbcl 'sb-sys:*stderr*
                 '*error-output*)))
@@ -346,7 +345,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
                  (when eof (return)))
           (loop
             :with buffer-size = (or buffer-size 8192)
-            :for buffer = (make-array (list buffer-size) :element-type (or element-type 'character))
+            :with buffer = (make-array (list buffer-size) :element-type (or element-type 'character))
             :for end = (read-sequence buffer input)
             :until (zerop end)
             :do (write-sequence buffer output :end end)
@@ -364,6 +363,11 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
   (defun copy-file (input output)
     "Copy contents of the INPUT file to the OUTPUT file"
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
+    #+allegro
+    (excl.osi:copy-file input output)
+    #+ecl
+    (ext:copy-file input output)
+    #-(or allegro ecl)
     (concatenate-files (list input) output))
 
   (defun slurp-stream-string (input &key (element-type 'character) stripped)
@@ -478,7 +482,6 @@ within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
     (with-safe-io-syntax (:package package)
       (apply 'read-file-form pathname (remove-plist-key :package keys)))))
 
-
 ;;; Printers
 (with-upgradability ()
   (defun println (x &optional (stream *standard-output*))
@@ -522,7 +525,7 @@ within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
     "Call a THUNK with stream and/or pathname arguments identifying a temporary file.
 
 The temporary file's pathname will be based on concatenating
-PREFIX (defaults to \"uiop\"), a random alphanumeric string,
+PREFIX (or \"tmp\" if it's NIL), a random alphanumeric string,
 and optional SUFFIX (defaults to \"-tmp\" if a type was provided)
 and TYPE (defaults to \"tmp\", using a dot as separator if not NIL),
 within DIRECTORY (defaulting to the TEMPORARY-DIRECTORY) if the PREFIX isn't absolute.
@@ -532,7 +535,7 @@ ELEMENT-TYPE (defaults to *DEFAULT-STREAM-ELEMENT-TYPE*) and
 EXTERNAL-FORMAT (defaults to *UTF-8-EXTERNAL-FORMAT*).
 If WANT-STREAM-P is true (the defaults to T), then THUNK will then be CALL-FUNCTION'ed
 with the stream and the pathname (if WANT-PATHNAME-P is true, defaults to T),
-and stream with be closed after the THUNK exits (either normally or abnormally).
+and stream will be closed after the THUNK exits (either normally or abnormally).
 If WANT-STREAM-P is false, then WANT-PATHAME-P must be true, and then
 THUNK is only CALL-FUNCTION'ed after the stream is closed, with the pathname as argument.
 Upon exit of THUNK, the AFTER thunk if defined is CALL-FUNCTION'ed with the pathname as argument.
@@ -544,7 +547,11 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
     (loop
       :with prefix-pn = (ensure-absolute-pathname
                          (or prefix "tmp")
-                         (or (ensure-pathname directory :namestring :native :ensure-directory t)
+                         (or (ensure-pathname
+                              directory
+                              :namestring :native
+                              :ensure-directory t
+                              :ensure-physical t)
                              #'temporary-directory))
       :with prefix-nns = (native-namestring prefix-pn)
       :with results = (progn (ensure-directories-exist prefix-pn)
@@ -580,7 +587,7 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
                  ((not okp) nil)
                  (after (return (call-function after okp)))
                  ((and want-pathname-p (not want-stream-p)) (return (call-function thunk okp)))
-                 (t (return (apply 'values results)))))
+                 (t (return (values-list results)))))
           (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 
@@ -644,9 +651,9 @@ Further KEYS can be passed to MAKE-PATHNAME."
     "Return a new pathname modified from X by adding a trivial random suffix.
 A new empty file with said temporary pathname is created, to ensure there is no
 clash with any concurrent process attempting the same thing."
-    (let* ((px (ensure-pathname x))
+    (let* ((px (ensure-pathname x :ensure-physical t))
            (prefix (if-let (n (pathname-name px)) (strcat n "-tmp") "tmp"))
-           (directory (translate-logical-pathname (pathname-directory-pathname px))))
+           (directory (pathname-directory-pathname px)))
       (get-temporary-file :directory directory :prefix prefix :type (pathname-type px))))
 
   (defun call-with-staging-pathname (pathname fun)
@@ -665,3 +672,12 @@ For the latter case, we ought pick a random suffix and atomically open it."
   (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
     "Trivial syntax wrapper for CALL-WITH-STAGING-PATHNAME"
     `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body))))
+
+(with-upgradability ()
+  (defun file-stream-p (stream)
+    (typep stream 'file-stream))
+  (defun file-or-synonym-stream-p (stream)
+    (or (file-stream-p stream)
+        (and (typep stream 'synonym-stream)
+             (file-or-synonym-stream-p
+              (symbol-value (synonym-stream-symbol stream)))))))

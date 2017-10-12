@@ -2,7 +2,7 @@
 
 ;;; Extracting version information
 
-(defparameter *version-tag-glob* "[0-9][.][0-9]*")
+(defparameter *version-tag-glob* "[0-9][.][0-9]*") ;; NB: it's a glob, not regex
 
 (defun version-from-tag (&optional commit)
   ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
@@ -37,13 +37,11 @@
     (declare (ignore epoch))
     (debian-version-string ver nil rel)))
 
-(defparameter *version* (version-from-file))
-
 ;;; Bumping the version of ASDF
 
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")
-    ("uiop/version.lisp-expr" "\"" "\"")
+    ("uiop/version.lisp" "(defparameter *uiop-version* \"" "\")")
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
     ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
     ("upgrade.lisp" "   (asdf-version \"" "\")")
@@ -53,7 +51,7 @@
 (defparameter *old-version* :default)
 (defparameter *new-version* :default)
 
-(defun next-version (v)
+(defun compute-next-version (v)
   (let ((pv (parse-version v 'error)))
     (assert (first pv))
     (assert (second pv))
@@ -72,7 +70,7 @@
       (v1 (check (version-from-file) v1))
       ((not (eq *new-version* :default)) *new-version*) ;; Ugly passing of argument from Makefile.
       (t (let ((old (version-from-file)))
-           (check old (next-version old)))))))
+           (check old (compute-next-version old)))))))
 
 (deftype byte-vector () '(array (unsigned-byte 8) (*)))
 
@@ -146,3 +144,4 @@
     (git `(commit -a -m ("Bump version to ",v)))
     (git `(tag ,v))
     v))
+

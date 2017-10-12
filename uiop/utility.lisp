@@ -2,8 +2,6 @@
 ;;;; General Purpose Utilities for ASDF
 
 (uiop/package:define-package :uiop/utility
-  (:nicknames :asdf/utility)
-  (:recycle :uiop/utility :asdf/utility :asdf)
   (:use :uiop/common-lisp :uiop/package)
   ;; import and reexport a few things defined in :uiop/common-lisp
   (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
@@ -14,8 +12,9 @@
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric*
+   #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
+   #:parse-body ;; macro definition helper
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
@@ -24,7 +23,7 @@
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
-   #:standard-case-symbol-name #:find-standard-case-symbol
+   #:standard-case-symbol-name #:find-standard-case-symbol ;; symbols
    #:coerce-class ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
@@ -32,10 +31,11 @@
    #:list-to-hash-set #:ensure-gethash #:table-alist ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:fwrap #:register-hook-function
+   #:lexicographic< #:lexicographic<= ;; version
+   #:simple-style-warning #:style-warn ;; simple style warnings
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:lexicographic< #:lexicographic<=
-   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p ;; version
+   #:not-implemented-error #:parameter-error
    #:call-with-variables #:with-variables #:set-variables ;; variables
    #:call-with-alist-variables #:with-alist-variables #:set-alist-variables))
 (in-package :uiop/utility)
@@ -46,24 +46,6 @@
 ;; even if the signature and/or generic-ness of the function has changed.
 ;; For a generic function, this invalidates any previous DEFMETHOD.
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun undefine-function (function-spec)
-    (cond
-      ((symbolp function-spec)
-       ;; undefining the previous function is the portable way
-       ;; of overriding any incompatible previous gf,
-       ;; but CLISP needs extra help with getting rid of previous methods.
-       #+clisp
-       (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
-         (when (typep f 'clos:standard-generic-function)
-           (loop :for m :in (clos:generic-function-methods f)
-                 :do (remove-method f m))))
-       (fmakunbound function-spec))
-      ((and (consp function-spec) (eq (car function-spec) 'setf)
-            (consp (cdr function-spec)) (null (cddr function-spec)))
-       (fmakunbound function-spec))
-      (t (error "bad function spec ~S" function-spec))))
-  (defun undefine-functions (function-spec-list)
-    (map () 'undefine-function function-spec-list))
   (macrolet
       ((defdef (def* def)
          `(defmacro ,def* (name formals &rest rest)
@@ -75,8 +57,8 @@
               `(progn
                  ;; We usually try to do it only for the functions that need it,
                  ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-                 ,@(when (or supersede #+(or clasp ecl) t)
-                     `((undefine-function ',name)))
+                 ,@(when supersede
+                     `((fmakunbound ',name)))
                  ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
@@ -102,8 +84,9 @@ to supersede any previous definition."
 (with-upgradability ()
   (defvar *uiop-debug-utility*
     '(or (ignore-errors
-          (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp"))
-      (symbol-call :uiop/pathname :subpathname (user-homedir-pathname) "cl/asdf/uiop/contrib/debug.lisp"))
+           (probe-file (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp")))
+      (probe-file (symbol-call :uiop/pathname :subpathname
+                   (user-homedir-pathname) "common-lisp/asdf/uiop/contrib/debug.lisp")))
     "form that evaluates to the pathname to your favorite debugging utilities")
 
   (defmacro uiop-debug (&rest keys)
@@ -123,7 +106,7 @@ to supersede any previous definition."
 ;;; Flow control
 (with-upgradability ()
   (defmacro nest (&rest things)
-    "Macro to do keep code nesting and indentation under control." ;; Thanks to mbaringer
+    "Macro to keep code nesting and indentation under control." ;; Thanks to mbaringer
     (reduce #'(lambda (outer inner) `(,@outer ,inner))
             things :from-end t))
 
@@ -137,6 +120,30 @@ to supersede any previous definition."
          (if (and ,@variables)
              ,then-form
              ,else-form)))))
+
+;;; Macro definition helper
+(with-upgradability ()
+  (defun parse-body (body &key documentation whole) ;; from alexandria
+    "Parses BODY into (values remaining-forms declarations doc-string).
+Documentation strings are recognized only if DOCUMENTATION is true.
+Syntax errors in body are signalled and WHOLE is used in the signal
+arguments when given."
+    (let ((doc nil)
+          (decls nil)
+          (current nil))
+      (tagbody
+       :declarations
+         (setf current (car body))
+         (when (and documentation (stringp current) (cdr body))
+           (if doc
+               (error "Too many documentation strings in ~S." (or whole body))
+               (setf doc (pop body)))
+           (go :declarations))
+         (when (and (listp current) (eql (first current) 'declare))
+           (push (pop body) decls)
+           (go :declarations)))
+      (values body (nreverse decls) doc))))
+
 
 ;;; List manipulation
 (with-upgradability ()
@@ -174,7 +181,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     (if (listp x) x (list x))))
 
 
-;;; remove a key from a plist, i.e. for keyword argument cleanup
+;;; Remove a key from a plist, i.e. for keyword argument cleanup
 (with-upgradability ()
   (defun remove-plist-key (key plist)
     "Remove a single key from a plist"
@@ -208,8 +215,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
                        #-scl base-char
                        ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
                        ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
-                       #+(and lispworks (not (or lispworks4 lispworks5 lispworks6)))
-                       lw:bmp-char
+                       #+lispworks7+ lw:bmp-char
                        #+lispworks lw:simple-char
                        character)
                      :unless (and next (subtypep next type))
@@ -371,26 +377,26 @@ If optional ERROR argument is NIL, return NIL instead of an error when the symbo
                     (string (standard-case-symbol-name package-designator)))
                   error)))
 
-;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
+;;; stamps: a REAL or a boolean where T=-infinity, NIL=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype stamp () '(or real boolean)))
 (with-upgradability ()
   (defun stamp< (x y)
     (etypecase x
-      (null (and y t))
-      ((eql t) nil)
+      ((eql t) (not (eql y t)))
       (real (etypecase y
-              (null nil)
-              ((eql t) t)
-              (real (< x y))))))
+              ((eql t) nil)
+              (real (< x y))
+              (null t)))
+      (null nil)))
   (defun stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
   (defun stamp*< (&rest list) (stamps< list))
   (defun stamp<= (x y) (not (stamp< y x)))
   (defun earlier-stamp (x y) (if (stamp< x y) x y))
-  (defun stamps-earliest (list) (reduce 'earlier-stamp list :initial-value t))
+  (defun stamps-earliest (list) (reduce 'earlier-stamp list :initial-value nil))
   (defun earliest-stamp (&rest list) (stamps-earliest list))
   (defun later-stamp (x y) (if (stamp< x y) y x))
-  (defun stamps-latest (list) (reduce 'later-stamp list :initial-value nil))
+  (defun stamps-latest (list) (reduce 'later-stamp list :initial-value t))
   (defun latest-stamp (&rest list) (stamps-latest list))
   (define-modify-macro latest-stamp-f (&rest stamps) latest-stamp))
 
@@ -490,18 +496,24 @@ A class object designates itself.
 NIL designates itself (no class).
 A symbol otherwise designates a class by name."
     (let* ((normalized
-             (typecase class
+            (typecase class
               (keyword (or (find-symbol* class package nil)
                            (find-symbol* class *package* nil)))
               (string (symbol-call :uiop :safe-read-from-string class :package package))
               (t class)))
            (found
-             (etypecase normalized
-               ((or standard-class built-in-class) normalized)
-               ((or null keyword) nil)
-               (symbol (find-class normalized nil nil)))))
+            (etypecase normalized
+              ((or standard-class built-in-class) normalized)
+              ((or null keyword) nil)
+              (symbol (find-class normalized nil nil))))
+           (super-class
+            (etypecase super
+              ((or standard-class built-in-class) super)
+              ((or null keyword) nil)
+              (symbol (find-class super nil nil)))))
+      #+allegro (when found (mop:finalize-inheritance found))
       (or (and found
-               (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super))
+               (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super-class))
                found)
           (call-function error "Can't coerce ~S to a ~:[class~;subclass of ~:*~S~]" class super)))))
 
@@ -528,84 +540,50 @@ up to the given equality TEST"
   (defgeneric table-alist (table))
   (defmethod table-alist ((table hash-table))
     (loop :for k :being :the :hash-keys :of table :using (:hash-value v)
-          :collect (cons k v))))
+          :collect (cons k v)))
   (defmethod table-alist ((table cons))
-    table)
+    table))
 
-
-;;; Version handling
+;;; Lexicographic comparison of lists of numbers
 (with-upgradability ()
-  (defun unparse-version (version-list)
-    (format nil "~{~D~^.~}" version-list))
-
-  (defun parse-version (version-string &optional on-error)
-    "Parse a VERSION-STRING as a series of natural integers separated by dots.
-Return a (non-null) list of integers if the string is valid;
-otherwise return NIL.
-
-When invalid, ON-ERROR is called as per CALL-FUNCTION before to return NIL,
-with format arguments explaining why the version is invalid.
-ON-ERROR is also called if the version is not canonical
-in that it doesn't print back to itself, but the list is returned anyway."
-    (block nil
-      (unless (stringp version-string)
-        (call-function on-error "~S: ~S is not a string" 'parse-version version-string)
-        (return))
-      (unless (loop :for prev = nil :then c :for c :across version-string
-                    :always (or (digit-char-p c)
-                                (and (eql c #\.) prev (not (eql prev #\.))))
-                    :finally (return (and c (digit-char-p c))))
-        (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
-                       'parse-version version-string)
-        (return))
-      (let* ((version-list
-               (mapcar #'parse-integer (split-string version-string :separator ".")))
-             (normalized-version (unparse-version version-list)))
-        (unless (equal version-string normalized-version)
-          (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
-        version-list)))
-
-  (defun lexicographic< (< x y)
+  (defun lexicographic< (element< x y)
+    "Lexicographically compare two lists of using the function element< to compare elements.
+element< is a strict total order; the resulting order on X and Y will also be strict."
     (cond ((null y) nil)
           ((null x) t)
-          ((funcall < (car x) (car y)) t)
-          ((funcall < (car y) (car x)) nil)
-          (t (lexicographic< < (cdr x) (cdr y)))))
+          ((funcall element< (car x) (car y)) t)
+          ((funcall element< (car y) (car x)) nil)
+          (t (lexicographic< element< (cdr x) (cdr y)))))
 
-  (defun lexicographic<= (< x y)
-    (not (lexicographic< < y x)))
+  (defun lexicographic<= (element< x y)
+    "Lexicographically compare two lists of using the function element< to compare elements.
+element< is a strict total order; the resulting order on X and Y will be a non-strict total order."
+    (not (lexicographic< element< y x))))
 
-  (defun version< (version1 version2)
-    (let ((v1 (parse-version version1 nil))
-          (v2 (parse-version version2 nil)))
-      (lexicographic< '< v1 v2)))
+;;; Simple style warnings
+(with-upgradability ()
+  (define-condition simple-style-warning
+      #+sbcl (sb-int:simple-style-warning) #-sbcl (simple-condition style-warning)
+    ())
 
-  (defun version<= (version1 version2)
-    (not (version< version2 version1)))
-
-  (defun version-compatible-p (provided-version required-version)
-    "Is the provided version a compatible substitution for the required-version?
-If major versions differ, it's not compatible.
-If they are equal, then any later version is compatible,
-with later being determined by a lexicographical comparison of minor numbers."
-    (let ((x (parse-version provided-version nil))
-          (y (parse-version required-version nil)))
-      (and x y (= (car x) (car y)) (lexicographic<= '< (cdr y) (cdr x))))))
-
+  (defun style-warn (datum &rest arguments)
+    (etypecase datum
+      (string (warn (make-condition 'simple-style-warning :format-control datum :format-arguments arguments)))
+      (symbol (assert (subtypep datum 'style-warning)) (apply 'warn datum arguments))
+      (style-warning (apply 'warn datum arguments)))))
 
 ;;; Condition control
-
 (with-upgradability ()
   (defparameter +simple-condition-format-control-slot+
     #+abcl 'system::format-control
     #+allegro 'excl::format-control
+    #+(or clasp ecl mkcl) 'si::format-control
     #+clisp 'system::$format-control
     #+clozure 'ccl::format-control
-    #+(or cmu scl) 'conditions::format-control
-    #+(or clasp ecl mkcl) 'si::format-control
+    #+(or cmucl scl) 'conditions::format-control
     #+(or gcl lispworks) 'conditions::format-string
     #+sbcl 'sb-kernel:format-control
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl) nil
     "Name of the slot for FORMAT-CONTROL in simple-condition")
 
   (defun match-condition-p (x condition)
@@ -620,7 +598,7 @@ or a string describing the format-control of a simple-condition."
       (function (funcall x condition))
       (string (and (typep condition 'simple-condition)
                    ;; On SBCL, it's always set and the check triggers a warning
-                   #+(or allegro clozure cmu lispworks scl)
+                   #+(or allegro clozure cmucl lispworks scl)
                    (slot-boundp condition +simple-condition-format-control-slot+)
                    (ignore-errors (equal (simple-condition-format-control condition) x))))))
 
@@ -638,8 +616,52 @@ or a string describing the format-control of a simple-condition."
     "Shorthand syntax for CALL-WITH-MUFFLED-CONDITIONS"
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
 
-;;; Variables
+;;; Conditions
+(with-upgradability ()
+  (define-condition not-implemented-error (error)
+    ((functionality :initarg :functionality)
+     (format-control :initarg :format-control)
+     (format-arguments :initarg :format-arguments))
+    (:report (lambda (condition stream)
+               (format stream "Not (currently) implemented on ~A: ~S~@[ ~?~]"
+                       (nth-value 1 (symbol-call :uiop :implementation-type))
+                       (slot-value condition 'functionality)
+                       (slot-value condition 'format-control)
+                       (slot-value condition 'format-arguments)))))
 
+  (defun not-implemented-error (functionality &optional format-control &rest format-arguments)
+    "Signal an error because some FUNCTIONALITY is not implemented in the current version
+of the software on the current platform; it may or may not be implemented in different combinations
+of version of the software and of the underlying platform. Optionally, report a formatted error
+message."
+    (error 'not-implemented-error
+           :functionality functionality
+           :format-control format-control
+           :format-arguments format-arguments))
+
+  (define-condition parameter-error (error)
+    ((functionality :initarg :functionality)
+     (format-control :initarg :format-control)
+     (format-arguments :initarg :format-arguments))
+    (:report (lambda (condition stream)
+               (apply 'format stream
+                       (slot-value condition 'format-control)
+                       (slot-value condition 'functionality)
+                       (slot-value condition 'format-arguments)))))
+
+  ;; Note that functionality MUST be passed as the second argument to parameter-error, just after
+  ;; the format-control. If you want it to not appear in first position in actual message, use
+  ;; ~* and ~:* to adjust parameter order.
+  (defun parameter-error (format-control functionality &rest format-arguments)
+    "Signal an error because some FUNCTIONALITY or its specific implementation on a given underlying
+platform does not accept a given parameter or combination of parameters. Report a formatted error
+message, that takes the functionality as its first argument (that can be skipped with ~*)."
+    (error 'parameter-error
+           :functionality functionality
+           :format-control format-control
+           :format-arguments format-arguments)))
+
+;;; Variables
 (with-upgradability ()
   (defun call-with-variables (variables bindings thunk &key (name #'identity) (value #'identity))
     (loop :for variable :in variables
@@ -674,4 +696,3 @@ or a string describing the format-control of a simple-condition."
   (defun set-alist-variables (alist &rest keys &key name value)
     (declare (ignore name value))
     (apply 'set-variables (mapcar #'car alist) (mapcar #'cdr alist) keys)))
-

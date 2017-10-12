@@ -2,8 +2,14 @@
 
 ;;; test system def reloading if touched
 ;;; system that can be found using *system-definition-search-functions*
+
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (defun system-registered-time (name)
-  (car (asdf::system-registered-p name)))
+  (asdf::component-operation-time
+   'asdf::define-op
+   (registered-system (primary-system-name name))))
+(setf (asdf-upgraded-p *asdf-session*) t)
 
 (defparameter test1.asd (nth-value 2 (locate-system :test1)))
 (assert-pathname-equal test1.asd (test-source "test1.asd"))
@@ -30,7 +36,7 @@
 (sleep 1)
 
 (clear-system :test1)
-(touch-file test1.asd)
+(touch-file test1.asd :timestamp date4 :offset 600)
 (find-system :test1)
 (defparameter date6 (system-registered-time :test1))
 (assert-compare (> date6 date4))

@@ -3,66 +3,98 @@
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)
-  (block ()
-    (setf x (remove (code-char 13) x))
-    ;; Some buggy implementations output extra space on Windows;
-    ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
-    (when (eql #\space (last-char x))
-      (return (subseq x 0 (1- (length x)))))
-    x))
+  ;; Some buggy implementations output extra space on Windows;
+  ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
+  (string-trim " " (remove (code-char 13) x)))
 
+;;#+(and clisp os-windows) (ext:without-package-lock () (trace ext:run-shell-command))
+(os-cond
+ ((os-unix-p)
+  (DBG "Testing echo ok 1 via run-program as a list")
+  (assert-equal "ok 1"
+                (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
+ ((os-windows-p)
+  (DBG "Testing ipconfig /all via run-progam as a string")
+  ;; Interestingly, "ipconfig /all" fails on the msys2 bash, but not on the cygwin bash.
+  (nest
+   #+ecl (errors parameter-error) ;; FIXME: known breakage
+   (run-program "ipconfig /all"))
+  (DBG "Testing ipconfig /all via run-progam as a list")
+  (run-program '("ipconfig" "/all"))))
 
-(DBG "Testing echo ok 1 via run-program as a list")
+(DBG "Testing echo ok 1 via run-program as a string")
+#-(and ecl os-windows)
 (assert-equal "ok 1"
-              (dewindowize (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
-
-#+(and sbcl os-windows)
-(leave-test "SBCL won't let us pass unquoted arguments to cmd.exe" 0)
-
-#-(and sbcl os-windows)
-(progn
- (DBG "Testing echo ok 1 via run-program as a string")
- (assert-equal "ok 1"
-               (dewindowize (run-program "echo ok 1" :output '(:string :stripped t)))))
+              (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
+#+(and ecl os-windows)
+(errors parameter-error
+  (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
 
 ;;; test asdf run-shell-command function
+#-(and ecl os-windows)
+(progn
 (setf *verbose-out* nil)
 (DBG "Testing true via run-shell-command")
-(assert-equal 0 (run-shell-command "true"))
+(assert-equal 0 (run-shell-command "exit 0"))
 (DBG "Testing false via run-shell-command")
-(assert-equal 1 (run-shell-command "false"))
+(assert-equal 1 (run-shell-command "exit 1"))
 (DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
-  (error "Failed to capture exit status indicating shell command failure."))
+  (error "Failed to capture exit status indicating shell command failure.")))
+#+(and ecl os-windows)
+(errors not-implemented-error
+  (eql 0  (run-shell-command "exit 0")))
+
+(chdir *test-directory*)
 
 #+os-unix
 (progn
-  (chdir *test-directory*)
-
   (DBG "Testing good shell command in current directory via run-shell-command")
-  (assert-equal 0 (run-shell-command "./good-shell-command"))
+  (assert-equal 0 (run-shell-command "./good-shell-command")))
 
-  ;; this test checks for a problem there was in allegro -- :output :interactive
-  ;; would try to open T as a stream for INPUT.
-  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell t :output :interactive)))
-  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell nil :output :interactive)))
-  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell t :output :interactive :ignore-error-status t)))
-  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell nil :output :interactive :ignore-error-status t)))
-  (assert-equal
-   '("foo" "bar baz" 42)
-   (multiple-value-list
-    (run-program "cat ; echo bar  baz >&2 ; exit 42"
-                 :input '("foo") :output :string :error-output '(:string :stripped t)
-                 :ignore-error-status t)))
-  (assert-equal
-   '(("foo" "bar" "baz" "quux") nil 0)
-   (multiple-value-list
-    (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
-                 :output :lines :error-output :output))))
+(DBG "Testing exit status with :output :interactive")
+;; This test checks for a problem there was in allegro -- :output :interactive
+;; would try to open T as a stream for INPUT.
+#-(and ecl os-windows)
+(loop
+   :for (program . exit-code) :in
+   #+os-unix '(("true" . 0) ("false" . 1))
+   #+os-windows '(("cmd /c exit 0" . 0) ("cmd /c exit 1" . 1))
+   :do (loop
+          :for force-shell :in '(t nil)
+          :do (assert-equal `(nil nil ,exit-code)
+                            (multiple-value-list
+                             (run-program program
+                                          :ignore-error-status t
+                                          :force-shell force-shell
+                                          :output :interactive)))))
+#+(and ecl os-windows)
+(DBG "Test skipped on ECL + Windows")
 
-#-(and sbcl os-windows)
+#-(and ecl os-windows)
+(assert-equal
+ '("foo" "bar baz" 42)
+ (multiple-value-bind (o e c)
+     (run-program #+os-unix "cat ; echo bar  baz >&2 ; exit 42"
+                  #+os-windows "findstr \"^\" & echo bar baz >&2 & exit 42"
+                  ;; On some versions of windows, findstr hangs indefinitely
+                  ;; when passed input without a trailing newline
+                  :input '("foo" :terpri t)
+                  :output '(:string :stripped t) :error-output '(:string :stripped t)
+                  :ignore-error-status t)
+   (DBG "aaa" o e c)
+   (list (dewindowize o) (dewindowize e) c)))
+#-(and ecl os-windows)
+(assert-equal
+ '(("foo" "bar" "baz" "quux") nil 0)
+ (multiple-value-bind (o e c)
+     (run-program #+os-unix "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
+                       #+os-windows "echo foo & echo bar >&2 & echo baz & echo quux >& 2"
+                       :output :lines :error-output :output)
+   (list (mapcar 'dewindowize o) e c)))
+
+#-(and ecl os-windows)
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
-  (untrace)
   (DBG "Testing awkward legacy output capture via run-shell-command")
   (assert-equal
    (dewindowize
@@ -82,14 +114,12 @@
              (error "Didn't get good exit status.")))))))
    ok1))
 
+#-(and ecl os-windows)
 (assert-equal '(:ok 1) (run-program "echo :ok  1" :output :forms))
+#-(and ecl os-windows)
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
                                    (run-program "echo ok" :output t :error-output :output)))))
-
-#|
-Testing run-program
-|#
 
 ;; We add a newline to the end of a string and return it.
 ;; We do it in this specific manner so that under unix, windows and macos,
@@ -177,14 +207,14 @@ Testing run-program
   (assert-equal (nl "Hello World") (run-program "echo Hello World" :output :string))
 
   (DBG "Test that run-program fails properly with an empty program string")
-  #+(or clozure (and allegro os-unix) cmu (and lispworks os-unix) sbcl scl)
+  #+(or clozure (and allegro os-unix) cmucl (and lispworks os-unix) sbcl scl)
   (signals error (run-program '("") :output :lines))
 
   (DBG "An empty string itself is ok since it is passed to the shell.")
   (assert-equal "" (run-program "" :output :string))
 
   (DBG "Test that run-program fails properly with a nil program list")
-  #+(or clozure (and allegro os-unix) cmu sbcl scl)
+  #+(or clozure (and allegro os-unix) cmucl sbcl scl)
   (signals error (run-program nil :output :lines))
 
   (DBG "Test that run-program fails properly when the executable doesn't exist.")
@@ -241,9 +271,10 @@ Testing run-program
   t)
 
 (defun windows-only-test/run-program ()
-
+  (DBG "WINDOWS-ONLY-TEST/RUN-PROGRAM")
   ;; a basic smoke test
   (assert-equal "ok" (dewindowize (run-program '("cmd" "/c" "echo" "ok") :output :line)))
+  #-(and ecl os-windows)
   (assert-equal "ok 1" (dewindowize (run-program "echo ok 1" :output :line)))
   ;; clozure: beware http://trac.clozure.com/ccl/ticket/1118
 

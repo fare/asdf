@@ -2,15 +2,14 @@
 ;;;; Starting, Stopping, Dumping a Lisp image
 
 (uiop/package:define-package :uiop/image
-  (:nicknames :asdf/image)
-  (:recycle :uiop/image :asdf/image :xcvb-driver)
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/os :uiop/pathname :uiop/stream :uiop/eval)
   (:export
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments #:argv0
    #:*lisp-interaction*
-   #:*fatal-conditions* #:fatal-condition-p #:handle-fatal-condition
+   #:fatal-condition #:fatal-condition-p
+   #:handle-fatal-condition
    #:call-with-fatal-condition-handler #:with-fatal-condition-handler
    #:*image-restore-hook* #:*image-prelude* #:*image-entry-point*
    #:*image-postlude* #:*image-dump-hook*
@@ -49,12 +48,11 @@ when the image is restarted, but before the entry point is called.")
 before the image dump hooks are called and before the image is dumped.")
 
   (defvar *image-dump-hook* nil
-    "Functions to call (in order) when before an image is dumped")
+    "Functions to call (in order) when before an image is dumped"))
 
-  (defvar *fatal-conditions* '(error)
-    "conditions that cause the Lisp image to enter the debugger if interactive,
-or to die if not interactive"))
-
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
+  (deftype fatal-condition ()
+    `(and serious-condition #+clozure (not ccl:process-reset))))
 
 ;;; Exiting properly or im-
 (with-upgradability ()
@@ -69,7 +67,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+clisp (ext:quit code)
     #+clozure (ccl:quit code)
     #+cormanlisp (win32:exitprocess code)
-    #+(or cmu scl) (unix:unix-exit code)
+    #+(or cmucl scl) (unix:unix-exit code)
     #+gcl (system:quit code)
     #+genera (error "~S: You probably don't want to Halt Genera. (code: ~S)" 'quit code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -80,8 +78,8 @@ This is designed to abstract away the implementation specific quit forms."
                (cond
                  (exit `(,exit :code code :abort (not finish-output)))
                  (quit `(,quit :unix-status code :recklessly-p (not finish-output)))))
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    (not-implemented-error 'quit "(called with exit code ~S)" code))
 
   (defun die (code format &rest arguments)
     "Die in error with some error message"
@@ -123,7 +121,7 @@ This is designed to abstract away the implementation specific quit forms."
       #+clozure (ccl:print-call-history :count count :start-frame-number 1)
       #+mcl (ccl:print-call-history :detailed-p nil)
       (finish-output stream))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace (or count most-positive-fixnum) stream))
@@ -171,8 +169,8 @@ This is designed to abstract away the implementation specific quit forms."
                     condition)))
 
   (defun fatal-condition-p (condition)
-    "Is the CONDITION fatal? It is if it matches any in *FATAL-CONDITIONS*"
-    (match-any-condition-p condition *fatal-conditions*))
+    "Is the CONDITION fatal?"
+    (typep condition 'fatal-condition))
 
   (defun handle-fatal-condition (condition)
     "Handle a fatal CONDITION:
@@ -187,7 +185,7 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
 
   (defun call-with-fatal-condition-handler (thunk)
     "Call THUNK in a context where fatal conditions are appropriately handled"
-    (handler-bind (((satisfies fatal-condition-p) #'handle-fatal-condition))
+    (handler-bind ((fatal-condition #'handle-fatal-condition))
       (funcall thunk)))
 
   (defmacro with-fatal-condition-handler ((&optional) &body body)
@@ -227,15 +225,15 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+(or clasp ecl) (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+clisp (coerce (ext:argv) 'list)
     #+clozure ccl:*command-line-argument-list*
-    #+(or cmu scl) extensions:*command-line-strings*
+    #+(or cmucl scl) extensions:*command-line-strings*
     #+gcl si:*command-args*
     #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
     #+mkcl (loop :for i :from 0 :below (mkcl:argc) :collect (mkcl:argv i))
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "raw-command-line-arguments not implemented yet"))
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    (not-implemented-error 'raw-command-line-arguments))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
     "Extract user arguments from command-line invocation of current process.
@@ -263,7 +261,7 @@ Otherwise, return NIL."
     (cond
       ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
        ;; NB: not currently available on ABCL, Corman, Genera, MCL
-       (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
+       (or #+(or allegro clisp clozure cmucl gcl lispworks sbcl scl xcl)
            (first (raw-command-line-arguments))
            #+(or clasp ecl) (si:argv 0) #+mkcl (mkcl:argv 0)))
       (t ;; argv[0] is the name of the interpreter.
@@ -321,7 +319,7 @@ of the function will be returned rather than interpreted as a boolean designatin
                           (call-function entry-point)
                           t))))
         (if lisp-interaction
-            (apply 'values results)
+            (values-list results)
             (shell-boolean-exit (first results)))))))
 
 
@@ -353,9 +351,9 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)
-    #-(or clisp clozure cmu lispworks sbcl scl)
+    #-(or clisp clozure (and cmucl executable) lispworks sbcl scl)
     (when executable
-      (error "Dumping an executable is not supported on this implementation! Aborting."))
+      (not-implemented-error 'dump-image "dumping an executable"))
     #+allegro
     (progn
       (sys:resize-areas :global-gc t :pack-heap t :sift-old-areas t :tenure t) ; :new 5000000
@@ -381,14 +379,16 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
             (funcall (fdefinition 'ccl::write-elf-symbols-to-file) path)
             (dump path))
           (dump t)))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (progn
       (ext:gc :full t)
       (setf ext:*batch-mode* nil)
       (setf ext::*gc-run-time* 0)
       (apply 'ext:save-lisp filename
-             #+cmu :executable #+cmu t
-             (when executable '(:init-function restore-image :process-command-line nil))))
+             :allow-other-keys t ;; hush SCL and old versions of CMUCL
+             #+(and cmucl executable) :executable #+(and cmucl executable) t
+             (when executable '(:init-function restore-image :process-command-line nil
+                                :quiet t :load-init-file nil :site-init nil))))
     #+gcl
     (progn
       (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
@@ -410,9 +410,8 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
               #+(and sbcl os-windows) ;; passing :application-type :gui will disable the console window.
               ;; the default is :console - only works with SBCL 1.1.15 or later.
               (when application-type (list :application-type application-type)))))
-    #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
-    (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
-           'dump-image filename (nth-value 1 (implementation-type))))
+    #-(or allegro clisp clozure cmucl gcl lispworks sbcl scl)
+    (not-implemented-error 'dump-image))
 
   (defun create-image (destination lisp-object-files
                        &key kind output-name prologue-code epilogue-code extra-object-files
@@ -425,7 +424,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
-    #-(or clasp ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
+    #-(or clasp ecl mkcl) (not-implemented-error 'create-image)
     #+(or clasp ecl mkcl)
     (let ((epilogue-code
            (if no-uiop
@@ -446,17 +445,26 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                             (shell-boolean-exit
                              (restore-image))))))))
                  (when forms `(progn ,@forms))))))
-      #+(or clasp ecl) (check-type kind (member :dll :lib :static-library :program :object :fasl))
+      #+(or clasp ecl mkcl)
+      (check-type kind (member :dll :shared-library :lib :static-library
+                               :fasl :fasb :program))
       (apply #+clasp 'cmp:builder #+clasp kind
-             #+(and ecl (not clasp)) 'c::builder #+(and ecl (not clasp)) kind
-             #+mkcl (ecase kind
-                      ((:dll) 'compiler::build-shared-library)
-                      ((:lib :static-library) 'compiler::build-static-library)
-                      ((:fasl) 'compiler::build-bundle)
-                      ((:program) 'compiler::build-program))
+             #+(or ecl mkcl)
+             (ecase kind
+               ((:dll :shared-library)
+                #+ecl 'c::build-shared-library #+mkcl 'compiler:build-shared-library)
+               ((:lib :static-library)
+                #+ecl 'c::build-static-library #+mkcl 'compiler:build-static-library)
+               ((:fasl #+ecl :fasb)
+                #+ecl 'c::build-fasl #+mkcl 'compiler:build-fasl)
+               #+mkcl ((:fasb) 'compiler:build-bundle)
+               ((:program)
+                #+ecl 'c::build-program #+mkcl 'compiler:build-program))
              (pathname destination)
-             #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (append lisp-object-files #+(or clasp ecl) extra-object-files)
-             #+(or clasp ecl) :init-name #+(or clasp ecl) (c::compute-init-name (or output-name destination) :kind kind)
+             #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files
+             (append lisp-object-files #+(or clasp ecl) extra-object-files)
+             #+ecl :init-name
+             #+ecl (getf build-args :init-name)
              (append
               (when prologue-code `(:prologue-code ,prologue-code))
               (when epilogue-code `(:epilogue-code ,epilogue-code))

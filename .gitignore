@@ -48,16 +48,24 @@ lib/
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
 test/hello-world-example
+test/test-include.asd
 
 build-stamp
+
+# Although there is no debian subdir/ in this repo any more, the
+# presence of these lines helps the debian package maintainers, so
+# please leave them here.
+
 debian/cl-asdf.debhelper.log
 debian/cl-asdf.postinst.debhelper
 debian/cl-asdf.prerm.debhelper
 debian/cl-asdf.substvars
 debian/cl-asdf/
-debian/patches/
 debian/files
+
 .pc
 
 /.DS_Store
 
+# Hack: ignore the GNUmakefile here, so you can ln -s Makefile-lisp-scripting GNUmakefile
+GNUmakefile

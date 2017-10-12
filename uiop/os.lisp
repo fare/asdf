@@ -2,8 +2,6 @@
 ;;;; Access to the Operating System
 
 (uiop/package:define-package :uiop/os
-  (:nicknames :asdf/os)
-  (:recycle :uiop/os :asdf/os :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility)
   (:export
    #:featurep #:os-unix-p #:os-macosx-p #:os-windows-p #:os-genera-p #:detect-os ;; features
@@ -31,7 +29,7 @@ keywords explicitly."
       ((eq :not (car x)) (assert (null (cddr x))) (not (featurep (cadr x))))
       ((eq :or (car x)) (some #'featurep (cdr x)))
       ((eq :and (car x)) (every #'featurep (cdr x)))
-      (t (error "Malformed feature specification ~S" x))))
+      (t (parameter-error "~S: malformed feature specification ~S" 'featurep x))))
 
   ;; Starting with UIOP 3.1.5, these are runtime tests.
   ;; You may bind *features* with a copy of what your target system offers to test its properties.
@@ -57,13 +55,18 @@ keywords explicitly."
     "Is the underlying operating system an (emulated?) MacOS 9 or earlier?"
     (featurep :mcl))
 
+  (defun os-haiku-p ()
+    "Is the underlying operating system Haiku?"
+    (featurep :haiku))
+
   (defun detect-os ()
     "Detects the current operating system. Only needs be run at compile-time,
 except on ABCL where it might change between FASL compilation and runtime."
     (loop* :with o
            :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
                                          (:os-windows . os-windows-p)
-                                         (:genera . os-genera-p) (:os-oldmac . os-oldmac-p))
+                                         (:genera . os-genera-p) (:os-oldmac . os-oldmac-p)
+                                         (:haiku . os-haiku-p))
            :when (and (or (not o) (eq feature :os-macosx)) (funcall detect))
            :do (setf o feature) (pushnew feature *features*)
            :else :do (setf *features* (remove feature *features*))
@@ -87,7 +90,7 @@ use getenvp to return NIL in such a case."
     #+(or abcl clasp clisp ecl xcl) (ext:getenv x)
     #+allegro (sys:getenv x)
     #+clozure (ccl:getenv x)
-    #+cmu (unix:unix-getenv x)
+    #+cmucl (unix:unix-getenv x)
     #+scl (cdr (assoc x ext:*environment-list* :test #'string=))
     #+cormanlisp
     (let* ((buffer (ct:malloc 1))
@@ -108,8 +111,8 @@ use getenvp to return NIL in such a case."
                 (ccl:%get-cstring value))))
     #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
     #+sbcl (sb-ext:posix-getenv x)
-    #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "~S is not supported on your implementation" 'getenv))
+    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    (not-implemented-error 'getenv))
 
   (defsetf getenv (x) (val)
     "Set an environment variable."
@@ -117,13 +120,13 @@ use getenvp to return NIL in such a case."
     #+allegro `(setf (sys:getenv ,x) ,val)
     #+clisp `(system::setenv ,x ,val)
     #+clozure `(ccl:setenv ,x ,val)
-    #+cmu `(unix:unix-setenv ,x ,val 1)
+    #+cmucl `(unix:unix-setenv ,x ,val 1)
     #+ecl `(ext:setenv ,x ,val)
     #+lispworks `(hcl:setenv ,x ,val)
     #+mkcl `(mkcl:setenv ,x ,val)
     #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
-    #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
-    '(error "~S ~S is not supported on your implementation" 'setf 'getenv))
+    #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
+    '(not-implemented-error '(setf getenv)))
 
   (defun getenvp (x)
     "Predicate that is true if the named variable is present in the libc environment,
@@ -214,20 +217,25 @@ then returning the non-empty string value of the variable"
                 ccl::*openmcl-major-version*
                 ccl::*openmcl-minor-version*
                 (logand (ccl-fasl-version) #xFF))
-        #+cmu (substitute #\- #\/ s)
+        #+cmucl (substitute #\- #\/ s)
         #+scl (format nil "~A~A" s
                       ;; ANSI upper case vs lower case.
                       (ecase ext:*case-mode* (:upper "") (:lower "l")))
-        #+clasp (format nil "~A-~A"
-                        s (core:lisp-implementation-id))
-        #+(and ecl (not clasp)) (format nil "~A~@[-~A~]" s
-                                       (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                                         (subseq vcs-id 0 (min (length vcs-id) 8))))
+        #+ecl (format nil "~A~@[-~A~]" s
+                      (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                        (unless (equal vcs-id "UNKNOWN")
+                          (subseq vcs-id 0 (min (length vcs-id) 8)))))
         #+gcl (subseq s (1+ (position #\space s)))
         #+genera
         (multiple-value-bind (major minor) (sct:get-system-version "System")
           (format nil "~D.~D" major minor))
         #+mcl (subseq s 8) ; strip the leading "Version "
+        ;; seems like there should be a shorter way to do this, like ACALL.
+        #+mkcl (or
+                (let ((fname (find-symbol* '#:git-describe-this-mkcl :mkcl nil)))
+                  (when (and fname (fboundp fname))
+                    (funcall fname)))
+                s)
         s))))
 
   (defun implementation-identifier ()
@@ -237,7 +245,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
      #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
      (format nil "~(~a~@{~@[-~a~]~}~)"
              (or (implementation-type) (lisp-implementation-type))
-             (or (lisp-version-string) (lisp-implementation-version))
+             (lisp-version-string)
              (or (operating-system) (software-type))
              (or (architecture) (machine-type))))))
 
@@ -247,8 +255,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 (with-upgradability ()
   (defun hostname ()
     "return the hostname of the current host"
-    ;; Note: untested on RMCL
-    #+(or abcl clasp clozure cmu ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
+    #+(or abcl clasp clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
     #+cormanlisp "localhost" ;; is there a better way? Does it matter?
     #+allegro (symbol-call :excl.osi :gethostname)
     #+clisp (first (split-string (machine-instance) :separator " "))
@@ -258,7 +265,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 ;;; Current directory
 (with-upgradability ()
 
-  #+cmu
+  #+cmucl
   (defun parse-unix-namestring* (unix-namestring)
     "variant of LISP::PARSE-UNIX-NAMESTRING that returns a pathname object"
     (multiple-value-bind (host device directory name type version)
@@ -272,7 +279,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
         #+allegro (excl::current-directory)
         #+clisp (ext:default-directory)
         #+clozure (ccl:current-directory)
-        #+(or cmu scl) (#+cmu parse-unix-namestring* #+scl lisp::parse-unix-namestring
+        #+(or cmucl scl) (#+cmucl parse-unix-namestring* #+scl lisp::parse-unix-namestring
                         (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
         #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
         #+(or clasp ecl) (ext:getcwd)
@@ -281,7 +288,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
         #+mkcl (mk-ext:getcwd)
         #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
         #+xcl (extensions:current-directory)
-        (error "getcwd not supported on your implementation")))
+        (not-implemented-error 'getcwd)))
 
   (defun chdir (x)
     "Change current directory, as per POSIX chdir(2), to a given pathname object"
@@ -290,7 +297,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
       #+allegro (excl:chdir x)
       #+clisp (ext:cd x)
       #+clozure (setf (ccl:current-directory) x)
-      #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
+      #+(or cmucl scl) (unix:unix-chdir (ext:unix-namestring x))
       #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
                      (error "Could not set current directory to ~A" x))
       #+(or clasp ecl) (ext:chdir x)
@@ -298,8 +305,8 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
       #+lispworks (hcl:change-directory x)
       #+mkcl (mk-ext:chdir x)
       #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :chdir (sb-ext:native-namestring x)))
-      #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl genera lispworks mkcl sbcl scl xcl)
-      (error "chdir not supported on your implementation"))))
+      #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mkcl sbcl scl xcl)
+      (not-implemented-error 'chdir))))
 
 
 ;;;; -----------------------------------------------------------------

@@ -2,8 +2,6 @@
 ;;;; Portability layer around Common Lisp filesystem access
 
 (uiop/package:define-package :uiop/filesystem
-  (:nicknames :asdf/filesystem)
-  (:recycle :uiop/filesystem :asdf/pathname :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname)
   (:export
    ;; Native namestrings
@@ -34,9 +32,9 @@
     (when x
       (let ((p (pathname x)))
         #+clozure (with-pathname-defaults () (ccl:native-translated-namestring p)) ; see ccl bug 978
-        #+(or cmu scl) (ext:unix-namestring p nil)
+        #+(or cmucl scl) (ext:unix-namestring p nil)
         #+sbcl (sb-ext:native-namestring p)
-        #-(or clozure cmu sbcl scl)
+        #-(or clozure cmucl sbcl scl)
         (os-cond
          ((os-unix-p) (unix-namestring p))
          (t (namestring p))))))
@@ -49,8 +47,10 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
              (when string
                (with-pathname-defaults ()
                  #+clozure (ccl:native-to-pathname string)
+                 #+cmucl (uiop/os::parse-unix-namestring* string)
                  #+sbcl (sb-ext:parse-native-namestring string)
-                 #-(or clozure sbcl)
+                 #+scl (lisp::parse-unix-namestring string)
+                 #-(or clozure cmucl sbcl scl)
                  (os-cond
                   ((os-unix-p) (parse-unix-namestring string :ensure-directory ensure-directory))
                   (t (parse-namestring string))))))
@@ -71,7 +71,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
        (or (ignore-errors (truename p))
            ;; this is here because trying to find the truename of a directory pathname WITHOUT supplying
            ;; a trailing directory separator, causes an error on some lisps.
-           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p)) (ignore-errors (truename d)))))))
+           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p nil)) (ignore-errors (truename d)))))))
 
   (defun safe-file-write-date (pathname)
     "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."
@@ -90,7 +90,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   (defun probe-file* (p &key truename)
     "when given a pathname P (designated by a string as per PARSE-NAMESTRING),
 probes the filesystem for a file or directory with given pathname.
-If it exists, return its truename is ENSURE-PATHNAME is true,
+If it exists, return its truename if TRUENAME is true,
 or the original (parsed) pathname if it is false (the default)."
     (values
      (ignore-errors
@@ -135,10 +135,10 @@ or the original (parsed) pathname if it is false (the default)."
         (if truename
             (probe-file p)
             (and
-             #+(or cmu scl) (unix:unix-stat (ext:unix-namestring p))
-             #+(and lispworks unix) (system:get-file-stat p)
+             #+(or cmucl scl) (unix:unix-stat (ext:unix-namestring p))
+             #+(and lispworks os-unix) (system:get-file-stat p)
              #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring p))
-             #-(or cmu (and lispworks unix) sbcl scl) (file-write-date p)
+             #-(or cmucl (and lispworks os-unix) sbcl scl) (file-write-date p)
              p))))))
 
   (defun directory-exists-p (x)
@@ -165,17 +165,20 @@ Try to override the defaults to not resolving symlinks, if implementation allows
            (append keys '#.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
                                #+(or clozure digitool) '(:follow-links nil)
                                #+clisp '(:circle t :if-does-not-exist :ignore)
-                               #+(or cmu scl) '(:follow-links nil :truenamep nil)
+                               #+(or cmucl scl) '(:follow-links nil :truenamep nil)
                                #+lispworks '(:link-transparency nil)
                                #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl nil)
                                         '(:resolve-symlinks nil))))))
 
   (defun filter-logical-directory-results (directory entries merger)
-    "Given ENTRIES in a DIRECTORY, remove if the directory is logical
-the entries which are physical yet when transformed by MERGER have a different TRUENAME.
-This function is used as a helper to DIRECTORY-FILES to avoid invalid entries when using logical-pathnames."
-    (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
-     (if (logical-pathname-p directory)
+    "If DIRECTORY isn't a logical pathname, return ENTRIES. If it is,
+given ENTRIES in the DIRECTORY, remove the entries which are physical yet
+when transformed by MERGER have a different TRUENAME.
+Also remove duplicates as may appear with some translation rules.
+This function is used as a helper to DIRECTORY-FILES to avoid invalid entries
+when using logical-pathnames."
+    (if (logical-pathname-p directory)
+        (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
          ;; Try hard to not resolve logical-pathname into physical pathnames;
          ;; otherwise logical-pathname users/lovers will be disappointed.
          ;; If directory* could use some implementation-dependent magic,
@@ -189,12 +192,11 @@ This function is used as a helper to DIRECTORY-FILES to avoid invalid entries wh
                               ;; At this point f should already be a truename,
                               ;; but isn't quite in CLISP, for it doesn't have :version :newest
                               (and u (equal (truename* u) (truename* f)) u)))
-               :when p :collect p)
-         entries)
-     :test 'pathname-equal))
+           :when p :collect p)
+         :test 'pathname-equal)
+        entries))
 
-
-  (defun directory-files (directory &optional (pattern *wild-file*))
+  (defun directory-files (directory &optional (pattern *wild-file-for-directory*))
     "Return a list of the files in a directory according to the PATTERN.
 Subdirectories should NOT be returned.
   PATTERN defaults to a pattern carefully chosen based on the implementation;
@@ -207,15 +209,13 @@ but the behavior in presence of symlinks is not portable. Use IOlib to handle su
         ;; logical pathnames have restrictions on wild patterns.
         ;; Not that the results are very portable when you use these patterns on physical pathnames.
         (when (wild-pathname-p dir)
-          (error "Invalid wild pattern in logical directory ~S" directory))
+          (parameter-error "~S: Invalid wild pattern in logical directory ~S"
+                           'directory-files directory))
         (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
-          (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
+          (parameter-error "~S: Invalid file pattern ~S for logical directory ~S" 'directory-files pattern directory))
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
       (let* ((pat (merge-pathnames* pattern dir))
-             (entries (append (ignore-errors (directory* pat))
-                              #+(or clisp gcl)
-                              (when (equal :wild (pathname-type pattern))
-                                (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
+             (entries (ignore-errors (directory* pat))))
         (remove-if 'directory-pathname-p
                    (filter-logical-directory-results
                     directory entries
@@ -231,9 +231,9 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
     (let* ((directory (ensure-directory-pathname directory))
            #-(or abcl cormanlisp genera xcl)
            (wild (merge-pathnames*
-                  #-(or abcl allegro cmu lispworks sbcl scl xcl)
+                  #-(or abcl allegro cmucl lispworks sbcl scl xcl)
                   *wild-directory*
-                  #+(or abcl allegro cmu lispworks sbcl scl xcl) "*.*"
+                  #+(or abcl allegro cmucl lispworks sbcl scl xcl) "*.*"
                   directory))
            (dirs
              #-(or abcl cormanlisp genera xcl)
@@ -242,17 +242,17 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
                                        #+mcl '(:directories t))))
              #+(or abcl xcl) (system:list-directory directory)
              #+cormanlisp (cl::directory-subdirs directory)
-             #+genera (fs:directory-list directory))
-           #+(or abcl allegro cmu genera lispworks sbcl scl xcl)
+             #+genera (handler-case (fs:directory-list directory) (fs:directory-not-found () nil)))
+           #+(or abcl allegro cmucl genera lispworks sbcl scl xcl)
            (dirs (loop :for x :in dirs
                        :for d = #+(or abcl xcl) (extensions:probe-directory x)
                        #+allegro (excl:probe-directory x)
-                       #+(or cmu sbcl scl) (directory-pathname-p x)
+                       #+(or cmucl sbcl scl) (directory-pathname-p x)
                        #+genera (getf (cdr x) :directory)
                        #+lispworks (lw:file-directory-p x)
-                       :when d :collect #+(or abcl allegro xcl) d
+                       :when d :collect #+(or abcl allegro xcl) (ensure-directory-pathname d)
                          #+genera (ensure-directory-pathname (first x))
-                       #+(or cmu lispworks sbcl scl) x)))
+                       #+(or cmucl lispworks sbcl scl) x)))
       (filter-logical-directory-results
        directory dirs
        (let ((prefix (or (normalize-pathname-directory-component (pathname-directory directory))
@@ -297,13 +297,13 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
           (loop :while up-components :do
             (if-let (parent
                      (ignore-errors
-                      (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
-                                                   :name nil :type nil :version nil :defaults p))))
+                      (probe-file* (make-pathname :directory `(:absolute ,@(reverse up-components))
+                                                  :name nil :type nil :version nil :defaults p))))
               (if-let (simplified
                        (ignore-errors
                         (merge-pathnames*
-                         (make-pathname* :directory `(:relative ,@down-components)
-                                         :defaults p)
+                         (make-pathname :directory `(:relative ,@down-components)
+                                        :defaults p)
                          (ensure-directory-pathname parent))))
                 (return simplified)))
             (push (pop up-components) down-components)
@@ -525,7 +525,7 @@ check constraints and normalize as per ENSURE-PATHNAME."
 check constraints and normalize each one as per ENSURE-PATHNAME.
        Any empty entries in the environment variable X will be returned as NILs."
     (unless (getf constraints :empty-is-nil t)
-      (error "Cannot have EMPTY-IS-NIL false for GETENV-PATHNAMES."))
+      (parameter-error "Cannot have EMPTY-IS-NIL false for ~S" 'getenv-pathnames))
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
@@ -547,9 +547,9 @@ NILs."
     (let ((dir
             #+abcl extensions:*lisp-home*
             #+(or allegro clasp ecl mkcl) #p"SYS:"
-            ;;#+clisp custom:*lib-directory* ; causes failure in asdf-pathname-test(!)
+            #+clisp custom:*lib-directory*
             #+clozure #p"ccl:"
-            #+cmu (ignore-errors (pathname-parent-directory-pathname (truename #p"modules:")))
+            #+cmucl (ignore-errors (pathname-parent-directory-pathname (truename #p"modules:")))
             #+gcl system::*system-directory*
             #+lispworks lispworks:*lispworks-directory*
             #+sbcl (if-let (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
@@ -589,13 +589,16 @@ NILs."
   (defun rename-file-overwriting-target (source target)
     "Rename a file, overwriting any previous file with the TARGET name,
 in an atomic way if the implementation allows."
-    #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
-    (progn (funcall 'require "syscalls")
-           (symbol-call :posix :copy-file source target :method :rename))
-    #+(and sbcl os-windows) (delete-file-if-exists target) ;; not atomic
-    #-clisp
-    (rename-file source target
-                 #+(or clasp clozure ecl) :if-exists #+clozure :rename-and-delete #+(or clasp ecl) t))
+    (let ((source (ensure-pathname source :namestring :lisp :ensure-physical t :want-file t))
+          (target (ensure-pathname target :namestring :lisp :ensure-physical t :want-file t)))
+      #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
+      (progn (funcall 'require "syscalls")
+             (symbol-call :posix :copy-file source target :method :rename))
+      #+(and sbcl os-windows) (delete-file-if-exists target) ;; not atomic
+      #-clisp
+      (rename-file source target
+                   #+(or clasp clozure ecl) :if-exists
+                   #+clozure :rename-and-delete #+(or clasp ecl) t)))
 
   (defun delete-empty-directory (directory-pathname)
     "Delete an empty directory"
@@ -603,10 +606,10 @@ in an atomic way if the implementation allows."
     #+allegro (excl:delete-directory directory-pathname)
     #+clisp (ext:delete-directory directory-pathname)
     #+clozure (ccl::delete-empty-directory directory-pathname)
-    #+(or cmu scl) (multiple-value-bind (ok errno)
+    #+(or cmucl scl) (multiple-value-bind (ok errno)
                        (unix:unix-rmdir (native-namestring directory-pathname))
                      (unless ok
-                       #+cmu (error "Error number ~A when trying to delete directory ~A"
+                       #+cmucl (error "Error number ~A when trying to delete directory ~A"
                                     errno directory-pathname)
                        #+scl (error "~@<Error deleting ~S: ~A~@:>"
                                     directory-pathname (unix:get-unix-error-msg errno))))
@@ -619,8 +622,8 @@ in an atomic way if the implementation allows."
                `(,dd directory-pathname) ;; requires SBCL 1.0.44 or later
                `(progn (require :sb-posix) (symbol-call :sb-posix :rmdir directory-pathname)))
     #+xcl (symbol-call :uiop :run-program `("rmdir" ,(native-namestring directory-pathname)))
-    #-(or abcl allegro clasp clisp clozure cmu cormanlisp digitool ecl gcl genera lispworks mkcl sbcl scl xcl)
-    (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera
+    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp digitool ecl gcl genera lispworks mkcl sbcl scl xcl)
+    (not-implemented-error 'delete-empty-directory "(on your platform)")) ; genera
 
   (defun delete-directory-tree (directory-pathname &key (validate nil validatep) (if-does-not-exist :error))
     "Delete a directory including all its recursive contents, aka rm -rf.
@@ -639,13 +642,13 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
     (cond
       ((not (and (pathnamep directory-pathname) (directory-pathname-p directory-pathname)
                  (physical-pathname-p directory-pathname) (not (wild-pathname-p directory-pathname))))
-       (error "~S was asked to delete ~S but it is not a physical non-wildcard directory pathname"
+       (parameter-error "~S was asked to delete ~S but it is not a physical non-wildcard directory pathname"
               'delete-directory-tree directory-pathname))
       ((not validatep)
-       (error "~S was asked to delete ~S but was not provided a validation predicate"
+       (parameter-error "~S was asked to delete ~S but was not provided a validation predicate"
               'delete-directory-tree directory-pathname))
       ((not (call-function validate directory-pathname))
-       (error "~S was asked to delete ~S but it is not valid ~@[according to ~S~]"
+       (parameter-error "~S was asked to delete ~S but it is not valid ~@[according to ~S~]"
               'delete-directory-tree directory-pathname validate))
       ((not (directory-exists-p directory-pathname))
        (ecase if-does-not-exist
@@ -653,7 +656,7 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
           (error "~S was asked to delete ~S but the directory does not exist"
               'delete-directory-tree directory-pathname))
          (:ignore nil)))
-      #-(or allegro cmu clozure genera sbcl scl)
+      #-(or allegro cmucl clozure genera sbcl scl)
       ((os-unix-p) ;; On Unix, don't recursively walk the directory and delete everything in Lisp,
        ;; except on implementations where we can prevent DIRECTORY from following symlinks;
        ;; instead spawn a standard external program to do the dirty work.

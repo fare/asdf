@@ -1,4 +1,4 @@
-(with-asdf-cache (:override t)
+(with-asdf-session (:override t)
   (load-system "test-asdf/test-module-depend"))
 
 (defparameter *plan* (make-plan () 'load-op "test-asdf/test-module-depend"))

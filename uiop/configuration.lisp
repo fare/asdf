@@ -2,8 +2,7 @@
 ;;;; Generic support for configuration files
 
 (uiop/package:define-package :uiop/configuration
-  (:nicknames :asdf/configuration)
-  (:recycle :uiop/configuration :asdf/configuration :asdf)
+  (:recycle :uiop/configuration :asdf/configuration) ;; necessary to upgrade from 2.27.
   (:use :uiop/common-lisp :uiop/utility
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image :uiop/lisp-build)
   (:export
@@ -199,7 +198,7 @@ directive.")
         ;; but what it means to the output-translations is
         ;; "relative to the root of the source pathname's host and device".
         (return-from resolve-absolute-location
-          (let ((p (make-pathname* :directory '(:relative))))
+          (let ((p (make-pathname :directory '(:relative))))
             (if wilden (wilden p) p))))
        ((eql :home) (user-homedir-pathname))
        ((eql :here) (resolve-absolute-location
@@ -277,7 +276,7 @@ directive.")
 this function tries to locate the Windows FOLDER for one of
 :LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA.
      Returns NIL when the folder is not defined (e.g., not on Windows)."
-    (or #+(and lispworks mswindows) (sys:get-folder-path folder)
+    (or #+(and lispworks os-windows) (sys:get-folder-path folder)
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
         (ecase folder
           (:local-appdata (or (getenv-absolute-directory "LOCALAPPDATA")
@@ -319,7 +318,7 @@ MORE may contain specifications for a subpath relative to these directories: a
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
-            (or (getenv-absolute-directories "XDG_DATA_DIRS")
+            (or (remove nil (getenv-absolute-directories "XDG_DATA_DIRS"))
                 (os-cond
                  ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
                  (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
@@ -331,7 +330,7 @@ MORE may contain specifications for a subpath relative to these directories:
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
-            (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
+            (or (remove nil (getenv-absolute-directories "XDG_CONFIG_DIRS"))
                 (os-cond
                  ((os-windows-p) (xdg-data-dirs "config/"))
                  (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))

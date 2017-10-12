@@ -136,7 +136,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
           (upgrade-methods ((upgrade-methods *upgrade-test-methods*))
            (setf upgrade-methods (get-upgrade-methods upgrade-methods)))
           (new-version (new-version)
-           (setf new-version (or new-version (next-version (version-from-file))))))
+           (setf new-version (or new-version (compute-next-version (version-from-file))))))
         :for arg :in args
         :for (found larg init) = (assoc arg argmap)
         :append (if found larg (list arg)) :into largs
@@ -144,7 +144,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
         :finally
            (multiple-value-bind (decl body) (decl-and-body decl-and-body)
              (return
-               `(defun ,name (&optional ,@largs)
+               `(defun ,name ,(and largs `(&optional ,@largs))
                   ,@decl
                   (with-failure-context (:name ,(command-name name))
                     ,@inits
@@ -157,7 +157,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
      (apply ',real args)))
 
 (deftestcmd interactive-command (lisp)
-  (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t)))
+  (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t :console t)))
     (return-from interactive-command (cons "rlwrap" command))))
 
 (defparameter *default-test-lisps*
@@ -222,14 +222,15 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
   (format t "~&Now ~A...~@[ (log in ~A)~]~%" activity log)
   (let* ((eval (compose-non-special-string forms)) ;; at least avoiding ~% is necessary on Windows.
          (command (lisp-invocation-arglist :implementation-type (get-lisp lisp)
-                                           :eval eval :debugger debugger))
+                                           :eval eval :debugger debugger :console t))
          (interactive (if (eq output :interactive) :interactive nil))
          (output (if (eq output t) *standard-output* output))
          (output (if (eq output *stdout*) :interactive output)))
     (log! log "~A" (print-process-spec command nil))
     (multiple-value-bind (out err code)
-        (run `((>& 2 1) ,@(when interactive '(rlwrap)) ,@command
-               ,@(when log `((>> ,log)))) ;; unhappily, | tee -a log eats error codes :-(
+        (run `(,@(when interactive '(rlwrap))
+               ,@command
+               ,@(when log `((>> ,log) (>& 2 1)))) ;; unhappily, | tee -a log eats error codes :-(
              :input interactive :output output :error-output (or interactive :output) :on-error nil)
       (declare (ignore out err))
       (let ((okp (eql code 0)))

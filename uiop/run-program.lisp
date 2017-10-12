@@ -2,143 +2,18 @@
 ;;;; run-program initially from xcvb-driver.
 
 (uiop/package:define-package :uiop/run-program
-  (:nicknames :asdf/run-program)
-  (:recycle :uiop/run-program :asdf/run-program :xcvb-driver)
-  (:use :uiop/common-lisp :uiop/package :uiop/utility
-   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
+  (:nicknames :asdf/run-program) ; OBSOLETE. Used by cl-sane, printv.
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/version
+   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream :uiop/launch-program)
   (:export
-   ;;; Escaping the command invocation madness
-   #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
-   #:escape-windows-token #:escape-windows-command
-   #:escape-token #:escape-command
-
-   ;;; run-program
-   #:slurp-input-stream #:vomit-output-stream
    #:run-program
+   #:slurp-input-stream #:vomit-output-stream
    #:subprocess-error
-   #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
-   ))
+   #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process)
+  (:import-from :uiop/launch-program
+   #:%handle-if-does-not-exist #:%handle-if-exists #:%interactivep
+   #:input-stream #:output-stream #:error-output-stream))
 (in-package :uiop/run-program)
-
-;;;; ----- Escaping strings for the shell -----
-
-(with-upgradability ()
-  (defun requires-escaping-p (token &key good-chars bad-chars)
-    "Does this token require escaping, given the specification of
-either good chars that don't need escaping or bad chars that do need escaping,
-as either a recognizing function or a sequence of characters."
-    (some
-     (cond
-       ((and good-chars bad-chars)
-        (error "only one of good-chars and bad-chars can be provided"))
-       ((typep good-chars 'function)
-        (complement good-chars))
-       ((typep bad-chars 'function)
-        bad-chars)
-       ((and good-chars (typep good-chars 'sequence))
-        #'(lambda (c) (not (find c good-chars))))
-       ((and bad-chars (typep bad-chars 'sequence))
-        #'(lambda (c) (find c bad-chars)))
-       (t (error "requires-escaping-p: no good-char criterion")))
-     token))
-
-  (defun escape-token (token &key stream quote good-chars bad-chars escaper)
-    "Call the ESCAPER function on TOKEN string if it needs escaping as per
-REQUIRES-ESCAPING-P using GOOD-CHARS and BAD-CHARS, otherwise output TOKEN,
-using STREAM as output (or returning result as a string if NIL)"
-    (if (requires-escaping-p token :good-chars good-chars :bad-chars bad-chars)
-        (with-output (stream)
-          (apply escaper token stream (when quote `(:quote ,quote))))
-        (output-string token stream)))
-
-  (defun escape-windows-token-within-double-quotes (x &optional s)
-    "Escape a string token X within double-quotes
-for use within a MS Windows command-line, outputing to S."
-    (labels ((issue (c) (princ c s))
-             (issue-backslash (n) (loop :repeat n :do (issue #\\))))
-      (loop
-        :initially (issue #\") :finally (issue #\")
-        :with l = (length x) :with i = 0
-        :for i+1 = (1+ i) :while (< i l) :do
-          (case (char x i)
-            ((#\") (issue-backslash 1) (issue #\") (setf i i+1))
-            ((#\\)
-             (let* ((j (and (< i+1 l) (position-if-not
-                                       #'(lambda (c) (eql c #\\)) x :start i+1)))
-                    (n (- (or j l) i)))
-               (cond
-                 ((null j)
-                  (issue-backslash (* 2 n)) (setf i l))
-                 ((and (< j l) (eql (char x j) #\"))
-                  (issue-backslash (1+ (* 2 n))) (issue #\") (setf i (1+ j)))
-                 (t
-                  (issue-backslash n) (setf i j)))))
-            (otherwise
-             (issue (char x i)) (setf i i+1))))))
-
-  (defun easy-windows-character-p (x)
-    "Is X an \"easy\" character that does not require quoting by the shell?"
-    (or (alphanumericp x) (find x "+-_.,@:/=")))
-
-  (defun escape-windows-token (token &optional s)
-    "Escape a string TOKEN within double-quotes if needed
-for use within a MS Windows command-line, outputing to S."
-    (escape-token token :stream s :good-chars #'easy-windows-character-p :quote nil
-                        :escaper 'escape-windows-token-within-double-quotes))
-
-  (defun escape-sh-token-within-double-quotes (x s &key (quote t))
-    "Escape a string TOKEN within double-quotes
-for use within a POSIX Bourne shell, outputing to S;
-omit the outer double-quotes if key argument :QUOTE is NIL"
-    (when quote (princ #\" s))
-    (loop :for c :across x :do
-      (when (find c "$`\\\"") (princ #\\ s))
-      (princ c s))
-    (when quote (princ #\" s)))
-
-  (defun easy-sh-character-p (x)
-    "Is X an \"easy\" character that does not require quoting by the shell?"
-    (or (alphanumericp x) (find x "+-_.,%@:/=")))
-
-  (defun escape-sh-token (token &optional s)
-    "Escape a string TOKEN within double-quotes if needed
-for use within a POSIX Bourne shell, outputing to S."
-    (escape-token token :stream s :quote #\" :good-chars #'easy-sh-character-p
-                        :escaper 'escape-sh-token-within-double-quotes))
-
-  (defun escape-shell-token (token &optional s)
-    "Escape a token for the current operating system shell"
-    (os-cond
-      ((os-unix-p) (escape-sh-token token s))
-      ((os-windows-p) (escape-windows-token token s))))
-
-  (defun escape-command (command &optional s
-                                  (escaper 'escape-shell-token))
-    "Given a COMMAND as a list of tokens, return a string of the
-spaced, escaped tokens, using ESCAPER to escape."
-    (etypecase command
-      (string (output-string command s))
-      (list (with-output (s)
-              (loop :for first = t :then nil :for token :in command :do
-                (unless first (princ #\space s))
-                (funcall escaper token s))))))
-
-  (defun escape-windows-command (command &optional s)
-    "Escape a list of command-line arguments into a string suitable for parsing
-by CommandLineToArgv in MS Windows"
-    ;; http://msdn.microsoft.com/en-us/library/bb776391(v=vs.85).aspx
-    ;; http://msdn.microsoft.com/en-us/library/17w5ykft(v=vs.85).aspx
-    (escape-command command s 'escape-windows-token))
-
-  (defun escape-sh-command (command &optional s)
-    "Escape a list of command-line arguments into a string suitable for parsing
-by /bin/sh in POSIX"
-    (escape-command command s 'escape-sh-token))
-
-  (defun escape-shell-command (command &optional stream)
-    "Escape a command for the current operating system's shell"
-    (escape-command command stream 'escape-shell-token)))
-
 
 ;;;; Slurping a stream, typically the output of another program
 (with-upgradability ()
@@ -242,9 +117,9 @@ Programmers are encouraged to define their own methods for this generic function
         stream x
         :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
       (t
-       (error "Invalid ~S destination ~S" 'slurp-input-stream x)))))
+       (parameter-error "Invalid ~S destination ~S" 'slurp-input-stream x)))))
 
-
+;;;; Vomiting a stream, typically into the input of another program.
 (with-upgradability ()
   (defgeneric vomit-output-stream (processor output-stream &key)
     (:documentation
@@ -319,12 +194,10 @@ Programmers are encouraged to define their own methods for this generic function
         x stream
         :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
       (t
-       (error "Invalid ~S source ~S" 'vomit-output-stream x)))))
+       (parameter-error "Invalid ~S source ~S" 'vomit-output-stream x)))))
 
 
-;;;; ----- Running an external program -----
-;;; Simple variant of run-program with no input, and capturing output
-;;; On some implementations, may output to a temporary file...
+;;;; Run-program: synchronously run a program in a subprocess, handling input, output and error-output.
 (with-upgradability ()
   (define-condition subprocess-error (error)
     ((code :initform nil :initarg :code :reader subprocess-error-code)
@@ -336,255 +209,6 @@ Programmers are encouraged to define their own methods for this generic function
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
 
-  ;;; find CMD.exe on windows
-  (defun %cmd-shell-pathname ()
-    (os-cond
-     ((os-windows-p)
-      (strcat (native-namestring (getenv-absolute-directory "WINDIR"))
-              "System32\\cmd.exe"))
-     (t
-      (error "CMD.EXE is not the command shell for this OS."))))
-
-  ;;; Internal helpers for run-program
-  (defun %normalize-command (command)
-    "Given a COMMAND as a list or string, transform it in a format suitable
-for the implementation's underlying run-program function"
-    (etypecase command
-      #+os-unix (string `("/bin/sh" "-c" ,command))
-      #+os-unix (list command)
-      #+os-windows
-      (string
-       #+mkcl (list "cmd" "/c" command)
-       ;; NB: We do NOT add cmd /c here. You might want to.
-       #+(or allegro clisp) command
-       ;; On ClozureCL for Windows, we assume you are using
-       ;; r15398 or later in 1.9 or later,
-       ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
-       #+clozure (cons "cmd" (strcat "/c " command))
-       #+sbcl (list (%cmd-shell-pathname) "/c" command)
-       ;; NB: On other Windows implementations, this is utterly bogus
-       ;; except in the most trivial cases where no quoting is needed.
-       ;; Use at your own risk.
-       #-(or allegro clisp clozure mkcl sbcl) (list "cmd" "/c" command))
-      #+os-windows
-      (list
-       #+allegro (escape-windows-command command)
-       #-allegro command)))
-
-  (defun %active-io-specifier-p (specifier)
-    "Determines whether a run-program I/O specifier requires Lisp-side processing
-via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
-or whether it's already taken care of by the implementation's underlying run-program."
-    (not (typep specifier '(or null string pathname (member :interactive :output)
-                            #+(or cmu (and sbcl os-unix) scl) (or stream (eql t))
-                            #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
-
-  (defun %normalize-io-specifier (specifier &optional role)
-    "Normalizes a portable I/O specifier for %RUN-PROGRAM into an implementation-dependent
-argument to pass to the internal RUN-PROGRAM"
-    (declare (ignorable role))
-    (etypecase specifier
-      (null (or #+(or allegro lispworks) (null-device-pathname)))
-      (string (parse-native-namestring specifier))
-      (pathname specifier)
-      (stream specifier)
-      ((eql :stream) :stream)
-      ((eql :interactive)
-       #+allegro nil
-       #+clisp :terminal
-       #+(or clasp clozure cmu ecl mkcl sbcl scl) t)
-      #+(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
-      ((eql :output)
-       (if (eq role :error-output)
-           :output
-           (error "Wrong specifier ~S for role ~S" specifier role)))))
-
-  (defun %interactivep (input output error-output)
-    (member :interactive (list input output error-output)))
-
-  #+clisp
-  (defun clisp-exit-code (raw-exit-code)
-    (typecase raw-exit-code
-      (null 0) ; no error
-      (integer raw-exit-code) ; negative: signal
-      (t -1)))
-
-  (defun %run-program (command
-                       &rest keys
-                       &key input (if-input-does-not-exist :error)
-                         output (if-output-exists :overwrite)
-                         error-output (if-error-output-exists :overwrite)
-                         directory wait
-                         #+allegro separate-streams
-                         &allow-other-keys)
-    "A portable abstraction of a low-level call to the implementation's run-program or equivalent.
-It spawns a subprocess that runs the specified COMMAND (a list of program and arguments).
-INPUT, OUTPUT and ERROR-OUTPUT specify a portable IO specifer,
-to be normalized by %NORMALIZE-IO-SPECIFIER.
-It returns a process-info plist with possible keys:
-     PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
-    ;; NB: these implementations have Unix vs Windows set at compile-time.
-    (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys directory
-           (error "run-program not available"))
-    #+(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
-    (let* ((%command (%normalize-command command))
-           (%input (%normalize-io-specifier input :input))
-           (%output (%normalize-io-specifier output :output))
-           (%error-output (%normalize-io-specifier error-output :error-output))
-           #+(and allegro os-windows)
-           (interactive (%interactivep input output error-output))
-           (process*
-             (nest
-              #+clisp (progn
-                        ;; clisp cannot redirect stderr, so check we don't.
-                        ;; Also, since we now always return a code, we cannot use this code path
-                        ;; if any of the input, output or error-output is :stream.
-                        (assert (eq %error-output :terminal)))
-              #-(or allegro mkcl sbcl) (with-current-directory (directory))
-              #+(or allegro clasp clisp ecl lispworks mkcl) (multiple-value-list)
-              (apply
-               #+allegro 'excl:run-shell-command
-               #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
-               #+(and allegro os-windows) %command
-               #+clisp
-               (etypecase %command
-                 #+os-windows
-                 (string (lambda (&rest keys) (apply 'ext:run-shell-command %command keys)))
-                 (list (lambda (&rest keys)
-                         (apply 'ext:run-program (car %command) :arguments (cdr %command) keys))))
-               #+clozure 'ccl:run-program
-               #+(or cmu ecl scl) 'ext:run-program
-               #+lispworks 'system:run-shell-command
-               #+lispworks (cons "/usr/bin/env" %command) ; LW wants a full path
-               #+mkcl 'mk-ext:run-program
-               #+sbcl 'sb-ext:run-program
-               (append
-                #+(or clozure cmu ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
-                `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
-                #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
-                            ,%error-output)
-                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+(or clozure cmu ecl lispworks mkcl sbcl scl)
-                `(:if-input-does-not-exist ,if-input-does-not-exist
-                  :if-output-exists ,if-output-exists
-                  #-lispworks :if-error-exists #+lispworks :if-error-output-exists
-                  ,if-error-output-exists)
-                #+lispworks `(:save-exit-status t)
-                #+sbcl `(:search t
-                         :if-output-does-not-exist :create
-                         :if-error-does-not-exist :create)
-                #+mkcl `(:directory ,(native-namestring directory))
-                #-sbcl keys
-                #+sbcl (if directory keys (remove-plist-key :directory keys))))))
-           (process-info-r ()))
-      (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
-        #+allegro
-        (cond
-          (wait (prop :exit-code (first process*)))
-          (separate-streams
-           (destructuring-bind (in out err pid) process*
-             (prop :process pid)
-             (when (eq input :stream) (prop :input-stream in))
-             (when (eq output :stream) (prop :output-stream out))
-             (when (eq error-output :stream) (prop :error-stream err))))
-          (t
-           (prop :process (third process*))
-           (let ((x (first process*)))
-             (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-               (0)
-               (1 (prop :input-stream x))
-               (2 (prop :output-stream x))
-               (3 (prop :bidir-stream x))))
-           (when (eq error-output :stream)
-             (prop :error-stream (second process*)))))
-        #+clisp
-        (cond
-          (wait (prop :exit-code (clisp-exit-code (first process*))))
-          (t
-           (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-             (0)
-             (1 (prop :input-stream (first process*)))
-             (2 (prop :output-stream (first process*)))
-             (3 (prop :bidir-stream (pop process*))
-              (prop :input-stream (pop process*))
-              (prop :output-stream (pop process*))))))
-        #+(or clozure cmu sbcl scl)
-        (progn
-          (prop :process process*)
-          (when (eq input :stream)
-            (prop :input-stream
-                  #+clozure (ccl:external-process-input-stream process*)
-                  #+(or cmu scl) (ext:process-input process*)
-                  #+sbcl (sb-ext:process-input process*)))
-          (when (eq output :stream)
-            (prop :output-stream
-                  #+clozure (ccl:external-process-output-stream process*)
-                  #+(or cmu scl) (ext:process-output process*)
-                  #+sbcl (sb-ext:process-output process*)))
-          (when (eq error-output :stream)
-            (prop :error-output-stream
-                  #+clozure (ccl:external-process-error-stream process*)
-                  #+(or cmu scl) (ext:process-error process*)
-                  #+sbcl (sb-ext:process-error process*))))
-        #+(or clasp ecl mkcl)
-        (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
-          (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-            (cond
-              ((zerop mode))
-              ((null process*) (prop :exit-code -1))
-              (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
-          (when code (prop :exit-code code))
-          (when process (prop :process process)))
-        #+lispworks
-        (if wait
-            (prop :exit-code (first process*))
-            (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-              (if (zerop mode)
-                  (prop :process (first process*))
-                  (destructuring-bind (x err pid) process*
-                    (prop :process pid)
-                    (prop (ecase mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) x)
-                    (when (eq error-output :stream) (prop :error-stream err))))))
-        (nreverse process-info-r))))
-
-  (defun %process-info-pid (process-info)
-    (let ((process (getf process-info :process)))
-      (declare (ignorable process))
-      #+(or allegro lispworks) process
-      #+clozure (ccl::external-process-pid process)
-      #+(or clasp ecl) (si:external-process-pid process)
-      #+(or cmu scl) (ext:process-pid process)
-      #+mkcl (mkcl:process-id process)
-      #+sbcl (sb-ext:process-pid process)
-      #-(or allegro cmu mkcl sbcl scl) (error "~S not implemented" '%process-info-pid)))
-
-  (defun %wait-process-result (process-info)
-    (or (getf process-info :exit-code)
-        (let ((process (getf process-info :process)))
-          (when process
-            ;; 1- wait
-            #+clozure (ccl::external-process-wait process)
-            #+(or cmu scl) (ext:process-wait process)
-            #+sbcl (sb-ext:process-wait process)
-            ;; 2- extract result
-            #+allegro (sys:reap-os-subprocess :pid process :wait t)
-            #+clozure (nth-value 1 (ccl:external-process-status process))
-            #+(or cmu scl) (ext:process-exit-code process)
-            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
-            #+lispworks
-            (if-let ((stream (or (getf process-info :input-stream)
-                                 (getf process-info :output-stream)
-                                 (getf process-info :bidir-stream)
-                                 (getf process-info :error-stream))))
-              (system:pipe-exit-status stream :wait t)
-              (if-let ((f (find-symbol* :pid-exit-status :system nil)))
-                (funcall f process :wait t)))
-            #+sbcl (sb-ext:process-exit-code process)
-            #+mkcl (mkcl:join-process process)))))
-
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
       (unless (eql exit-code 0)
@@ -592,8 +216,22 @@ It returns a process-info plist with possible keys:
                 'subprocess-error :command command :code exit-code :process process)))
     exit-code)
 
+  (defun %active-io-specifier-p (specifier)
+    "Determines whether a run-program I/O specifier requires Lisp-side processing
+via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
+or whether it's already taken care of by the implementation's underlying run-program."
+    (not (typep specifier '(or null string pathname (member :interactive :output)
+                            #+(or cmucl (and sbcl os-unix) scl) (or stream (eql t))
+                            #+lispworks file-stream))))
+
+  (defun %run-program (command &rest keys &key &allow-other-keys)
+    "DEPRECATED. Use LAUNCH-PROGRAM instead."
+    (apply 'launch-program command keys))
+
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
-                                &key element-type external-format &allow-other-keys)
+                                &key
+                                  (element-type #-clozure *default-stream-element-type* #+clozure 'character)
+                                  (external-format *utf-8-external-format*) &allow-other-keys)
     ;; handle redirection for run-program and system
     ;; SPEC is the specification for the subprocess's input or output or error-output
     ;; TVAL is the value used if the spec is T
@@ -612,8 +250,8 @@ It returns a process-info plist with possible keys:
            (activity-spec (if (eq actual-spec :output)
                               (ecase direction
                                 ((:input :output)
-                                 (error "~S not allowed as a ~S ~S spec"
-                                        :output 'run-program direction))
+                                 (parameter-error "~S does not allow ~S as a ~S spec"
+                                                  'run-program :output direction))
                                 ((:error-output)
                                  nil))
                               actual-spec)))
@@ -641,7 +279,7 @@ It returns a process-info plist with possible keys:
         (typecase activity-spec
           ((or null string pathname (eql :interactive))
            (easy-case))
-          #+(or cmu (and sbcl os-unix) scl) ;; streams are only easy on implementations that try very hard
+          #+(or cmucl (and sbcl os-unix) scl) ;; streams are only easy on implementations that try very hard
           (stream
            (if stream-easy-p (easy-case) (hard-case)))
           (t
@@ -680,14 +318,16 @@ It returns a process-info plist with possible keys:
                 ,@body)
             :error-output ,error-output-form ,active (place-setter ,setf) ,keys))
 
-  (defun %use-run-program (command &rest keys
+  (defun %use-launch-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
-    ;; helper for RUN-PROGRAM when using %run-program
-    #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl)
+    ;; helper for RUN-PROGRAM when using LAUNCH-PROGRAM
+    #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
-      (error "Not implemented on this platform"))
-    (assert (not (member :stream (list input output error-output))))
+      (not-implemented-error '%use-launch-program))
+    (when (member :stream (list input output error-output))
+      (parameter-error "~S: ~S is not allowed as synchronous I/O redirection argument"
+                       'run-program :stream))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
            (active-error-output-p (%active-io-specifier-p error-output))
@@ -697,8 +337,7 @@ It returns a process-info plist with possible keys:
                (active-input-p :input)
                (active-error-output-p :error-output)
                (t nil)))
-           (wait (not activity))
-           output-result error-output-result exit-code)
+           output-result error-output-result exit-code process-info)
       (with-program-output ((reduced-output output-activity)
                             output :keys keys :setf output-result
                             :stream-easy-p t :active (eq activity :output))
@@ -708,51 +347,40 @@ It returns a process-info plist with possible keys:
           (with-program-input ((reduced-input input-activity)
                                input :keys keys
                                :stream-easy-p t :active (eq activity :input))
-            (let ((process-info
-                    (apply '%run-program command
-                           :wait wait :input reduced-input :output reduced-output
-                           :error-output (if (eq error-output :output) :output reduced-error-output)
-                           keys)))
-              (labels ((get-stream (stream-name &optional fallbackp)
-                         (or (getf process-info stream-name)
-                             (when fallbackp
-                               (getf process-info :bidir-stream))))
-                       (run-activity (activity stream-name &optional fallbackp)
-                         (if-let (stream (get-stream stream-name fallbackp))
-                           (funcall activity stream)
-                           (error 'subprocess-error
-                                  :code `(:missing ,stream-name)
-                                  :command command :process process-info))))
-                (unwind-protect
-                     (ecase activity
-                       ((nil))
-                       (:input (run-activity input-activity :input-stream t))
-                       (:output (run-activity output-activity :output-stream t))
-                       (:error-output (run-activity error-output-activity :error-output-stream)))
-                  (loop :for (() val) :on process-info :by #'cddr
-                        :when (streamp val) :do (ignore-errors (close val)))
-                  (setf exit-code
-                        (%check-result (%wait-process-result process-info)
-                                       :command command :process process-info
-                                       :ignore-error-status ignore-error-status))))))))
+            (setf process-info
+                  (apply 'launch-program command
+                         :input reduced-input :output reduced-output
+                         :error-output (if (eq error-output :output) :output reduced-error-output)
+                         keys))
+            (labels ((get-stream (stream-name &optional fallbackp)
+                       (or (slot-value process-info stream-name)
+                           (when fallbackp
+                             (slot-value process-info 'bidir-stream))))
+                     (run-activity (activity stream-name &optional fallbackp)
+                       (if-let (stream (get-stream stream-name fallbackp))
+                         (funcall activity stream)
+                         (error 'subprocess-error
+                                :code `(:missing ,stream-name)
+                                :command command :process process-info))))
+              (unwind-protect
+                   (ecase activity
+                     ((nil))
+                     (:input (run-activity input-activity 'input-stream t))
+                     (:output (run-activity output-activity 'output-stream t))
+                     (:error-output (run-activity error-output-activity 'error-output-stream)))
+                (close-streams process-info)
+                (setf exit-code (wait-process process-info)))))))
+      (%check-result exit-code
+                     :command command :process process-info
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
-      (string
-       (os-cond
-        ((os-windows-p)
-         #+(or allegro clisp)
-         (strcat (%cmd-shell-pathname) " /c " command)
-         #-(or allegro clisp) command)
-        (t command)))
+      (string command)
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
-              ((os-windows-p)
-               #+(or allegro sbcl clisp)
-               (cons (%cmd-shell-pathname) (cons "/c" command))
-               #-(or allegro sbcl clisp) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
@@ -763,12 +391,14 @@ It returns a process-info plist with possible keys:
                        (string (parse-native-namestring spec))
                        (pathname spec)
                        ((eql :output)
-                        (assert (equal operator " 2>"))
+                        (unless (equal operator " 2>>")
+                          (parameter-error "~S: only the ~S argument can be ~S"
+                                           'run-program :error-output :output))
                         (return-from redirect '(" 2>&1"))))))
                (when pathname
                  (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
-      (let* ((redirections (append (redirect in " <") (redirect out " >") (redirect err " 2>")))
+      (let* ((redirections (append (redirect in " <") (redirect out " >>") (redirect err " 2>>")))
              (normalized (%normalize-system-command command))
              (directory (or directory #+(or abcl xcl) (getcwd)))
              (chdir (when directory
@@ -779,37 +409,59 @@ It returns a process-info plist with possible keys:
         (reduce/strcat
          (os-cond
           ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
-          ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
+          ((os-windows-p) `(,@redirections " (" ,@chdir ,normalized ")")))))))
 
-  (defun %system (command &rest keys
-                  &key input output error-output directory &allow-other-keys)
+  (defun %system (command &rest keys &key directory
+                                       input (if-input-does-not-exist :error)
+                                       output (if-output-exists :supersede)
+                                       error-output (if-error-output-exists :supersede)
+                                       &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
-    (declare (ignorable input output error-output directory keys))
-    #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
-    (%wait-process-result
-     (apply '%run-program (%normalize-system-command command) :wait t keys))
+    (declare (ignorable keys directory input if-input-does-not-exist output
+                        if-output-exists error-output if-error-output-exists))
+    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    (let (#+(or abcl ecl mkcl)
+            (version (parse-version
+                      #-abcl
+                      (lisp-implementation-version)
+                      #+abcl
+                      (second (split-string (implementation-identifier) :separator '(#\-))))))
+      (nest
+       #+abcl (unless (lexicographic< '< version '(1 4 0)))
+       #+ecl (unless (lexicographic<= '< version '(16 0 0)))
+       #+mkcl (unless (lexicographic<= '< version '(1 1 9)))
+       (return-from %system
+         (wait-process
+          (apply 'launch-program (%normalize-system-command command) keys)))))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
+      ;; see comments for these functions
+      (%handle-if-does-not-exist input if-input-does-not-exist)
+      (%handle-if-exists output if-output-exists)
+      (%handle-if-exists error-output if-error-output-exists)
+      #+abcl (ext:run-shell-command %command)
+      #+(or clasp ecl) (let ((*standard-input* *stdin*)
+                             (*standard-output* *stdout*)
+                             (*error-output* *stderr*))
+                         (ext:system %command))
+      #+clisp
+      (let ((raw-exit-code
+             (or
+              #.`(#+os-windows ,@'(ext:run-shell-command %command)
+                  #+os-unix ,@'(ext:run-program "/bin/sh" :arguments `("-c" ,%command))
+                  :wait t :input :terminal :output :terminal)
+              0)))
+        (if (minusp raw-exit-code)
+            (- 128 raw-exit-code)
+            raw-exit-code))
+      #+cormanlisp (win32:system %command)
+      #+gcl (system:system %command)
+      #+genera (not-implemented-error '%system)
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
-      #+clisp
-      (%wait-process-result
-       (apply '%run-program %command :wait t
-              :input :interactive :output :interactive :error-output :interactive keys))
-      #-(or clisp (and lispworks os-windows))
-      (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
-        #+abcl (ext:run-shell-command %command)
-        #+cormanlisp (win32:system %command)
-        #+(or clasp ecl) (let ((*standard-input* *stdin*)
-                    (*standard-output* *stdout*)
-                    (*error-output* *stderr*))
-                (ext:system %command))
-        #+gcl (system:system %command)
-        #+genera (error "~S not supported on Genera, cannot run ~S"
-                        '%system %command)
-        #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
-        #+mkcl (mkcl:system %command)
-        #+xcl (system:%run-shell-command %command))))
+      #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
+      #+mkcl (mkcl:system %command)
+      #+xcl (system:%run-shell-command %command)))
 
   (defun %use-system (command &rest keys
                       &key input output error-output ignore-error-status &allow-other-keys)
@@ -820,22 +472,22 @@ It returns a process-info plist with possible keys:
         (with-program-error-output ((reduced-error-output)
                                     error-output :keys keys :setf error-output-result)
           (with-program-input ((reduced-input) input :keys keys)
-            (setf exit-code
-                  (%check-result (apply '%system command
-                                        :input reduced-input :output reduced-output
-                                        :error-output reduced-error-output keys)
-                                 :command command
-                                 :ignore-error-status ignore-error-status)))))
+            (setf exit-code (apply '%system command
+                                   :input reduced-input :output reduced-output
+                                   :error-output reduced-error-output keys)))))
+      (%check-result exit-code
+                     :command command
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
-                         (input nil inputp) (if-input-does-not-exist :error)
-                         output (if-output-exists :overwrite)
-                         (error-output nil error-output-p) (if-error-output-exists :overwrite)
+                         input (if-input-does-not-exist :error)
+                         output (if-output-exists :supersede)
+                         error-output (if-error-output-exists :supersede)
                          (element-type #-clozure *default-stream-element-type* #+clozure 'character)
                          (external-format *utf-8-external-format*)
-                      &allow-other-keys)
+                       &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
 or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
@@ -849,8 +501,8 @@ specified to be NIL.
 Signal a continuable SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
 unless IGNORE-ERROR-STATUS is specified.
 
-If OUTPUT is a pathname, a string designating a pathname, or NIL designating the null device,
-the file at that path is used as output.
+If OUTPUT is a pathname, a string designating a pathname, or NIL (the default)
+designating the null device, the file at that path is used as output.
 If it's :INTERACTIVE, output is inherited from the current process;
 beware that this may be different from your *STANDARD-OUTPUT*,
 and under SLIME will be on your *inferior-lisp* buffer.
@@ -866,15 +518,29 @@ E.g., using :OUTPUT :STRING will have it return the entire output stream as a st
 And using :OUTPUT '(:STRING :STRIPPED T) will have it return the same string
 stripped of any ending newline.
 
+IF-OUTPUT-EXISTS, which is only meaningful if OUTPUT is a string or a
+pathname, can take the values :ERROR, :APPEND, and :SUPERSEDE (the
+default). The meaning of these values and their effect on the case
+where OUTPUT does not exist, is analogous to the IF-EXISTS parameter
+to OPEN with :DIRECTION :OUTPUT.
+
 ERROR-OUTPUT is similar to OUTPUT, except that the resulting value is returned
 as the second value of RUN-PROGRAM. T designates the *ERROR-OUTPUT*.
 Also :OUTPUT means redirecting the error output to the output stream,
 in which case NIL is returned.
 
+IF-ERROR-OUTPUT-EXISTS is similar to IF-OUTPUT-EXIST, except that it
+affects ERROR-OUTPUT rather than OUTPUT.
+
 INPUT is similar to OUTPUT, except that VOMIT-OUTPUT-STREAM is used,
 no value is returned, and T designates the *STANDARD-INPUT*.
 
-Use ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
+IF-INPUT-DOES-NOT-EXIST, which is only meaningful if INPUT is a string
+or a pathname, can take the values :CREATE and :ERROR (the
+default). The meaning of these values is analogous to the
+IF-DOES-NOT-EXIST parameter to OPEN with :DIRECTION :INPUT.
+
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
 to your Lisp implementation, when applicable, for creation of the output stream.
 
 One and only one of the stream slurping or vomiting may or may not happen
@@ -889,30 +555,21 @@ RUN-PROGRAM returns 3 values:
 1- the result of the ERROR-OUTPUT slurping if any, or NIL
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
-    (declare (ignorable ignore-error-status))
-    #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
-    (error "RUN-PROGRAM not implemented for this Lisp")
-    ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
-    ;; don't override user's specified preference. [2015/06/29:rpg]
-    (when (stringp command)
-      (unless force-shell-suppliedp
-        #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
-        (setf force-shell t)))
-    (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
-      (apply (if (or force-shell
-                     #+(or clasp clisp) (or (not ignore-error-status) t)
-                     #+clisp (member error-output '(:interactive :output))
-                     ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
-                     #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
-                               (lexicographic<= '< ver '(16 0 1)))
-                     #+(and lispworks os-unix) (%interactivep input output error-output)
-                     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
-                 '%use-system '%use-run-program)
-             command
-             :input (default input inputp output)
-             :error-output (default error-output error-output-p output)
-             :if-input-does-not-exist if-input-does-not-exist
-             :if-output-exists if-output-exists
-             :if-error-output-exists if-error-output-exists
-             :element-type element-type :external-format external-format
-             keys))))
+    (declare (ignorable input output error-output if-input-does-not-exist if-output-exists
+                        if-error-output-exists element-type external-format ignore-error-status))
+    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
+    (not-implemented-error 'run-program)
+    (apply (if (or force-shell
+                   ;; Per doc string, set FORCE-SHELL to T if we get command as a string.
+                   ;; But don't override user's specified preference. [2015/06/29:rpg]
+                   (and (stringp command)
+                        (or (not force-shell-suppliedp)
+                            #-(or allegro clisp clozure sbcl) (os-cond ((os-windows-p) t))))
+                   #+(or clasp clisp cormanlisp gcl (and lispworks os-windows) mcl xcl) t
+                   ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
+                   #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
+                                   (lexicographic<= '< ver '(16 0 0)))
+                   #+(and lispworks os-unix) (%interactivep input output error-output))
+               '%use-system '%use-launch-program)
+           command keys)))
+

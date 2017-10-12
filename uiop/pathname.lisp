@@ -4,8 +4,7 @@
 ;; which all is necessary prior to any access the filesystem or environment.
 
 (uiop/package:define-package :uiop/pathname
-  (:nicknames :asdf/pathname)
-  (:recycle :uiop/pathname :asdf/pathname :asdf)
+  (:nicknames :asdf/pathname) ;; deprecated. Used by ceramic
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os)
   (:export
    ;; Making and merging pathnames, portably
@@ -21,7 +20,6 @@
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
    #:directory-pathname-p #:ensure-directory-pathname
    ;; Parsing filenames
-   #:component-name-to-pathname-components
    #:split-name-type #:parse-unix-namestring #:unix-namestring
    #:split-unix-namestring-directory-components
    ;; Absolute and relative pathnames
@@ -32,7 +30,8 @@
    ;; Checking constraints
    #:ensure-pathname ;; implemented in filesystem.lisp to accommodate for existence constraints
    ;; Wildcard pathnames
-   #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors* #:*wild-path* #:wilden
+   #:*wild* #:*wild-file* #:*wild-file-for-directory* #:*wild-directory*
+   #:*wild-inferiors* #:*wild-path* #:wilden
    ;; Translate a pathname
    #:relativize-directory-component #:relativize-pathname-directory
    #:directory-separator-for-host #:directorize-pathname-host-device
@@ -48,7 +47,7 @@
 implementation's MAKE-PATHNAME and other primitives to a CLHS-standard format
 that is a list and not a string."
     (cond
-      #-(or cmu sbcl scl) ;; these implementations already normalize directory components.
+      #-(or cmucl sbcl scl) ;; these implementations already normalize directory components.
       ((stringp directory) `(:absolute ,directory))
       ((or (null directory)
            (and (consp directory) (member (first directory) '(:absolute :relative))))
@@ -57,7 +56,8 @@ that is a list and not a string."
       ((consp directory)
        (cons :relative directory))
       (t
-       (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
+       (parameter-error (compatfmt "~@<~S: Unrecognized pathname directory component ~S~@:>")
+                        'normalize-pathname-directory-component directory))))
 
   (defun denormalize-pathname-directory-component (directory-component)
     "Convert the DIRECTORY-COMPONENT from a CLHS-standard format to a format usable
@@ -91,22 +91,17 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmu genera lispworks sbcl scl) :unspecific
+    #+(or abcl allegro clozure cmucl genera lispworks sbcl scl) :unspecific
     #+(or clasp clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
-  (defun make-pathname* (&rest keys &key (directory nil)
-                                      host (device () #+allegro devicep) name type version defaults
+  (defun make-pathname* (&rest keys &key directory host device name type version defaults
                                       #+scl &allow-other-keys)
     "Takes arguments like CL:MAKE-PATHNAME in the CLHS, and
    tries hard to make a pathname that will actually behave as documented,
-   despite the peculiarities of each implementation"
-    ;; TODO: reimplement defaulting for MCL, whereby an explicit NIL should override the defaults.
-    (declare (ignorable host device directory name type version defaults))
-    (apply 'make-pathname
-           (append
-            #+allegro (when (and devicep (null device)) `(:device :unspecific))
-            keys)))
+   despite the peculiarities of each implementation. DEPRECATED: just use MAKE-PATHNAME."
+    (declare (ignore host device directory name type version defaults))
+    (apply 'make-pathname keys))
 
   (defun make-pathname-component-logical (x)
     "Make a pathname component suitable for use in a logical-pathname"
@@ -119,7 +114,7 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   (defun make-pathname-logical (pathname host)
     "Take a PATHNAME's directory, name, type and version components,
 and make a new pathname with corresponding components and specified logical HOST"
-    (make-pathname*
+    (make-pathname
      :host host
      :directory (make-pathname-component-logical (pathname-directory pathname))
      :name (make-pathname-component-logical (pathname-name pathname))
@@ -162,10 +157,10 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
                        (pathname-device defaults)
                        (merge-pathname-directory-components directory (pathname-directory defaults))
                        (unspecific-handler defaults))))
-          (make-pathname* :host host :device device :directory directory
-                          :name (funcall unspecific-handler name)
-                          :type (funcall unspecific-handler type)
-                          :version (funcall unspecific-handler version))))))
+          (make-pathname :host host :device device :directory directory
+                         :name (funcall unspecific-handler name)
+                         :type (funcall unspecific-handler type)
+                         :version (funcall unspecific-handler version))))))
 
   (defun logical-pathname-p (x)
     "is X a logical-pathname?"
@@ -190,13 +185,13 @@ when merging, making or parsing pathnames"
     ;; But CMUCL decides to die on NIL.
     ;; MCL has issues with make-pathname, nil and defaulting
     (declare (ignorable defaults))
-    #.`(make-pathname* :directory nil :name nil :type nil :version nil
-                       :device (or #+(and mkcl unix) :unspecific)
-                       :host (or #+cmu lisp::*unix-host* #+(and mkcl unix) "localhost")
-                       #+scl ,@'(:scheme nil :scheme-specific-part nil
-                                 :username nil :password nil :parameters nil :query nil :fragment nil)
-                       ;; the default shouldn't matter, but we really want something physical
-                       #-mcl ,@'(:defaults defaults)))
+    #.`(make-pathname :directory nil :name nil :type nil :version nil
+                      :device (or #+(and mkcl os-unix) :unspecific)
+                      :host (or #+cmucl lisp::*unix-host* #+(and mkcl os-unix) "localhost")
+                      #+scl ,@'(:scheme nil :scheme-specific-part nil
+                                :username nil :password nil :parameters nil :query nil :fragment nil)
+                      ;; the default shouldn't matter, but we really want something physical
+                      #-mcl ,@'(:defaults defaults)))
 
   (defvar *nil-pathname* (nil-pathname (physicalize-pathname (user-homedir-pathname)))
     "A pathname that is as neutral as possible for use as defaults
@@ -230,7 +225,7 @@ on ABCL, Genera and XCL, where it remains unchanged for it doubles as current-di
         (or (and (null p1) (null p2))
             (and (pathnamep p1) (pathnamep p2)
                  (and (=? pathname-host)
-                      #-(and mkcl unix) (=? pathname-device)
+                      #-(and mkcl os-unix) (=? pathname-device)
                       (=? normalize-pathname-directory-component pathname-directory)
                       (=? pathname-name)
                       (=? pathname-type)
@@ -274,9 +269,9 @@ actually-existing file.
 
 Returns the (parsed) PATHNAME when true"
     (when pathname
-      (let* ((pathname (pathname pathname))
-             (name (pathname-name pathname)))
-        (when (not (member name '(nil :unspecific "") :test 'equal))
+      (let ((pathname (pathname pathname)))
+        (unless (and (member (pathname-name pathname) '(nil :unspecific "") :test 'equal)
+                     (member (pathname-type pathname) '(nil :unspecific "") :test 'equal))
           pathname)))))
 
 
@@ -293,10 +288,10 @@ and NIL NAME, TYPE and VERSION components"
 i.e. removing one level of depth in the DIRECTORY component. e.g. if pathname is
 Unix pathname /foo/bar/baz/file.type then return /foo/bar/"
     (when pathname
-      (make-pathname* :name nil :type nil :version nil
-                      :directory (merge-pathname-directory-components
-                                  '(:relative :back) (pathname-directory pathname))
-                      :defaults pathname)))
+      (make-pathname :name nil :type nil :version nil
+                     :directory (merge-pathname-directory-components
+                                 '(:relative :back) (pathname-directory pathname))
+                     :defaults pathname)))
 
   (defun directory-pathname-p (pathname)
     "Does PATHNAME represent a directory?
@@ -331,15 +326,19 @@ actually-existing directory."
       ((directory-pathname-p pathspec)
        pathspec)
       (t
-       (make-pathname* :directory (append (or (normalize-pathname-directory-component
-                                               (pathname-directory pathspec))
-                                              (list :relative))
-                                          (list (file-namestring pathspec)))
-                       :name nil :type nil :version nil :defaults pathspec)))))
+       (handler-case
+           (make-pathname :directory (append (or (normalize-pathname-directory-component
+                                                  (pathname-directory pathspec))
+                                                 (list :relative))
+                                             (list (file-namestring pathspec)))
+                          :name nil :type nil :version nil :defaults pathspec)
+         (error (c) (call-function on-error (compatfmt "~@<error while trying to create a directory pathname for ~S: ~A~@:>") pathspec c)))))))
 
 
 ;;; Parsing filenames
 (with-upgradability ()
+  (declaim (ftype function ensure-pathname)) ; forward reference
+
   (defun split-unix-namestring-directory-components
       (unix-namestring &key ensure-directory dot-dot)
     "Splits the path string UNIX-NAMESTRING, returning four values:
@@ -468,7 +467,7 @@ to throw an error if the pathname is absolute"
               (t
                (split-name-type filename)))
           (apply 'ensure-pathname
-                 (make-pathname*
+                 (make-pathname
                   :directory (unless file-only (cons relative path))
                   :name name :type type
                   :defaults (or #-mcl defaults *nil-pathname*))
@@ -489,7 +488,8 @@ or if it is a PATHNAME but some of its components are not recognized."
       ((or null string) pathname)
       (pathname
        (with-output-to-string (s)
-         (flet ((err () #+lispworks (describe pathname) (error "Not a valid unix-namestring ~S" pathname)))
+         (flet ((err () (parameter-error "~S: invalid unix-namestring ~S"
+                                         'unix-namestring pathname)))
            (let* ((dir (normalize-pathname-directory-component (pathname-directory pathname)))
                   (name (pathname-name pathname))
                   (name (and (not (eq name :unspecific)) name))
@@ -537,19 +537,19 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
 
   (defun pathname-root (pathname)
     "return the root directory for the host and device of given PATHNAME"
-    (make-pathname* :directory '(:absolute)
-                    :name nil :type nil :version nil
-                    :defaults pathname ;; host device, and on scl, *some*
-                    ;; scheme-specific parts: port username password, not others:
-                    . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
+    (make-pathname :directory '(:absolute)
+                   :name nil :type nil :version nil
+                   :defaults pathname ;; host device, and on scl, *some*
+                   ;; scheme-specific parts: port username password, not others:
+                   . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
   (defun pathname-host-pathname (pathname)
     "return a pathname with the same host as given PATHNAME, and all other fields NIL"
-    (make-pathname* :directory nil
-                    :name nil :type nil :version nil :device nil
-                    :defaults pathname ;; host device, and on scl, *some*
-                    ;; scheme-specific parts: port username password, not others:
-                    . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
+    (make-pathname :directory nil
+                   :name nil :type nil :version nil :device nil
+                   :defaults pathname ;; host device, and on scl, *some*
+                   ;; scheme-specific parts: port username password, not others:
+                   . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
   (defun ensure-absolute-pathname (path &optional defaults (on-error 'error))
     "Given a pathname designator PATH, return an absolute pathname as specified by PATH
@@ -614,14 +614,18 @@ given DEFAULTS-PATHNAME as a base pathname."
   (defparameter *wild-file*
     (make-pathname :directory nil :name *wild* :type *wild*
                    :version (or #-(or allegro abcl xcl) *wild*))
-    "A pathname object with wildcards for matching any file in a given directory")
+    "A pathname object with wildcards for matching any file with TRANSLATE-PATHNAME")
+  (defparameter *wild-file-for-directory*
+    (make-pathname :directory nil :name *wild* :type (or #-(or clisp gcl) *wild*)
+                   :version (or #-(or allegro abcl clisp gcl xcl) *wild*))
+    "A pathname object with wildcards for matching any file with DIRECTORY")
   (defparameter *wild-directory*
-    (make-pathname* :directory `(:relative ,*wild-directory-component*)
-                    :name nil :type nil :version nil)
+    (make-pathname :directory `(:relative ,*wild-directory-component*)
+                   :name nil :type nil :version nil)
     "A pathname object with wildcards for matching any subdirectory")
   (defparameter *wild-inferiors*
-    (make-pathname* :directory `(:relative ,*wild-inferiors-component*)
-                    :name nil :type nil :version nil)
+    (make-pathname :directory `(:relative ,*wild-inferiors-component*)
+                   :name nil :type nil :version nil)
     "A pathname object with wildcards for matching any recursive subdirectory")
   (defparameter *wild-path*
     (merge-pathnames* *wild-file* *wild-inferiors*)
@@ -648,13 +652,13 @@ given DEFAULTS-PATHNAME as a base pathname."
   (defun relativize-pathname-directory (pathspec)
     "Given a PATHNAME, return a relative pathname with otherwise the same components"
     (let ((p (pathname pathspec)))
-      (make-pathname*
+      (make-pathname
        :directory (relativize-directory-component (pathname-directory p))
        :defaults p)))
 
   (defun directory-separator-for-host (&optional (pathname *default-pathname-defaults*))
     "Given a PATHNAME, return the character used to delimit directory names on this host and device."
-    (let ((foo (make-pathname* :directory '(:absolute "FOO") :defaults pathname)))
+    (let ((foo (make-pathname :directory '(:absolute "FOO") :defaults pathname)))
       (last-char (namestring foo))))
 
   #-scl
@@ -678,8 +682,7 @@ added to its DIRECTORY component. This is useful for output translations."
       (multiple-value-bind (relative path filename)
           (split-unix-namestring-directory-components root-string :ensure-directory t)
         (declare (ignore relative filename))
-        (let ((new-base
-                (make-pathname* :defaults root :directory `(:absolute ,@path))))
+        (let ((new-base (make-pathname :defaults root :directory `(:absolute ,@path))))
           (translate-pathname absolute-pathname wild-root (wilden new-base))))))
 
   #+scl
@@ -701,8 +704,8 @@ added to its DIRECTORY component. This is useful for output translations."
               (when (specificp scheme)
                 (setf prefix (strcat scheme prefix)))
               (assert (and directory (eq (first directory) :absolute)))
-              (make-pathname* :directory `(:absolute ,prefix ,@(rest directory))
-                              :defaults pathname)))
+              (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
+                             :defaults pathname)))
         pathname)))
 
   (defun* (translate-pathname*) (path absolute-source destination &optional root source)
@@ -720,7 +723,7 @@ In that last case, if ROOT is non-NIL, PATH is first transformated by DIRECTORIZ
       ((eq destination t)
        path)
       ((not (pathnamep destination))
-       (error "Invalid destination"))
+       (parameter-error "~S: Invalid destination" 'translate-pathname*))
       ((not (absolute-pathname-p destination))
        (translate-pathname path absolute-source (merge-pathnames* destination root)))
       (root
@@ -736,4 +739,3 @@ whether their inputs were translated or not,
 which they will be if we are composing operations. e.g. if some
 create-lisp-op creates a lisp file from some higher-level input,
 you need to still be able to use compile-op on that lisp file."))
-

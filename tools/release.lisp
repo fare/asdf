@@ -13,18 +13,13 @@
         :collect (enough-namestring! p b)))
 
 (defun system-source-files (system &key monolithic)
-  (let* ((sys (find-system system))
-         (components
-           (required-components system
-                                :other-systems monolithic
-                                :goal-operation 'load-op
-                                :keep-operation 'load-op
-                                :keep-component 'file-component))
-         (dir (ensure-pathname
-               (system-source-directory sys)
-               :want-absolute t :want-directory t))
-         (pathnames (mapcar 'component-pathname components)))
-    (enough-namestrings dir pathnames)))
+  (let ((system (find-system system)))
+    (enough-namestrings
+     (system-source-directory system)
+     (input-files (if monolithic
+		      'monolithic-concatenate-source-op
+		      'concatenate-source-op)
+		  system))))
 
 
 ;;; Making release tarballs for asdf, asdf/defsystem, uiop.
@@ -44,13 +39,13 @@
          (destination
            (ensure-pathname
             name
-            :defaults *build-dir*
+            :defaults (build-dir)
             :want-relative t :ensure-absolute t
             :ensure-subpath t :ensure-directory t))
          (tarball
            (ensure-pathname
             (tarname name)
-            :defaults *build-dir*
+            :defaults (build-dir)
             :want-relative t :ensure-absolute t
             :ensure-subpath t :want-file t
             :ensure-directories-exist t)))
@@ -60,7 +55,7 @@
              destination))
     (ensure-directories-exist destination)
     (run* `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run* `(tar "zcf" ,tarball "-C" ,*build-dir*
+    (run* `(tar "zcf" ,tarball "-C" ,(build-dir)
                 ;; TODO: Have better autodetection for which tar is being used,
                 ;; and fall back to no option if not recognized.
                 ;; #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
@@ -71,11 +66,12 @@
 
 (defun uiop-files ()
   "list files in uiop"
-  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files "uiop")))
+  (list* "README.md" "uiop.asd" "asdf-driver.asd" "contrib/debug.lisp"
+         (system-source-files "uiop")))
 (defun uiop-name ()
-  (format nil "uiop-~A" *version*))
+  (format nil "uiop-~A" (version-from-file)))
 (deftestcmd make-uiop-tarball ()
-  (make-tarball-under-build (uiop-name) *uiop-dir* (uiop-files)))
+  (make-tarball-under-build (uiop-name) (uiop-dir) (uiop-files)))
 
 (defun asdf-defsystem-files ()
   "list files in asdf/defsystem"
@@ -83,22 +79,22 @@
          "asdf.asd" "version.lisp-expr" "header.lisp"
          (system-source-files "asdf/defsystem")))
 (defun asdf-defsystem-name ()
-  (format nil "asdf-defsystem-~A" *version*))
+  (format nil "asdf-defsystem-~A" (version-from-file)))
 (deftestcmd make-asdf-defsystem-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
+  (make-tarball-under-build (asdf-defsystem-name) (asdf-dir) (asdf-defsystem-files)))
 
 (defun asdf-all-name ()
-  (strcat "asdf-" *version*))
+  (strcat "asdf-" (version-from-file)))
 (defun asdf-all-files ()
   (remove-if #'(lambda (x) (string-prefix-p "ext/" x))
              (with-asdf-dir () (run/lines '(git ls-files)))))
 (deftestcmd make-asdf-all-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-all-name) *asdf-dir* (asdf-all-files)))
+  (make-tarball-under-build (asdf-all-name) (asdf-dir) (asdf-all-files)))
 
 (defun asdf-lisp-name ()
-  (format nil "asdf-~A.lisp" *version*))
+  (format nil "asdf-~A.lisp" (version-from-file)))
 (deftestcmd make-asdf-lisp ()
   (build-asdf)
   (concatenate-files (list (pn "build/asdf.lisp"))

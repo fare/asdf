@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-
+(in-package :asdf-test)
 (defparameter *lambda-string* nil)
 
 (defun string-char-codes (s)
@@ -21,7 +21,7 @@
 
 (defmacro with-encoding-test ((encoding &key (op 'load-source-op) (path "lambda")) def-test-system &body body)
   (let ((sys (second def-test-system)))
-    `(with-asdf-cache (:override t)
+    `(with-asdf-session (:override t)
        (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
        (setf *lambda-string* nil)
        ,def-test-system
@@ -59,14 +59,18 @@
       :components ((:file "lambda" :encoding :default))))
   (with-encoding-test (:utf-8)
     (def-test-system :test-encoding-implicit-default
-      :components ((:file "lambda")))))
+        :components ((:file "lambda")))))
+
+#+ecl
+(unless (>= ext:+ecl-version-number+ 160000)
+  (leave-test "This version of ECL is known to have broken encoding support" 0))
 
 ;; Try to load asdf-encodings
 (setf *central-registry*
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
             *uiop-directory* ;; be sure that ouir uiop is there, too.
             ;; try finding asdf-encodings it right next to asdf.
-            (subpathname *asdf-directory* "../asdf-encodings/")))
+            (subpathname *asdf-directory* "ext/asdf-encodings/")))
 (unless (find-system :asdf-encodings nil)
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))
@@ -82,9 +86,6 @@
   (with-encoding-test (:latin-2)
     (def-test-system :test-encoding-implicit-autodetect
       :components ((:file "lambda")))))
-
-#+ecl
-(leave-test "ECL recently broke its encoding support" 0)
 
 #+sbcl
 (with-encoding-test (:koi8-r)

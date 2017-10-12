@@ -9,8 +9,8 @@
   (handler-bind (((or
                    #+allegro simple-warning
                    #+clozure ccl:compiler-warning
-                   #+cmu kernel:simple-style-warning
-                   #-(or allegro clozure cmu) warning)
+                   #+cmucl kernel:simple-style-warning
+                   #-(or allegro clozure cmucl) warning)
                    #'muffle-warning))
     (funcall thunk)))
 
@@ -27,24 +27,25 @@ It is transcluded into asdf.lisp together with ASDF/DEFSYSTEM, so if you did (re
 you already have a matching UIOP loaded."
   :author "Francois-Rene Rideau"
   :licence "MIT"
-  :class #.(if (find-class 'package-system nil) 'package-system 'system)
-  #+asdf3 :version #+asdf3 (:read-file-form "version.lisp-expr")
-  #+asdf-unicode :encoding #+asdf-unicode :utf-8
+  :class #+asdf3.1 package-system #-asdf3.1 system
+  #+asdf3.1 :version #+asdf3.1 (:read-file-form "version.lisp" :at (2 2 2))
+  #+asdf3 :encoding #+asdf3 :utf-8
   #+asdf3 :around-compile #+asdf3 call-without-redefinition-warnings
   :components
-  ((:static-file "version.lisp-expr")
-   (:static-file "contrib/debug.lisp")
+  ((:static-file "contrib/debug.lisp")
    (:file "package")
    (:file "common-lisp" :depends-on ("package"))
    (:file "utility" :depends-on ("common-lisp"))
+   (:file "version" :depends-on ("utility"))
    (:file "os" :depends-on ("utility"))
    (:file "pathname" :depends-on ("os"))
    (:file "filesystem" :depends-on ("pathname"))
    (:file "stream" :depends-on ("filesystem"))
    (:file "eval" :depends-on ("stream"))
    (:file "image" :depends-on ("eval"))
-   (:file "run-program" :depends-on ("eval"))
    (:file "lisp-build" :depends-on ("image"))
+   (:file "launch-program" :depends-on ("stream"))
+   (:file "run-program" :depends-on ("launch-program"))
    (:file "configuration" :depends-on ("image"))
-   (:file "backward-driver" :depends-on ("lisp-build" "run-program" "configuration"))
+   (:file "backward-driver" :depends-on ("lisp-build" "run-program" "configuration" "version"))
    (:file "driver" :depends-on ("backward-driver"))))

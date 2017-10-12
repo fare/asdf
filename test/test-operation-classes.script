@@ -47,16 +47,16 @@
 (defclass my-incoherent-operation (downward-operation non-propagating-operation)
   ())
 
-(dolist (class *good-classes*) (assert (make-instance class)))
+(dolist (class *good-classes*) (assert (make-operation class)))
 
 (signals operation-definition-warning
-         (make-instance 'my-unupdated-operation))
+         (make-operation 'my-unupdated-operation))
 
 (with-expected-failure (#+gcl "GCL has trouble with CLOS?")
   (signals operation-definition-error
-           (make-instance 'my-incoherent-operation)))
+           (make-operation 'my-incoherent-operation)))
 
-(assert (make-instance 'my-good-operation))
+(assert (make-operation 'my-good-operation))
 
 
 ;; This test exercises the backward-compatibility mechanism of operation,
@@ -75,4 +75,8 @@
 (operate 'trivial-operation 'test-asdf/test-module-depend)
 ;;; this test intended to catch a bug in operate :around method in operate.lisp,
 ;;; thanks to Jan Moringen [2014/08/10:rpg]
-(operate (make-instance 'trivial-operation) 'test-asdf/test-module-depend)
+(operate (make-operation 'trivial-operation) 'test-asdf/test-module-depend)
+
+;;; operations should only be made by MAKE-OPERATION, and now we enforce this.
+(signals system-definition-error
+    (make-instance 'load-op))

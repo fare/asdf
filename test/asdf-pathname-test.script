@@ -1,4 +1,5 @@
 ;;; -*- Lisp -*-
+(in-package :asdf-test)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #-(or xcl gcl) (push :asdf-test-logical-pathname *features*)
@@ -48,12 +49,15 @@
            ,(subpathname root (make-pathname :directory '(:relative "asdf-bin" :wild-inferiors)
                                              :name :wild :type bin-type
                                              :defaults root)))
+          ("**;*.*.*"
+           ,(subpathname root (make-pathname :directory '(:relative "asdf-src" :wild-inferiors)
+                                             :name :wild :type :wild :version :wild)))
           ("**;*.*"
            ,(subpathname root (make-pathname :directory '(:relative "asdf-src" :wild-inferiors)
                                              :name :wild :type :wild :version nil)))
-          ("**;*.*.*"
+          ("**;*"
            ,(subpathname root (make-pathname :directory '(:relative "asdf-src" :wild-inferiors)
-                                             :name :wild :type :wild))))))
+                                             :name :wild :type nil :version nil))))))
 
 (defclass test-status ()
   ((system-count :initform 0)
@@ -165,7 +169,7 @@
                          (logical-pathname-p module-pathname))
                      (and (stringp file-pathname) (find #\. file-pathname)))
           (incf system-count)
-          (with-asdf-cache (:override t)
+          (with-asdf-session (:override t)
             (clear-system :test-system)
             (let* ((system (let ((*verbose-out* nil))
                              (eval system-definition)))
@@ -361,7 +365,7 @@
                                           :direction :output
                                           :if-exists :supersede :if-does-not-exist :create)
              (setup-asdftest-logical-host :root root)
-             #+(and asdf-test-logical-pathname (not clisp))
+             #+asdf-test-logical-pathname
              (assert-pathname-equal
               (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
                              :name nil :type nil)
@@ -416,9 +420,9 @@
     (clear-system "test-system")))
 
 (defun test-pathname-parsing ()
-  #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+  #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
   (DBG "Can't test pathname parsing: this lisp lacks SETENV support.")
-  #+(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+  #+(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
   (let ((old-config (uiop:getenvp "XDG_CONFIG_DIRS"))
         (old-home-config (uiop:getenvp "XDG_CONFIG_HOME")))
     (unwind-protect
@@ -454,7 +458,7 @@
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory nil :wilden t) (wilden #p"/foo/bar/"))
-  (assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*"))
+  (assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" :*.*.*) :ensure-directory nil :wilden t) (merge-pathnames* *wild-file* #p"/foo/bar/**/baz/")))
 
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
@@ -464,3 +468,11 @@
 
 #+os-unix
 (test-pathname-parsing)
+
+;;; test for CMUCL issue with search lists versus pathnames
+#+os-unix
+(progn
+  (DBG "Checking CMUCL user-homedir-pathname issue.")
+  (assert-pathname-equal
+   (uiop/common-lisp:user-homedir-pathname)
+   (getenv-pathname "HOME" :want-directory t)))

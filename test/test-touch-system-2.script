@@ -1,26 +1,32 @@
 ;;; -*- Lisp -*-
 
-;;; test system definition reloading if touched
+;;; test system definition NOT reloaded if touched
 ;;; system that canNOT be found using *system-definition-search-functions*
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (defun system-registered-time (name)
-  (car (asdf::system-registered-p name)))
+  (asdf::component-operation-time
+   'asdf::define-op
+   (registered-system (primary-system-name name))))
 
-(defparameter test1.asd (nth-value 2 (locate-system :test1)))
-(assert-pathname-equal test1.asd (test-source "test1.asd"))
-(assert test1.asd)
+(asdf::clear-registered-systems)
+(defparameter test-asdf.asd (nth-value 2 (locate-system :test-asdf)))
+(assert-pathname-equal test-asdf.asd (test-source "test-asdf.asd"))
+(assert (not (registered-system :test-asdf))) ;; not loaded
 
-(asdf::clear-defined-systems)
+(asdf::clear-registered-systems)
 (setf asdf:*central-registry* nil)
-(load test1.asd)
-(assert (find-system :test1))
-(defparameter date1 (system-registered-time :test1))
+(load-asd test-asdf.asd)
+(assert (registered-system :test-asdf))
+(defparameter date1 (system-registered-time :test-asdf))
 (assert date1)
+(assert-equal 1 test-asdf-system::*times-loaded*)
 
-(asdf::clear-defined-systems)
-(touch-file test1.asd :timestamp date1 :offset +2)
-(load test1.asd)
-(find-system :test1)
-(defparameter date2 (system-registered-time :test1))
+(asdf::clear-registered-systems)
+(touch-file test-asdf.asd :timestamp date1 :offset +2)
+(load-asd test-asdf.asd)
+(find-system :test-asdf)
+(defparameter date2 (system-registered-time :test-asdf))
 (assert date2)
 (assert-compare (> date2 date1))

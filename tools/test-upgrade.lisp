@@ -5,12 +5,24 @@
 (defparameter *default-upgrade-test-tags*
   ;; We return a list of entries in reverse chronological order,
   ;; which should also be more or less the order of decreasing relevance.
+  ;; By default, we only test the last of each relevant series.
+  '("REQUIRE" "3.2.0" "3.1.7" "3.0.3" "2.26"))
+
+(defparameter *all-upgrade-test-tags*
   '("REQUIRE" ;; a magic tag meaning whatever your implementation provides, if anything
+
+    ;; The 3.2 series provides the asdf3.2 feature, meaning users can rely on
+    ;; all its new features (launch-program, improved bundle support), as well as
+    ;; the improvements done in 3.1 (e.g. XDG support).
+    "3.2.0" ;; (2017-01-08) first (and latest) in 3.2 series
 
     ;; The 3.1 series provides the asdf3.1 feature, meaning users can rely on
     ;; all the stabilization work done in 3.0 so far, plus extra developments
     ;; in UIOP, package-inferred-system, and more robustification.
-    "3.1.4" ;; (2014-10-09) more bug fixes, source-registry cache
+    "3.1.7" ;; (2016-03-23) more bug fixes, last in 3.1 series
+    "3.1.6" ;; (2015-10-17) more bug fixes
+    "3.1.5" ;; (2015-07-21) more bug fixes, what SBCL sports (as of 1.3.14, 2017-02-04)
+    "3.1.4" ;; (2014-10-09) more bug fixes, source-registry cache, in LispWorks 7
     "3.1.3" ;; (2014-07-24) a bug fix release for 3.1.2
     "3.1.2" ;; (2014-05-06) the first ASDF 3.1 release
 
@@ -18,19 +30,18 @@
     ;; with Robert Goldman taking over maintainership at 3.0.2.
     ;; 3.0.0 was just 2.33.10 promoted, but version-satisfies meant it was suddenly
     ;; not compatible with ASDF2 anymore, so we immediately released 3.0.1
-    "3.0.3" ;; (2013-10-22) the last in the ASDF 3.0 series
+    "3.0.3" ;; (2013-10-22) last in the ASDF 3.0 series
     "3.0.2" ;; (2013-07-02) the first ASDF 3 in SBCL
-    "3.0.1")) ;; (2013-05-16) the first stable ASDF 3 release
+    "3.0.1" ;; (2013-05-16) the first stable ASDF 3 release
 
-(defparameter *obsolete-upgrade-test-tags*
-  '(;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
+    ;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
     "2.32" ;; (2013-03-05) the first really stable ASDF 3 pre-release
     "2.27" ;; (2013-02-01) the first ASDF 3 pre-release
 
     ;; The ASDF 2 series
     ;; Note that 2.26.x is where the refactoring that begat ASDF 3 took place.
     ;; 2.26.61 is the last single-file, single-package ASDF.
-    "2.26" ;; (2012-10-30) the last stable ASDF 2 release, long used by Quicklisp, SBCL, etc.
+    "2.26" ;; (2012-10-30), last in ASDF 2 series, still sported by Quicklisp 2016-02-22 (!), long used by SBCL, etc.
     "2.22" ;; (2012-06-12) used by debian wheezy, etc.
     "2.20" ;; (2012-01-18) in CCL 1.8, Ubuntu 12.04 LTS
     "2.019" ;; (2011-11-29) still included in LispWorks in 2014.
@@ -45,10 +56,18 @@
     "1.85")) ;; (2004-05-16) the last release by Daniel Barlow (not 1.37, which is the README revision!)
 
 (defun get-upgrade-tags (&optional (x *upgrade-test-tags*))
-  (cond
-    ((eq x :default) *default-upgrade-test-tags*)
-    ((or (eq x :old) (equal x '("old"))) *obsolete-upgrade-test-tags*)
-    (t x)))
+  (etypecase x
+    (list x)
+    ((or string symbol)
+     (cond
+       ((string-equal x :default)
+        *default-upgrade-test-tags*)
+       ((string-equal x :old)
+        (remove-if (lambda (x) (member x *default-upgrade-test-tags* :test 'equal))
+                   *all-upgrade-test-tags*))
+       ((string-equal x :all)
+        *all-upgrade-test-tags*)
+       (t (ensure-list-of-strings (string x)))))))
 
 (defun extract-tagged-asdf (tag)
   "extract an asdf version from git
@@ -93,12 +112,21 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
   (or
    (string-equal tag "REQUIRE") ;; we are hopefully always able to upgrade from REQUIRE
    (ecase lisp
-     ;; ABCL makes it damn slow. Also, for some reason, we punt on anything earlier than 2.25,
-     ;; and only need to test it once, below for 2.24.
-     ((:abcl) (version<= "2.24" tag))
+     ;; ABCL works but is super-slow. Since we now punt on all of 2.x,
+     ;; no need to check anything below 2.26.
+     ((:abcl) (version<= "2.26" tag))
 
-     ;; CCL fasl numbering broke loading of old asdf 2.0
-     ((:ccl) (or (version< tag "2.0") (version<= "2.20" tag)))
+     ;; Allegro ships with versions 3*, so give up testing 2
+     ;; Also, unpatched Allegro 10 has bug updating from 2.26 and before
+     ((:allegro :allegromodern :allegro8 :allegromodern8
+       :allegro_64 :allegromodern_64 :allegro8_64 :allegromodern8_64
+       :allegro_s :allegromodern_s :allegro8_s :allegromodern8_s
+       :allegro_64_s :allegromodern_64_s :allegro8_64_s :allegromodern8_64_s)
+      (version<= "2.27" tag))
+
+     ;; CCL fasl numbering broke loading of old asdf 2.0, and the punting for 2.26 fails,
+     ;; but who cares since CCL has always been shipping recent versions of ASDF.
+     ((:ccl) (version<= "2.27" tag))
 
      ;; CLASP is only supported as of 3.1.4.3
      ((:clasp) (version<= "3.1.4.3" tag))
@@ -130,18 +158,14 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
      ((:mkcl) (version<= "3.1.2" tag))
 
+     ;; all clear on these implementations
+     ((:sbcl :scl) t)
+
      ;; XCL support starts with ASDF 2.014.2
      ;; — It also dies during upgrade trying to show the backtrace.
      ;; We recommend you replace XCL's asdf using:
      ;;     ./tools/asdf-tools install-asdf xcl
-     ((:xcl) (version<= "2.15" tag))
-
-     ;; all clear on these implementations
-     ((:allegro :allegromodern :allegro8 :allegromodern8
-       :allegro_64 :allegromodern_64 :allegro8_64 :allegromodern8_64
-       :allegro_s :allegromodern_s :allegro8_s :allegromodern8_s
-       :allegro_64_s :allegromodern_64_s :allegro8_64_s :allegromodern8_64_s
-       :sbcl :scl) t))))
+     ((:xcl) (version<= "2.15" tag)))))
 
 (deftestcmd test-upgrade (lisp upgrade-tags upgrade-methods)
   "run upgrade tests
@@ -157,7 +181,7 @@ Use the preferred lisp implementation"
      (loop :for method :in upgrade-methods
            :for description
              = (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
-                       lisp tag *version* method)
+                       lisp tag (version-from-file) method)
            :when (valid-upgrade-test-p lisp tag method) :do
              (success-if (and
                           (extract-tagged-asdf tag)
@@ -170,4 +194,3 @@ Use the preferred lisp implementation"
                     (return (success))))))
 
 (defalias u test-upgrade)
-

@@ -5,32 +5,36 @@
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/cache :asdf/component :asdf/system
-   :asdf/find-system :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
+   :asdf/session :asdf/component :asdf/system :asdf/system-registry
+   :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
   (:import-from :asdf/system #:depends-on #:weakly-depends-on)
+  ;; these needed for record-additional-system-input-file
+  (:import-from :asdf/operation #:make-operation)
+  (:import-from :asdf/component #:%additional-input-files)
+  (:import-from :asdf/find-system #:define-op)
   (:export
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
-   #:non-toplevel-system #:non-system-system
-   #:sysdef-error-component #:check-component-input))
+   #:non-toplevel-system #:non-system-system #:bad-system-name
+   #:sysdef-error-component #:check-component-input
+   #:explain))
 (in-package :asdf/parse-defsystem)
 
 ;;; Pathname
 (with-upgradability ()
   (defun determine-system-directory (pathname)
-    ;; The defsystem macro calls this function to determine
-    ;; the pathname of a system as follows:
-    ;; 1. if the pathname argument is an pathname object (NOT a namestring),
+    ;; The defsystem macro calls this function to determine the pathname of a system as follows:
+    ;; 1. If the pathname argument is an pathname object (NOT a namestring),
     ;;    that is already an absolute pathname, return it.
-    ;; 2. otherwise, the directory containing the LOAD-PATHNAME
+    ;; 2. Otherwise, the directory containing the LOAD-PATHNAME
     ;;    is considered (as deduced from e.g. *LOAD-PATHNAME*), and
     ;;    if it is indeed available and an absolute pathname, then
     ;;    the PATHNAME argument is normalized to a relative pathname
     ;;    as per PARSE-UNIX-NAMESTRING (with ENSURE-DIRECTORY T)
     ;;    and merged into that DIRECTORY as per SUBPATHNAME.
-    ;;    Note: avoid *COMPILE-FILE-PATHNAME* because .asd is loaded,
-    ;;    and may be from within the EVAL-WHEN of a file compilation.
+    ;;    Note: avoid *COMPILE-FILE-PATHNAME* because the .asd is loaded as source,
+    ;;    but may be from within the EVAL-WHEN of a file compilation.
     ;; If no absolute pathname was found, we return NIL.
     (check-type pathname (or null string pathname))
     (pathname-directory-pathname
@@ -44,6 +48,7 @@
 
 ;;; Component class
 (with-upgradability ()
+  ;; What :file gets interpreted as, unless overridden by a :default-component-class
   (defvar *default-component-class* 'cl-source-file)
 
   (defun class-for-type (parent type)
@@ -51,7 +56,7 @@
           (and (eq type :file)
                (coerce-class
                 (or (loop :for p = parent :then (component-parent p) :while p
-                            :thereis (module-default-component-class p))
+                      :thereis (module-default-component-class p))
                     *default-component-class*)
                 :package :asdf/interface :super 'component :error nil))
           (sysdef-error "don't recognize component type ~S" type))))
@@ -73,6 +78,17 @@
                (format s (compatfmt "~@<Error while defining system: component ~S claims to have a system ~S as a child~@:>")
                        (non-toplevel-system-parent c) (non-toplevel-system-name c)))))
 
+  (define-condition bad-system-name (warning)
+    ((name :initarg :name :reader component-name)
+     (source-file :initarg :source-file :reader system-source-file))
+    (:report (lambda (c s)
+               (let* ((file (system-source-file c))
+                      (name (component-name c))
+                      (asd (pathname-name file)))
+                 (format s (compatfmt "~@<System definition file ~S contains definition for system ~S. ~
+Please only define ~S and secondary systems with a name starting with ~S (e.g. ~S) in that file.~@:>")
+                       file name asd (strcat asd "/") (strcat asd "/test"))))))
+
   (defun sysdef-error-component (msg type name value)
     (sysdef-error (strcat msg (compatfmt "~&~@<The value specified for ~(~A~) ~A is ~S~@:>"))
                   type name value))
@@ -90,6 +106,30 @@
       (sysdef-error-component ":components must be NIL or a list of components."
                               type name components)))
 
+
+  (defun record-additional-system-input-file (pathname component parent)
+    (let* ((record-on (if parent
+                          (loop :with retval
+                                :for par = parent :then (component-parent par)
+                                :while par
+                                :do (setf retval par)
+                                :finally (return retval))
+                          component))
+           (comp (if (typep record-on 'component)
+                     record-on
+                     ;; at this point there will be no parent for RECORD-ON
+                     (find-component record-on nil)))
+           (op (make-operation 'define-op))
+           (cell (or (assoc op (%additional-input-files comp))
+                       (let ((new-cell (list op)))
+                         (push new-cell (%additional-input-files comp))
+                         new-cell))))
+      (pushnew pathname (cdr cell) :test 'pathname-equal)
+      (values)))
+
+  ;; Given a form used as :version specification, in the context of a system definition
+  ;; in a file at PATHNAME, for given COMPONENT with given PARENT, normalize the form
+  ;; to an acceptable ASDF-format version.
   (defun* (normalize-version) (form &key pathname component parent)
     (labels ((invalid (&optional (continuation "using NIL instead"))
                (warn (compatfmt "~@<Invalid :version specifier ~S~@[ for component ~S~]~@[ in ~S~]~@[ from file ~S~]~@[, ~A~]~@:>")
@@ -107,12 +147,16 @@
                     (case (first form)
                       ((:read-file-form)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-form (subpathname pathname subpath)
-                                              :at at :package :asdf-user)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-form path
+                                                :at at :package :asdf-user))))
                       ((:read-file-line)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-line (subpathname pathname subpath)
-                                              :at at)))
+                         (let ((path (subpathname pathname subpath)))
+                           (record-additional-system-input-file path component parent)
+                           (safe-read-file-line (subpathname pathname subpath)
+                                                :at at))))
                       (otherwise
                        (invalid))))
                    (t
@@ -160,7 +204,7 @@
 
 ;;; Main parsing function
 (with-upgradability ()
-  (defun* parse-dependency-def (dd)
+  (defun parse-dependency-def (dd)
     (if (listp dd)
         (case (first dd)
           (:feature
@@ -181,7 +225,7 @@
           (otherwise (sysdef-error "Ill-formed dependency: ~s" dd)))
       (coerce-name dd)))
 
-  (defun* parse-dependency-defs (dd-list)
+  (defun parse-dependency-defs (dd-list)
     "Parse the dependency defs in DD-LIST into canonical form by translating all
 system names contained using COERCE-NAME. Return the result."
     (mapcar 'parse-dependency-def dd-list))
@@ -273,40 +317,49 @@ system names contained using COERCE-NAME. Return the result."
     ;; To avoid infinite recursion in cases where you defsystem a system
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in the asdf-cache.
-    (with-asdf-cache ()
-      (let* ((name (coerce-name name))
-             (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
-             (registered (system-registered-p name))
-             (registered! (if registered
-                              (rplaca registered (get-file-stamp source-file))
-                              (register-system
-                               (make-instance 'system :name name :source-file source-file))))
-             (system (reset-system (cdr registered!)
-                                   :name name :source-file source-file))
-             (component-options
-              (remove-plist-keys '(:defsystem-depends-on :class) options))
-             (defsystem-dependencies (loop :for spec :in defsystem-depends-on
-                                           :when (resolve-dependency-spec nil spec)
-                                           :collect :it)))
-        ;; cache defsystem-depends-on in canonical form
-        (when defsystem-depends-on
-          (setf component-options
-                (append `(:defsystem-depends-on ,(parse-dependency-defs defsystem-depends-on))
-                        component-options)))
-        (set-asdf-cache-entry `(find-system ,name) (list system))
-        (load-systems* defsystem-dependencies)
-        ;; We change-class AFTER we loaded the defsystem-depends-on
-        ;; since the class might be defined as part of those.
-        (let ((class (class-for-type nil class)))
-          (unless (subtypep class 'system)
-            (error 'non-system-system :name name :class-name (class-name class)))
-          (unless (eq (type-of system) class)
-            (change-class system class)))
-        (parse-component-form
-         nil (list*
-              :module name
-              :pathname (determine-system-directory pathname)
-              component-options)))))
+    (nest
+     (with-asdf-session ())
+     (let* ((name (coerce-name name))
+            (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))))
+     (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))))
+     (let* ((asd-name (and source-file
+                           (equal "asd" (fix-case (pathname-type source-file)))
+                           (fix-case (pathname-name source-file))))
+            (primary-name (primary-system-name name)))
+       (when (and asd-name (not (equal asd-name primary-name)))
+         (warn (make-condition 'bad-system-name :source-file source-file :name name))))
+     (let* (;; NB: handle defsystem-depends-on BEFORE to create the system object,
+            ;; so that in case it fails, there is no incomplete object polluting the build.
+            (checked-defsystem-depends-on
+             (let* ((dep-forms (parse-dependency-defs defsystem-depends-on))
+                    (deps (loop :for spec :in dep-forms
+                            :when (resolve-dependency-spec nil spec)
+                            :collect :it)))
+               (load-systems* deps)
+               dep-forms))
+            (system (or (find-system-if-being-defined name)
+                        (if-let (registered (registered-system name))
+                          (reset-system-class registered 'undefined-system
+                                              :name name :source-file source-file)
+                          (register-system (make-instance 'undefined-system
+                                                          :name name :source-file source-file)))))
+            (component-options
+             (append
+              (remove-plist-keys '(:defsystem-depends-on :class) options)
+              ;; cache defsystem-depends-on in canonical form
+              (when checked-defsystem-depends-on
+                `(:defsystem-depends-on ,checked-defsystem-depends-on))))
+            (directory (determine-system-directory pathname)))
+       ;; This works hand in hand with asdf/find-system:find-system-if-being-defined:
+       (set-asdf-cache-entry `(find-system ,name) (list system)))
+     ;; We change-class AFTER we loaded the defsystem-depends-on
+     ;; since the class might be defined as part of those.
+     (let ((class (class-for-type nil class)))
+       (unless (subtypep class 'system)
+         (error 'non-system-system :name name :class-name (class-name class)))
+       (unless (eq (type-of system) class)
+         (reset-system-class system class)))
+     (parse-component-form nil (list* :module name :pathname directory component-options))))
 
   (defmacro defsystem (name &body options)
     `(apply 'register-system-definition ',name ',options)))

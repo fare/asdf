@@ -1,17 +1,29 @@
 * Decree that versions older than 2 years are not supported;
   yet, keep supporting an upgrade from whatever vendors provide
   — so push them to provide recent stuff.
-  Already, swank-asdf doesn't support anything older than 2.014.6
-  (as provided by the first 2011 iteration of Quicklisp), and
-  I (fare) am pushing for swank-asdf to not support anything older
-  than 3.0 (since no maintained implementation has anything older,
-  with the LispWorks 7.0 release being last to upgrade, in May 2015).
-  Maybe remove old versions from upgrade tests; or maybe not:
-  if we support old versions in any way,
-  it should be for upgrade only, and "punt" is acceptable.
-  Upgrade tests might be split in two test sets: short and long.
+** Already, swank-asdf doesn't support anything older than 2.014.6
+   (as provided by the first 2011 iteration of Quicklisp), and
+   I (fare) am pushing for swank-asdf to not support anything older
+   than 3.1.2 (since no maintained implementation has anything older,
+   with the LispWorks 7.0 release being last to upgrade, in May 2015;
+   or CLISP hg in May 2016, though it hasn't been released since 2010).
+** Maybe remove old versions from upgrade tests; or maybe not:
+   if we support old versions in any way,
+   it should be for upgrade only, and "punt" is acceptable.
+** Maybe remove upgrade from antique ASDF altogether.
+   Clear all the code in the header, and/or
+   move a few elements to asdf/upgrade.
+** Upgrade tests might be split in two test sets: short and long.
+** Make tests stateless and/or make any modifications private,
+   so that they can be run in parallel.
 
-* Moving toward cross-compilation (ASDF 3.2? 4?)
+* Testing support
+** Replace test-op with run-test-op and test-report-op ?
+
+* Implement a style-checker, that will issue STYLE-WARNINGs
+  when you don't follow all the recommended guidelines.
+
+* Moving toward cross-compilation (ASDF 3.4? 4?)
    This would allow to get most of the benefits of XCVB
    (reproducibility, scalability, applicability to mobile platforms, etc.),
    except without the backward incompatibility of XCVB.
@@ -19,13 +31,16 @@
 ** Need to further split asdf:perform in two parts:
    A part that runs on the host and specifies (as SEXP or string to read)
    forms that must be evaluated on the target machine, not the host:
-   (asdf:perform-forms target operation component)
+   (asdf:perform-forms target operation component &key input-files output-files)
    The default implementation can fallback to running the
-   (asdf:perform operation component) on the target,
-   which if it is on specially crafted operation and component objects
-   that do not require recreating the component hierarchy and plan,
-   but still require loading the defsystem-depends-on dependencies:
-   on the target:
+   (asdf:perform operation component) on the target.
+   To ensure isolation, it would run in an isolated process in which
+   just the specially crafted operation and component objects are defined,
+   though the defsystem-depends-on dependencies are also loaded;
+   the action would be run in a temporary directory, that would contain
+   only a read-only copy of the declared input-files, and some writable
+   output directory for the output files, that would afterwards be
+   copied to their actual destination.
 
    ;; null means the target is the current host.
    ;; Or should the base class be plan-traversal or such?
@@ -103,14 +118,14 @@
     make t l=cmucl t=test-encodings.script
     which was a different PCL bug from the above (without same workaround)
     but possibly also triggered by the non-standard declaim.
-*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
-     rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** `#5(1 ,@\`(2 3)))` returns `#(1 2 3)`,
+     rather than `#(1 2 3 2 3 2 3 2 3)` or even better `#(1 2 3 3 3)`.
 *** It purports to support Unicode, but it has only 16-bit characters.
    Note that (subtypep 'character 'base-char) says T -- everything is a base char(!)
 
 ** SCL has bugs:
 *** it doesn't like run-program from a modified directory?
-*** it somehow pushes :non-base-chars-exist-p even though +non-base-chars-exist-p+ is NIL???
+*** it somehow pushes `:non-base-chars-exist-p` even though `+non-base-chars-exist-p+` is `NIL`???
 
 ** XCL has bad bugs:
 *** make-pathname doesn't handle :type nil properly and
@@ -131,6 +146,7 @@
    (make-pathname :name "foo" :type :unspecific) ==> #P"foo."
     If bug is ever fixed, upgrade *unspecific-pathname-type* in uiop/pathname.
 *** XCL doesn't properly process files the name of which contains a *
+*** XCL fails to recognize that specialized method parameters are implicitly ignorable.
 
 ** GCL is almost working again; but implementation bugs remain.
    See Francois-Rene Rideau's messages on gcl-devel starting November 2013.
@@ -145,33 +161,33 @@
    INTERNAL-SIMPLE-ERROR: The package named ASDF/INTERFACE, does not exist
 *** Another GCL compiler bug:
    when I changed the definition of getcwd from
-   (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
-   (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
+   `(let ((*default-pathname-defaults* #p"")) (truename #p""))` to
+   `(let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))`
    to guard against e.g. a logical-pathname context while loading asdf
-   and parsing #p"", calls to getcwd result in a segfault.
+   and parsing `#p""`, calls to `getcwd` result in a segfault.
 *** An another bug: gcl refuses dynamic-extent declaration on functions.
-   uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
-   before `(#',beforef)) ,@(when after `(#',afterf))))
-*** (typep p 'logical-pathname) should be T if p has a logical-pathname host.
-*** apropos is case-sensitive and returns a same symbol many times
+   ```uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
+   before `(#',beforef)) ,@(when after `(#',afterf))))```
+*** `(typep p 'logical-pathname)` should be T if p has a logical-pathname host.
+*** `apropos` is case-sensitive and returns a same symbol many times
    (presumably once per package where it is present,
    instead of just once for its home package)
-*** compile-file fails to return proper secondary values in case of non-style WARNING.
-*** (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
+*** `compile-file` fails to return proper secondary values in case of non-style `WARNING`.
+*** `(pathname-directory #p"foo/")` is incorrectly `("foo")` instead of `(:RELATIVE "foo")`
 *** Do whatever it takes to pass the asdf tests, add the above?
-*** Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
-   (or read-file-forms from an file with same) results in an error,
-   rather than nil. This is probably a bug in #+ processing.
+*** Trying to `uiop:slurp-stream-forms` from a stream with `#+(or) :foo`
+   (or `read-file-forms` from an file with same) results in an error,
+   rather than `nil`. This is probably a bug in `#+` processing.
    Unhappily, debian creates such a file in
-   /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
+   `/etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf`
 *** Tests that try to catch an error fail (but catching a warning succeeds),
    which suggests brokenness in handler-bind and/or error.
-*** COMPILE-FILE* fails due to handler-bind error in
-   with-muffled-compiler-conditions or so.
-*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
-     rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
-*** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
-*** GCL doesn't properly process files the name of which contains a *
+*** `COMPILE-FILE*` fails due to handler-bind error in
+   `with-muffled-compiler-conditions` or so.
+*** `#5(1 ,@`(2 3)))` returns `#(1 2 3)`,
+     rather than `#(1 2 3 2 3 2 3 2 3)` or even better `#(1 2 3 3 3)`.
+*** `(DIRECTORY #p"*.*")` fails to match files with pathname-type `NIL`.
+*** GCL doesn't properly process files the name of which contains a `*`
 
 ** ABCL has a few bugs.
 *** ABCL fails the timestamp propagation test.
@@ -231,7 +247,8 @@
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order.
 ** At least document the issue.
-** Real solution: defer parsing and evaluation of defsystem forms.
+** Real solution: defer parsing and evaluation of defsystem forms?
+   Or simply detect circularity and issue an appropriate error?
 
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
@@ -287,6 +304,8 @@ with how SWANK and GBBopen currently abuse slots of operation,
 so these would have to be fixed first.
 And that's why I didn't do it.
 It looks like SWANK can be fixed soon, though, so we'll see.
+
+* Hunt systems that use obsolete APIs
 
 * Get rid of component-properties
 ** directly use component-properties:
@@ -364,6 +383,20 @@ It looks like SWANK can be fixed soon, though, so we'll see.
    version
 
 * ASDF4: search for this tag, rename things (incompatibly, thus) and cleanup code.
+** Migrate from component-depends-on to action-depends-on
+*** I contend a future version of ASDF will replace
+`(component-depends-on operation component)`
+with `(action-depends-on plan operation component)`.
+This allows for different normalization strategies for dependencies
+(including strategies that avoid resolving things to NIL),
+a reified context for featurep checks, etc.
+*** Easy but long backward-compatible transition:
+**** get all users to use the new gf and keep extending both new and old gf,
+   meanwhile the new gf has an around method that actually calls the old gf
+   except in testing mode and/or if we can check that they're using the new convention
+**** when everyone has migrated, remove the old mode and the short-circuit.
+*** However, we cannot deprecate component-depends-on yet — not until we have
+   some transition in place to a better interface.
 
 * Documentation
 ** See message from 2014-01-27 05:26:44 GMT for stuff to document.
@@ -399,92 +432,54 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** There again, a check that a forward-package is not backward
    would be very nice.
 
-* Migrate from component-depends-on to action-depends-on
-** I contend a future version of ASDF will replace
-   (component-depends-on operation component)
-   with (action-depends-on plan operation component).
-   This allows for different normalization strategies for dependencies
-   (including strategies that avoid resolving things to NIL),
-   a reified context for featurep checks, etc.
-** Easy but long backward-compatible transition:
-*** get all users to use the new gf and keep extending both new and old gf,
-   meanwhile the new gf has an around method that actually calls the old gf
-   except in testing mode and/or if we can check that they're using the new convention
-*** when everyone has migrated, remove the old mode and the short-circuit.
-** However, we cannot deprecate component-depends-on yet — not until we have
-   some transition in place to a better interface.
-
+<<<<<<< HEAD
 * Syntax Control: implement and document this plan
-1- ASDF maintains an asdf:*shared-readtable*, which is the *readtable*
- object at the time it was loaded.
-
-2- This *shared-readtable* is subject to the current restrictions:
-  A- no modifying any standard character,
-  B- no two dependencies assigning different meaning to the same
-non-standard character.
-  C- libraries need to document any change to the readtable
-  D- free software libraries will register these changes on the page on cliki.
-
-3- Unhappily, there is no cheap way to enforce these restrictions, but
-that's no regression with respect to the current situation.
-
-4- ASDF wraps any compile-op and load-source-op in this
-asdf:*shared-readtable*, but probably not load-op, to preserve
-combine-fasl linking semantics.
-
-5- Systems that want to do crazier things with the readtable that may
-violate (2) must arrange to use their own private readtable, but can
-otherwise do it safely. It is an error (unhappily not enforceable) to
-modify the current readtable in these ways.
-
-6A- ASDF binds *read-table* to the *shared-readtable* at the start of
-every system's compilation (and loading?), and around the entire
-asdf:operate, leaving the *readtable* unchanged at the end.
-
-This easily supports systems that "modify the current readtable data structure".
-
-However, that doesn't systems that "bind *readtable* to a new value",
+** ASDF maintains an asdf:*shared-readtable*
+*** This table is initialized as the *readtable* object at the time ASDF was loaded.
+** This *shared-readtable* is subject to the current restrictions:
+*** No modifying any standard character,
+*** No two dependencies assigning different meaning to the same non-standard character.
+*** Libraries need to document any change to the readtable
+*** Free software libraries will register these changes on the page on cliki.net
+** Unhappily, there is no cheap way to enforce these restrictions
+*** No enforcement is no no regression with respect to the current situation.
+*** Expensive and/or non-portable enforcement is possible
+**** Just intercept the API calls made to the implementation (without-package-lock)
+** ASDF wraps any compile-op and load-source-op in this asdf:*shared-readtable*
+*** However, no wrapping for load-op, to preserve combine-fasl linking semantics.
+** Systems that want to bypass the above restrictions must:
+*** arrange to use their own private readtable, but can otherwise do it safely.
+*** It is an error (unhappily not enforceable) to modify the current readtable in these ways.
+** Option A: ASDF binds *readtable* to the *shared-readtable*
+*** at the start of every system's compilation (and loading?), and
+*** around the entire asdf:operate, leaving the *readtable* unchanged at the end.
+** This easily supports systems that "modify the current readtable data structure".
+*** However, that doesn't systems that "bind *readtable* to a new value"
 because the changes they make will shadow the changes that other
 systems following this style make and depend on. To allow such, an
 idiom, we must also do the following:
-
-6B- ASDF binds *read-table* to a proper "entry readtable" at the start
+** Option B: ASDF binds *readtable* to a proper "entry readtable" at the start
 of every system's compilation, and record an "exit readtable" at the
 end of the system's loading.
-
-7- maintain a partial order on these readtable objects, assuming that
-each system's exit readtable supersedes the entry readtable. The least
-readtable is the *shared-readtable*. It's enough to store for each new
-exit readtable, identified by the name of system that created it, the
-set of its inferior readtables, as a list or eq-hash-table, or an
-equal hash-table, with each readtable being identified by the name of
-the system that created it.
-
-8- before a system is compiled or loaded, compute the maximum
-readtable of all the exit readtables of its dependencies. If this
-maximum is unique, then it will be the entry readtable of the system.
-If there is not a unique readtable that is more than all the other
-ones, that's an error, and we refuse to load the system.
-
-9- after a system is loaded, check its exit readtable, if it already
-exists, check that this doesn't create a cycle or issue an error; it
-it doesn't already exist, add it to the set of all known exit
-readtables.
-
-10- ASDF either
- A- binds the *read-table* to the *shared-readtable* around the entire
-asdf:operate, leaving the *readtable* unchanged at the end, or
- B- always side-effects the *read-table* to correspond to the exit
-readtable of the loaded system, or
- C- operate does the binding around thing, but load-system does the
-side-effect after it's done operate'ing.
-
-Does that strike you as complex? Because it is. That's the price of
-*safely* supporting this "systems can bind a new value to *readtable*"
-style. Unhappily some of the constraints are not enforceable (2A and
-2B), but that's the very same as now.
-
-So my next question is: do you want to safely support these
+*** Maintain a partial order on these readtable objects, assuming that each system's exit readtable supersedes the entry readtable.
+*** The least readtable is the *shared-readtable*.
+*** It's enough to store for each new exit readtable, as identified by:
+**** The name of system that created it, and
+**** the set of its inferior readtables, as a list or eq-hash-table, or an equal hash-table,
+**** with each readtable being identified by the name of the system that created it.
+*** Before a system is compiled or loaded, compute its entry readtable
+**** That entry readtable will be the maximum of all the exit readtables of its dependencies.
+**** If this maximum is unique, then it will be the entry readtable of the system.
+**** If there is not a unique readtable that is more than all the other ones, that's an error, and we refuse to load the system.
+*** After a system is loaded, check its exit readtable
+**** if it already exists, check that this doesn't create a cycle or issue an error;
+**** it it doesn't already exist, add it to the set of all known exit readtables.
+*** ASDF either
+**** A- binds the *read-table* to the *shared-readtable* around the entire asdf:operate, leaving the *readtable* unchanged at the end, or
+**** B- always side-effects the *read-table* to correspond to the exit readtable of the loaded system, or
+**** C- operate does the binding around thing, but load-system does the side-effect after it's done operate'ing.
+** Does that strike you as complex? Because it is. That's the price of *safely* supporting this "systems can bind a new value to *readtable*" style. Unhappily some of the constraints are not enforceable, but that's the very same as now.
+** So my next question is: do you want to safely support these
 conventions? Do your systems modify the current *readtable* structure,
 or do they bind *readtable* to a new value?
 
@@ -508,3 +503,177 @@ or do they bind *readtable* to a new value?
    but instead store the name of these directories,
    so these files will be read recursively by asdf, allowing for
    semi-modular updates.
+
+* Properly deprecate all that needs to go
+** Get lisa, readable, bourbaki to NOT include ASDF 1 anymore in their sources.
+** Identify all the things in ASDF that we want to deprecate, and make
+   sure we deprecate them all in 3.4.
+** Implement support for deprecating old packages,
+   by having all functions and macros under the old package name be
+   proxies to those in the new package name?
+   (Exception: special variables can't be proxies, have to be imported.)
+** Eradicate Quicklisp systems that depend on asdf-driver or
+   asdf-package-system, make them depend on uiop and asdf3.1 instead.
+
+* Fix plan
+** Goal: Implement proper incrementality for defsystem-depends-on.
+Fix the bug wherein ASDF fails to properly handle incrementality for `defsystem-depends-on`.
+https://bugs.launchpad.net/asdf/+bug/1500578
+Some discussion about ASDF at
+http://ccl.clozure.com/irc-logs/lisp/lisp-2016-10.txt
+
+** DONE Items
+*** Add `DEFINE-OP` for loading system definitions.
+*** A `DEFINE-OP` will depend on other `DEFINE-OP`s
+*** A `DEFINE-OP` depends on all `LOAD-OP` in the file.
+Whether via defsystem-depends-on or manual `LOAD-OP`s.
+*** Store timestamps in `DEFINE-OP` entries, not `*DEFINED-SYSTEMS*`.
+*** In find-system, add condition that all dependencies are up-to-date.
+*** This necessitates another layer of visit states,
+that do not plan, just check planning...
+*** `LOAD-ASD` calls `PERFORM DEFINE-OP` (not the other way around)
+*** Systems probably need depend on `(DEFINE-OP . PRIMARY-SYSTEM)`
+*** These dynamically-discovered dependencies are stored in a slot of `SYSTEM`.
+*** Have a special kind of definition-depends-on dependency.
+Before we reuse a node from a previous session,
+we must make sure it is still properly defined.
+This matters because we do reuse (at least *some* nodes, e.g. system nodes)
+from previous sessions, and the control structure may have changed
+(i.e. the system hasn't been redefined, but one of its defsystem-depends-on
+dependencies has changed).
+*** Handle incomplete definitions properly
+Don't just let the incompletely parsed system be registered
+in a false positive success as if it were an empty system.
+Solution: It is registered, but considered out-of-date,
+so next attempt to use it will cause a refresh attempt.
+https://bugs.launchpad.net/asdf/+bug/1515372
+*** Handle nested calls to `OPERATE`
+We must accept that ASDF isn't really plan-then-perform,
+as the ASDF1 model claimed to be.
+It's an arbitrary nesting of plan-and-perform, like a parenthesization
+with plan (steps) as left parenthesis and perform (steps) as right parenthesis,
+and with operate being a maximal balanced span of plan and perform steps.
+*** What goes in a shared dynamic `*SESSION*`, what in a private lexical `PLAN`?
+Memoization CACHE of various functions, Status of VISITED-NODES, FORCING parameters.
+The session will contain not just the current `*CACHE*`, but also
+all or most of the graph traversal, thus the `:force` options, etc.
+The `*PLAN*` may or may not contain some work queueing.
+But even, e.g. a table of "nodes still directly blocking us"
+is shared at the shared traversal level.
+*** It is an error for a nested `OPERATE` to contradict session flags.
+This raises the question of `:force` and `:force-not` flags.
+An actual operate cannot contradict them and cause things to be performed
+with a wrong subset of dependencies loaded.
+Yet, `REQUIRED-COMPONENTS` (that does cause anything to be performed —
+except via nested `OPERATE` from `defsystem-depends-on`)
+must be able to skip some dependencies
+(though maybe only _in addition_ to the global ones).
+*** What timestamp for `forced` and `forced-not` actions?
+If an action is forced-not, it should be returned with an action stamp from this cache,
+and not with `nil` as is currently wrongly done
+(unless of course the cache entry is missing,
+at which point `nil` is the correct answer).
+Conversely, a force means the stamp should be `t`
+(indicating it needs to be done in the future)
+(that part asdf gets right).
+*** Handle planning things that are now done but were done in a previous phase of the build,
+so dependency on them should trigger the build.
+*** Protocol to not re-perform an action twice
+In PERFORM-PLAN, check that an action wasn't already DONE-P due to
+being needed in a previous phase of recursively calling OPERATE,
+before to PERFORM it.
+To correctly propagate timestamps in across nested calls,
+the graph traversal and timestamp propagation is shared at the session level
+between all nested calls to `OPERATE`.
+During a session and across phases, every action has a status made of
+a stamp and three bits: KEEP-P, DONE-P, NEED-P.
+The stamp also survives across sessions, in `COMPONENT-OPERATION-TIMES`.
+*** Detect circularities across nested calls to `OPERATE`
+This means the circularity detection data is part of the session.
+Notably, the visiting list and set.
+The top of the list can also serve to record the dependencies from `OPERATE` to `DEPEND-OP`.
+*** In UIOP, RECORD-DEPENDENCY must not cross to an upper plan and/or it should
+record the dependency in said upper plan (that matters because
+parallel plans doing extra checking, and this is a problem
+whereby some links to extra actions are left unresolved).
+Maybe in the future, record the dependency in the session, not in a plan.
+
+** TODO items
+*** find-system should probably cause a dependency on define-op, especially inside another define-op
+*** Is it worth it trying to optimize away a dependency on a define-op
+when an action already depends on another operation that "obviously" depends on that define-op?
+*** Document DEFINE-OP and the design in asdf.texinfo and/or in some article.
+
+** Future developments
+*** Grovel all .asd files in Quicklisp and collect all violations of declarativeness,
+where declarativeness is having only defsystem forms. Specially classify in-package,
+maybe also defpackage. Then we can assess the impact of requiring declarativeness.
+*** Also grovel Quicklisp for all extensions to ASDF:
+see if there are new methods on perform, input-files, output-files, operate, etc.
+*** To allow defsystem-depends-on to another secondary system within the
+same file, I can imagine some system to dynamically create a separate action
+(DEFINE-OP foo/x) for each form defsystem foo/x, and have it depend on
+all the preceding actions operated in the .asd file.
+Plus a last action for dangling load-system or operate statements?
+Or one action for every operate statement?
+There would be no action of the entire load-asd, but a separate mechanism
+to detect circularity?
+What about dangling statements? They would be a bit like xcvb weakly-ordered
+run-time dependencies that CAN have circularities? Ouch. Really ugly.
+Each statement would need its own action? Ouch.
+*** Have load-asd clear any invalidated previous secondary system
+before loading, which supposes remembering what these systems are.
+Then, you're not allowed to forward-reference a secondary system that
+hasn't been defined yet while you're loading the .asd, whereas you
+can load the asd if you aren't loading it yet.
+*** Maybe split DEFINE-OP into PREPARE-DEFINE-OP and DEFINE-OP, so that
+secondary systems can be properly loaded?
+*** Add mapping from files to action that creates it and/or uses it?
+Then we can detect conflict between multiple actions creating one file.
+Forbid direct use of files not listed as inputs? What about transitive inputs?
+Build in a container that has only the proper files...
+*** What data structure for scheduling planned actions?
+A doubly-linked to remove entire chunks of the plan after a sub-operate?
+That won't do, because later-discovered defsystem dependency can refer to
+systems that were planned but not performed, so there need be no contiguity
+in the chunks that are performed by subcalls to operate.
+Actually, if we otherwise forbid reference to another system
+from non-system components, then we could move things with system granularity,
+which is one thing; but we still need a general mechanism at the system level.
+So, whether it's an explicit queue or an implicit traversal of the dependency graph,
+we must check whether an action has already been done before we try to perform it.
+And an implicit traversal has the advantage that you can avoid entire subtrees
+when you find that the current node has already been performed during
+a previous phase of the plan.
+In conclusion: "just" traverse the graph at the last minute, and
+perform things serially, and/or if you want some parallelism,
+build a queue dynamically at the last minute for the "now" jobs
+while keeping most of the plan as graph structures.
+
+*** Merging in parts of POIU?
+ASDF internals are nothing to be proud of:
+ASDF1 was optimized for "smallest code that kind of works in the usual case",
+and ASDF3 was optimized for "smallest code that fixes ASDF1 in the general case
+while mostly maintaining backward compatibility".
+
+Because of its optimization constraint, ASDF1 was using and abusing lists a lot,
+rather than defining nice data structures.
+ASDF3 uses somewhat more structured data, with a few more classes, and
+algorithms that are O(n) instead of O(n**3) in simple cases and
+exponential in carefully crafted examples;
+yet it has shunned any definition of more advanced or general data structures.
+By contrast, POIU has a dequeue to represent queued compilation jobs, and
+a general graph representation for the action graph
+(though the original POIU was also O(n**3) because it lacked PREPARE-OP).
+
+I could import the POIU queue and graph representations into ASDF, and
+that would add about 100 lines of code to UIOP for the queue, and
+200 lines to ASDF for the graph, maybe a bit more if the code is
+generalized, commented and largely put in UIOP.
+
+Then, there's the support for actual forking and using forks,
+that would be about 400 lines added to UIOP, and
+the using it in ASDF to consume the plan, which would be under 200 lines.
+But those parts are probably better left out of ASDF itself.
+That said, it all was a lot when ASDF was < 1000 lines of code,
+but isn't all that much now that it is > 12000 lines of code.

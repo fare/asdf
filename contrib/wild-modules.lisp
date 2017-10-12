@@ -17,7 +17,7 @@ use a wild pathname instead." module)))
       (sysdef-error "Wild-module ~A specified with non-wild pathname ~A."
                     self pathname))
     (setf (slot-value self 'components)
-          (let* ((files (directory pathname))
+          (let* ((files (directory* pathname))
                  (class (wild-module-component-class self))
                  (options (wild-module-component-options self)))
             (mapcar (lambda (file)
@@ -29,5 +29,8 @@ use a wild pathname instead." module)))
                     files)))
     (compute-children-by-name self)
     (values)))
+
+(defmethod input-files ((o compile-op) (c wild-module)) ())
+(defmethod input-files ((o load-op) (c wild-module)) ())
 
 (export 'wild-module)

@@ -2,10 +2,11 @@
 ;;;; Components
 
 (uiop/package:define-package :asdf/component
-  (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade)
+  (:recycle :asdf/component :asdf/find-component :asdf)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session)
   (:export
    #:component #:component-find-path
+   #:find-component ;; methods defined in find-component
    #:component-name #:component-pathname #:component-relative-pathname
    #:component-parent #:component-system #:component-parent-pathname
    #:child-component #:parent-component #:module
@@ -29,7 +30,6 @@
    #:sub-components
 
    ;; conditions
-   #:system-definition-error ;; top level, moved here because this is the earliest place for it.
    #:duplicate-names
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
@@ -46,35 +46,40 @@
   (defgeneric component-name (component)
     (:documentation "Name of the COMPONENT, unique relative to its parent"))
   (defgeneric component-system (component)
-    (:documentation "Find the top-level system containing COMPONENT"))
+    (:documentation "Top-level system containing the COMPONENT"))
   (defgeneric component-pathname (component)
-    (:documentation "Extracts the pathname applicable for a particular component."))
-  (defgeneric (component-relative-pathname) (component)
-    (:documentation "Returns a pathname for the component argument intended to be
-interpreted relative to the pathname of that component's parent.
-Despite the function's name, the return value may be an absolute
-pathname, because an absolute pathname may be interpreted relative to
-another pathname in a degenerate way."))
-  (defgeneric component-external-format (component))
-  (defgeneric component-encoding (component))
-  (defgeneric version-satisfies (component version))
-  (defgeneric component-version (component))
-  (defgeneric (setf component-version) (new-version component))
-  (defgeneric component-parent (component))
+    (:documentation "Pathname of the COMPONENT if any, or NIL."))
+  (defgeneric component-relative-pathname (component)
+    ;; in ASDF4, rename that to component-specified-pathname ?
+    (:documentation "Specified pathname of the COMPONENT,
+intended to be merged with the pathname of that component's parent if any, using merged-pathnames*.
+Despite the function's name, the return value can be an absolute pathname, in which case the merge
+will leave it unmodified."))
+  (defgeneric component-external-format (component)
+    (:documentation "The external-format of the COMPONENT.
+By default, deduced from the COMPONENT-ENCODING."))
+  (defgeneric component-encoding (component)
+    (:documentation "The encoding of the COMPONENT. By default, only :utf-8 is supported.
+Use asdf-encodings to support more encodings."))
+  (defgeneric version-satisfies (component version)
+    (:documentation "Check whether a COMPONENT satisfies the constraint of being at least as recent
+as the specified VERSION, which must be a string of dot-separated natural numbers, or NIL."))
+  (defgeneric component-version (component)
+    (:documentation "Return the version of a COMPONENT, which must be a string of dot-separated
+natural numbers, or NIL."))
+  (defgeneric (setf component-version) (new-version component)
+    (:documentation "Updates the version of a COMPONENT, which must be a string of dot-separated
+natural numbers, or NIL."))
+  (defgeneric component-parent (component)
+    (:documentation "The parent of a child COMPONENT,
+or NIL for top-level components (a.k.a. systems)"))
+  ;; NIL is a designator for the absence of a component, in which case the parent is also absent.
   (defmethod component-parent ((component null)) nil)
 
-  ;; Backward compatible way of computing the FILE-TYPE of a component.
+  ;; Deprecated: Backward compatible way of computing the FILE-TYPE of a component.
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
-  (defgeneric (source-file-type) (component system))
-
-  (define-condition system-definition-error (error) ()
-    ;; [this use of :report should be redundant, but unfortunately it's not.
-    ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
-    ;; over print-object; this is always conditions::%print-condition for
-    ;; condition objects, which in turn does inheritance of :report options at
-    ;; run-time.  fortunately, inheritance means we only need this kludge here in
-    ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
-    #+cmu (:report print-object))
+  (defgeneric source-file-type (component system)
+    (:documentation "DEPRECATED. Use the FILE-TYPE of a COMPONENT instead."))
 
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))
@@ -112,10 +117,9 @@ another pathname in a degenerate way."))
      ;; See our ASDF 2 paper for more complete explanations.
      (in-order-to :initform nil :initarg :in-order-to
                   :accessor component-in-order-to)
-     ;; methods defined using the "inline" style inside a defsystem form:
-     ;; need to store them somewhere so we can delete them when the system
-     ;; is re-evaluated.
-     (inline-methods :accessor component-inline-methods :initform nil) ;; OBSOLETE! DELETE THIS IF NO ONE USES.
+     ;; Methods defined using the "inline" style inside a defsystem form:
+     ;; we store them here so we can delete them when the system is re-evaluated.
+     (inline-methods :accessor component-inline-methods :initform nil)
      ;; ASDF4: rename it from relative-pathname to specified-pathname. It need not be relative.
      ;; There is no initform and no direct accessor for this specified pathname,
      ;; so we only access the information through appropriate methods, after it has been processed.
@@ -134,7 +138,14 @@ another pathname in a degenerate way."))
      ;; For backward-compatibility, this slot is part of component rather than of child-component. ASDF4: stop it.
      (parent :initarg :parent :initform nil :reader component-parent)
      (build-operation
-      :initarg :build-operation :initform nil :reader component-build-operation)))
+      :initarg :build-operation :initform nil :reader component-build-operation)
+     ;; Cache for ADDITIONAL-INPUT-FILES function.
+     (additional-input-files :accessor %additional-input-files :initform nil))
+    (:documentation "Base class for all components of a build"))
+
+  (defgeneric find-component (base path &key registered)
+    (:documentation "Find a component by resolving the PATH starting from BASE parent.
+If REGISTERED is true, only search currently registered systems."))
 
   (defun component-find-path (component)
     "Return a path from a root system to the COMPONENT.
@@ -158,11 +169,12 @@ The return value is a list of component NAMES; a list of strings."
 ;; The tree typically but not necessarily follows the filesystem hierarchy.
 (with-upgradability ()
   (defclass child-component (component) ()
-    (:documentation "A CHILD-COMPONENT is a component that may be part of
+    (:documentation "A CHILD-COMPONENT is a COMPONENT that may be part of
 a PARENT-COMPONENT."))
 
   (defclass file-component (child-component)
-    ((type :accessor file-type :initarg :type))) ; no default
+    ((type :accessor file-type :initarg :type)) ; no default
+    (:documentation "a COMPONENT that represents a file"))
   (defclass source-file (file-component)
     ((type :accessor source-file-explicit-type ;; backward-compatibility
            :initform nil))) ;; NB: many systems have come to rely on this default.
@@ -171,7 +183,8 @@ a PARENT-COMPONENT."))
   (defclass java-source-file (source-file)
     ((type :initform "java")))
   (defclass static-file (source-file)
-    ((type :initform nil)))
+    ((type :initform nil))
+    (:documentation "Component for a file to be included as is in the build output"))
   (defclass doc-file (static-file) ())
   (defclass html-file (doc-file)
     ((type :initform "html")))
@@ -189,10 +202,13 @@ a PARENT-COMPONENT."))
       :initform nil
       :initarg :default-component-class
       :accessor module-default-component-class))
-  (:documentation "A PARENT-COMPONENT is a component that may have
-children.")))
+  (:documentation "A PARENT-COMPONENT is a component that may have children.")))
 
 (with-upgradability ()
+  ;; (Private) Function that given a PARENT component,
+  ;; the list of children of which has been initialized,
+  ;; compute the hash-table in slot children-by-name that allows to retrieve its children by name.
+  ;; If ONLY-IF-NEEDED-P is defined, skip any (re)computation if the slot is already populated.
   (defun compute-children-by-name (parent &key only-if-needed-p)
     (unless (and only-if-needed-p (slot-boundp parent 'children-by-name))
       (let ((hash (make-hash-table :test 'equal)))
@@ -206,15 +222,22 @@ children.")))
 
 (with-upgradability ()
   (defclass module (child-component parent-component)
-    (#+clisp (components)))) ;; backward compatibility during upgrade only
+    (#+clisp (components)) ;; backward compatibility during upgrade only
+    (:documentation "A module is a intermediate component with both a parent and children,
+typically but not necessarily representing the files in a subdirectory of the build source.")))
 
 
 ;;;; component pathnames
 (with-upgradability ()
-  (defgeneric* (component-parent-pathname) (component))
+  (defgeneric component-parent-pathname (component)
+    (:documentation "The pathname of the COMPONENT's parent, if any, or NIL"))
   (defmethod component-parent-pathname (component)
     (component-pathname (component-parent component)))
 
+  ;; The default method for component-pathname tries to extract a cached precomputed
+  ;; absolute-pathname from the relevant slot, and if not, computes it by merging the
+  ;; component-relative-pathname (which should be component-specified-pathname, it can be absolute)
+  ;; with the directory of the component-parent-pathname.
   (defmethod component-pathname ((component component))
     (if (slot-boundp component 'absolute-pathname)
         (slot-value component 'absolute-pathname)
@@ -228,6 +251,9 @@ children.")))
           (setf (slot-value component 'absolute-pathname) pathname)
           pathname)))
 
+  ;; Default method for component-relative-pathname:
+  ;; combine the contents of slot relative-pathname (from specified initarg :pathname)
+  ;; with the appropriate source-file-type, which defaults to the file-type of the component.
   (defmethod component-relative-pathname ((component component))
     ;; SOURCE-FILE-TYPE below is strictly for backward-compatibility with ASDF1.
     ;; We ought to be able to extract this from the component alone with FILE-TYPE.
@@ -261,7 +287,11 @@ children.")))
 
 ;;;; around-compile-hook
 (with-upgradability ()
-  (defgeneric around-compile-hook (component))
+  (defgeneric around-compile-hook (component)
+    (:documentation "An optional hook function that will be called with one argument, a thunk.
+The hook function must call the thunk, that will compile code from the component, and may or may not
+also evaluate the compiled results. The hook function may establish dynamic variable bindings around
+this compilation, or check its results, etc."))
   (defmethod around-compile-hook ((c component))
     (cond
       ((slot-boundp c 'around-compile)
@@ -290,6 +320,7 @@ children.")))
 ;;; all sub-components (of a given type)
 (with-upgradability ()
   (defun sub-components (component &key (type t))
+    "Compute the transitive sub-components of given COMPONENT that are of given TYPE"
     (while-collecting (c)
       (labels ((recurse (x)
                  (when (if-let (it (component-if-feature x)) (featurep it) t)
