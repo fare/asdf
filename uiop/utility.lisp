@@ -28,9 +28,9 @@
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
-   #:list-to-hash-set #:ensure-gethash #:table-alist ;; hash-table
+   #:list-to-hash-set #:ensure-gethash ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
-   #:call-function #:call-functions #:fwrap #:register-hook-function
+   #:call-function #:call-functions #:register-hook-function
    #:lexicographic< #:lexicographic<= ;; version
    #:simple-style-warning #:style-warn ;; simple style warnings
    #:match-condition-p #:match-any-condition-p ;; conditions
@@ -468,13 +468,6 @@ with the given ARGUMENTS"
     "For each function in the list FUNCTION-SPECS, in order, call the function as per CALL-FUNCTION"
     (map () 'call-function function-specs))
 
-  (defun fwrap (&rest functions)
-    (when functions
-      (destructuring-bind (first . rest) functions
-        (if rest
-            (call-function first #'(lambda () (apply 'fwrap rest)))
-            (call-function first)))))
-
   (defun register-hook-function (variable hook &optional call-now-p)
     "Push the HOOK function (a designator as per ENSURE-FUNCTION) onto the hook VARIABLE.
 When CALL-NOW-P is true, also call the function immediately."
@@ -535,14 +528,7 @@ Return two values: the entry after its optional computation, and whether it was 
   (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
     "Convert a LIST into hash-table that has the same elements when viewed as a set,
 up to the given equality TEST"
-    (dolist (x list h) (setf (gethash x h) t)))
-
-  (defgeneric table-alist (table))
-  (defmethod table-alist ((table hash-table))
-    (loop :for k :being :the :hash-keys :of table :using (:hash-value v)
-          :collect (cons k v)))
-  (defmethod table-alist ((table cons))
-    table))
+    (dolist (x list h) (setf (gethash x h) t))))
 
 ;;; Lexicographic comparison of lists of numbers
 (with-upgradability ()
