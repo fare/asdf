@@ -432,57 +432,6 @@ a reified context for featurep checks, etc.
 *** There again, a check that a forward-package is not backward
    would be very nice.
 
-<<<<<<< HEAD
-* Syntax Control: implement and document this plan
-** ASDF maintains an asdf:*shared-readtable*
-*** This table is initialized as the *readtable* object at the time ASDF was loaded.
-** This *shared-readtable* is subject to the current restrictions:
-*** No modifying any standard character,
-*** No two dependencies assigning different meaning to the same non-standard character.
-*** Libraries need to document any change to the readtable
-*** Free software libraries will register these changes on the page on cliki.net
-** Unhappily, there is no cheap way to enforce these restrictions
-*** No enforcement is no no regression with respect to the current situation.
-*** Expensive and/or non-portable enforcement is possible
-**** Just intercept the API calls made to the implementation (without-package-lock)
-** ASDF wraps any compile-op and load-source-op in this asdf:*shared-readtable*
-*** However, no wrapping for load-op, to preserve combine-fasl linking semantics.
-** Systems that want to bypass the above restrictions must:
-*** arrange to use their own private readtable, but can otherwise do it safely.
-*** It is an error (unhappily not enforceable) to modify the current readtable in these ways.
-** Option A: ASDF binds *readtable* to the *shared-readtable*
-*** at the start of every system's compilation (and loading?), and
-*** around the entire asdf:operate, leaving the *readtable* unchanged at the end.
-** This easily supports systems that "modify the current readtable data structure".
-*** However, that doesn't systems that "bind *readtable* to a new value"
-because the changes they make will shadow the changes that other
-systems following this style make and depend on. To allow such, an
-idiom, we must also do the following:
-** Option B: ASDF binds *readtable* to a proper "entry readtable" at the start
-of every system's compilation, and record an "exit readtable" at the
-end of the system's loading.
-*** Maintain a partial order on these readtable objects, assuming that each system's exit readtable supersedes the entry readtable.
-*** The least readtable is the *shared-readtable*.
-*** It's enough to store for each new exit readtable, as identified by:
-**** The name of system that created it, and
-**** the set of its inferior readtables, as a list or eq-hash-table, or an equal hash-table,
-**** with each readtable being identified by the name of the system that created it.
-*** Before a system is compiled or loaded, compute its entry readtable
-**** That entry readtable will be the maximum of all the exit readtables of its dependencies.
-**** If this maximum is unique, then it will be the entry readtable of the system.
-**** If there is not a unique readtable that is more than all the other ones, that's an error, and we refuse to load the system.
-*** After a system is loaded, check its exit readtable
-**** if it already exists, check that this doesn't create a cycle or issue an error;
-**** it it doesn't already exist, add it to the set of all known exit readtables.
-*** ASDF either
-**** A- binds the *read-table* to the *shared-readtable* around the entire asdf:operate, leaving the *readtable* unchanged at the end, or
-**** B- always side-effects the *read-table* to correspond to the exit readtable of the loaded system, or
-**** C- operate does the binding around thing, but load-system does the side-effect after it's done operate'ing.
-** Does that strike you as complex? Because it is. That's the price of *safely* supporting this "systems can bind a new value to *readtable*" style. Unhappily some of the constraints are not enforceable, but that's the very same as now.
-** So my next question is: do you want to safely support these
-conventions? Do your systems modify the current *readtable* structure,
-or do they bind *readtable* to a new value?
-
 * Faster source-registry:
 ** In addition and/or as a substitute to the .cl-source-registry.cache,
    that is meant to be semi-automatically managed, there could be
