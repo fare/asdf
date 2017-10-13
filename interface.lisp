@@ -123,7 +123,6 @@
    #:*encoding-external-format-hook*
    #:*default-encoding*
    #:*utf-8-external-format*
-   #:call-with-asdf-syntax #:with-asdf-syntax
    #:clear-configuration
    #:*output-translations-parameter*
    #:initialize-output-translations

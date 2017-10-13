@@ -6,7 +6,7 @@
   (:use :uiop/common-lisp :uiop
         :asdf/upgrade :asdf/session
         :asdf/component :asdf/system :asdf/system-registry :asdf/lisp-action
-        :asdf/find-system :asdf/parse-defsystem)
+        :asdf/parse-defsystem)
   (:export
    #:package-inferred-system #:sysdef-package-inferred-system-search
    #:package-system ;; backward compatibility only. To be removed.
@@ -46,7 +46,7 @@ every such file"))
 
   ;; Find the first defpackage form in a stream, if any
   (defun stream-defpackage-form (stream)
-    (with-asdf-syntax ()
+    (with-shared-syntax (:package :asdf-user)
       (loop :for form = (read stream nil nil) :while form
             :when (defpackage-form-p form) :return form)))
 

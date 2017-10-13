@@ -89,7 +89,7 @@
     (assert (equal (coerce-name s) (primary-system-name s)))
     (nest
      (if-let ((pathname (first (input-files o s)))))
-     (with-asdf-syntax (:package :asdf-user))
+     (with-shared-syntax (:package :asdf-user))
      (let ((*default-pathname-defaults*
             ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
             (pathname-directory-pathname (physicalize-pathname pathname)))))

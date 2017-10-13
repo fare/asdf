@@ -312,7 +312,7 @@ of the function will be returned rather than interpreted as a boolean designatin
       (setf *image-prelude* prelude)
       (setf *image-restored-p* :in-progress)
       (call-image-restore-hook)
-      (standard-eval-thunk prelude)
+      (shared-eval-thunk prelude)
       (setf *image-restored-p* t)
       (let ((results (multiple-value-list
                       (if entry-point
@@ -347,7 +347,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
     (setf *image-postlude* postlude)
-    (standard-eval-thunk *image-postlude*)
+    (shared-eval-thunk *image-postlude*)
     (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)

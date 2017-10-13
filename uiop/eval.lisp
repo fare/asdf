@@ -5,37 +5,63 @@
   (:recycle :uiop/eval :asdf)
   (:use :uiop/common-lisp :uiop/utility :uiop/stream)
   (:export
+   #:*initial-readtable* #:*initial-print-pprint-dispatch*
    #:*standard-readtable* #:*standard-print-pprint-dispatch*
    #:*shared-readtable* #:*shared-print-pprint-dispatch*
    #:*standard-syntax-variables*
-   #:call-with-shared-readtable #:call-with-standard-io-syntax
-   #:eval-input #:eval-thunk #:standard-eval-thunk
+   #:call-with-shared-syntax #:with-shared-syntax
+   #:eval-input #:eval-thunk #:shared-eval-thunk
    #:ensure-variable #:variable-value))
 (in-package :uiop/eval)
 
 ;;; Safe syntax
 (with-upgradability ()
+  (defvar *initial-readtable* *readtable*
+    "The initial readtable, as inherited from the environment at the time UIOP was first loaded.
+It initially implements the syntax specified by the CLHS, but may also have implementation-specific
+extensions, and may grow user-defined extensions. You MUST ONLY make conservative extensions to it:
+  A- No one may at any point modify any standard character in any way.
+  B- No two dependencies may assign different meaning to the same non-standard character.
+    Using any non-standard character while expecting the implementation to treat some way
+    counts as such an assignment of meaning (e.g. using CCL's #$ syntax for FFI).
+  C- Libraries need to document these assignments of meaning to non-standard characters.
+  D- Free software libraries will register these changes on:
+        http://www.cliki.net/Macro%20Characters
+The above restrictions have always existed but were previously implicit.
+There is unhappily no enforcement against non-conservative extensions, so tread carefully.
+Do not re-bind this variable.")
+
+  (defvar *initial-print-pprint-dispatch* (with-standard-io-syntax *print-pprint-dispatch*)
+    "The initial readtable, as inherited from the environment at the time UIOP was first loaded.
+It initially implements the syntax specified by the CLHS, but may also have implementation-specific
+extensions, and may grow user-defined extensions. You MUST ONLY make conservative extensions to it,
+i.e. you may not modify standard behavior, or conflict with anyone else's previous extensions.
+There is unhappily no enforcement against non-conservative extensions, so tread carefully.
+Do not re-bind this variable.")
+
   (defvar *standard-readtable* (with-standard-io-syntax *readtable*)
     "The standard readtable, implementing the syntax specified by the CLHS.
-It must never be modified, though only good implementations will even enforce that.")
+It must never be modified in any way whatsoever.
+However, only SBCL is known to enforce this prohibition.
+Do not re-bind this variable.")
 
   (defvar *standard-print-pprint-dispatch* (with-standard-io-syntax *print-pprint-dispatch*)
     "The standard pprint dispatch table, implementing the syntax specified by the CLHS.
-It must never be modified, though only good implementations will even enforce that.")
+It must never be modified in any way whatsoever.
+However, only SBCL is known to enforce this prohibition.
+Do not re-bind this variable.")
 
-  (defvar *shared-readtable* *readtable*
-    "This shared readtable allows legacy applications to keep modifying a global shared readtable
-  while maintaining some hygiene for those who want to use their own readtable.
-  It is subject to the following restrictions, which always existed but were previously implicit:
-  A- no modifying any standard character,
-  B- no two dependencies assigning different meaning to the same non-standard character.
-    Using any non-standard character while expecting the implementation to treat some way
-    counts as such an assignment of meaning.
-  C- libraries need to document these assignments of meaning to non-standard characters.
-  D- free software libraries will register these changes on:
-        http://www.cliki.net/Macro%20Characters
-")
-  (defvar *shared-print-pprint-dispatch* *print-pprint-dispatch*
+  (defvar *shared-readtable* *initial-readtable*
+    "The shared readtable used by all Lisp software while building with ASDF.
+This shared readtable is usually the *initial-readtable*, in which case
+conservative readtable extensions are permitted and such extensions only;
+see the documentation of that variable for more details.
+For even stricter enforcement against modifications at all, this readtable may be bound to
+the *standard-readtable* (at least on SBCL); this helps enforce good behavior from all libraries,
+but is not compatible with some older libraries.
+This readtable can also be bound to other readtables to implement various instrumentations
+by Lisp-to-Lisp compilers when (re)building software, presumably with a different fasl cache.")
+  (defvar *shared-print-pprint-dispatch* *initial-print-pprint-dispatch*
     "*print-pprint-dispatch* table shared by all ASDF systems.
 It should match the extensions of *shared-readtable* -- see the latter variable's documentation.")
 
@@ -62,12 +88,18 @@ It should match the extensions of *shared-readtable* -- see the latter variable'
       (*read-suppress* . nil)
       (*readtable* . ,*standard-readtable*))))
 
+;;;; Syntax control
 (with-upgradability ()
-  (defun call-with-standard-io-syntax (function)
-    (with-standard-io-syntax (call-function function)))
+  (defun call-with-shared-syntax (function &key package readably)
+    (with-standard-io-syntax
+      (let ((*readtable* *shared-readtable*)
+            (*print-pprint-dispatch* *shared-print-pprint-dispatch*)
+            (*package* (find-package (or package :cl-user)))
+            (*print-readably* readably))
+        (call-function function))))
 
-  (defun call-with-shared-readtable (thunk)
-    (let ((*readtable* *shared-readtable*)) (call-function thunk)))
+  (defmacro with-shared-syntax ((&rest keys &key &allow-other-keys) &body body)
+    `(call-with-shared-syntax #'(lambda () ,@body) ,@keys))
 
   (defun eval-input (input)
     "Portably read and evaluate forms from INPUT, return the last values."
@@ -90,13 +122,12 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (function (funcall thunk))
       (string (eval-input thunk))))
 
-  (defun standard-eval-thunk (thunk &key (package :cl))
-    "Like EVAL-THUNK, but in a more standardized evaluation context."
-    ;; Note: it's "standard-" not "safe-", because evaluation is never safe.
+  (defun shared-eval-thunk (thunk &key (package :cl))
+    "Like EVAL-THUNK, but in the shared evaluation context."
+    ;; Note: it's "shared-" not "safe-", because evaluation is never safe.
     (when thunk
-      (with-safe-io-syntax (:package package)
-        (let ((*read-eval* t))
-          (eval-thunk thunk))))))
+      (with-shared-syntax (:package package)
+        (eval-thunk thunk)))))
 
 ;;; Late-binding variables
 (with-upgradability ()
