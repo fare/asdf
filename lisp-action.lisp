@@ -6,6 +6,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/operation :asdf/action)
   (:export
+   #:call-with-asdf-syntax #:with-asdf-syntax
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:basic-load-op #:basic-compile-op
@@ -16,6 +17,18 @@
    #:lisp-compilation-output-files))
 (in-package :asdf/lisp-action)
 
+;;;; Syntax control
+(with-upgradability ()
+  (defun call-with-asdf-syntax (function &key package)
+    (with-standard-io-syntax
+      (let ((*readtable* *shared-readtable*)
+            (*print-pprint-dispatch* *shared-print-pprint-dispatch*)
+            (*package* (find-package (or package :asdf-user)))
+            (*print-readably* nil))
+        (call-function function))))
+
+  (defmacro with-asdf-syntax ((&key package) &body body)
+    `(call-with-asdf-syntax #'(lambda () ,@body) :package ,package)))
 
 ;;;; Component classes
 (with-upgradability ()

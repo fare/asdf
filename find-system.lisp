@@ -8,7 +8,6 @@
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
   (:import-from #:asdf/component #:%additional-input-files)
   (:export
-   #:call-with-asdf-syntax #:with-asdf-syntax
    #:find-system #:locate-system #:load-asd #:define-op
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition))
 (in-package :asdf/find-system)
@@ -43,17 +42,6 @@
     ;; NB: this function depends on a corresponding side-effect in parse-defsystem;
     ;; the precise protocol between the two functions may change in the future (or not).
     (first (gethash `(find-system ,(coerce-name name)) (asdf-cache))))
-
-  (defun call-with-asdf-syntax (function &key package)
-    (with-standard-io-syntax
-      (let ((*readtable* *shared-readtable*)
-            (*print-pprint-dispatch* *shared-print-pprint-dispatch*)
-            (*package* (find-package (or package :asdf-user)))
-            (*print-readably* nil))
-        (call-function function))))
-
-  (defmacro with-asdf-syntax ((&key package) &body body)
-    `(call-with-asdf-syntax #'(lambda () ,@body) :package ,package))
 
   (defclass define-op (non-propagating-operation) ()
     (:documentation "An operation to record dependencies on loading a .asd file."))
