@@ -53,7 +53,9 @@ NB: This interface is subject to change. Please contact ASDF maintainers if you 
   (defmethod component-entry-point ((c component))
     nil))
 
+
 ;;;; The system class
+
 (with-upgradability ()
   (defclass proto-system () ; slots to keep when resetting a system
     ;; To preserve identity for all objects, we'd need keep the components slots

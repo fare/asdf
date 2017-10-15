@@ -9,12 +9,12 @@
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:basic-load-op #:basic-compile-op
-   #:basic-prepare-op #:cl-reading-op #:*cl-reading-hook*
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source
    #:lisp-compilation-output-files))
 (in-package :asdf/lisp-action)
+
 
 ;;;; Component classes
 (with-upgradability ()
@@ -34,25 +34,12 @@
   (defclass basic-load-op (operation) ()
     (:documentation "Base class for operations that apply the load-time effects of a file"))
   (defclass basic-compile-op (operation) ()
-    (:documentation "Base class for operations that apply the compile-time effects of a file"))
+    (:documentation "Base class for operations that apply the compile-time effects of a file")))
 
-  (defclass basic-prepare-op (operation) ())
-
-  (defvar *cl-reading-hook* 'call-function
-    "Hook to call around operations that read CL code (since ASDF 3.1).
-To make it a NOP, set it to UIOP:CALL-FUNCTION.
-To make it bind just *READTABLE*, set it to UIOP:CALL-WITH-SHARED-READTABLE (the default).
-To bind all syntax variables to predictable portable values, set it to ASDF:CALL-WITH-ASDF-SYNTAX.
-For stricter values, set it to UIOP:CALL-WITH-STANDARD-IO-SYNTAX.")
-
-  (defclass cl-reading-op (operation) ()) ;; operations that read CL source
-
-  (defmethod call-with-action-context ((o cl-reading-op) (c cl-source-file) thunk)
-    (call-next-method o c #'(lambda () (call-function *cl-reading-hook* thunk)))))
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
-  (defclass prepare-op (basic-prepare-op upward-operation sideway-operation)
+  (defclass prepare-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-op :allocation :class))
     (:documentation "Load the dependencies for the COMPILE-OP or LOAD-OP of a given COMPONENT."))
   (defclass load-op (basic-load-op downward-operation selfward-operation)
@@ -60,14 +47,15 @@ For stricter values, set it to UIOP:CALL-WITH-STANDARD-IO-SYNTAX.")
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
     ((selfward-operation :initform '(prepare-op compile-op) :allocation :class))
     (:documentation "Operation for loading the compiled FASL for a Lisp file"))
-  (defclass compile-op (basic-compile-op cl-reading-op downward-operation selfward-operation)
+  (defclass compile-op (basic-compile-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-op :allocation :class))
     (:documentation "Operation for compiling a Lisp file to a FASL"))
 
-  (defclass prepare-source-op (basic-prepare-op upward-operation sideway-operation)
+
+  (defclass prepare-source-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-source-op :allocation :class))
     (:documentation "Operation for loading the dependencies of a Lisp file as source."))
-  (defclass load-source-op (basic-load-op cl-reading-op downward-operation selfward-operation)
+  (defclass load-source-op (basic-load-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-source-op :allocation :class))
     (:documentation "Operation for loading a Lisp file as source."))
 
