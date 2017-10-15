@@ -104,7 +104,7 @@ It should match the extensions of *shared-readtable* -- see the latter variable'
   (defun eval-input (input)
     "Portably read and evaluate forms from INPUT, return the last values."
     (with-input (input)
-      (loop :with results :with eof ='#:eof
+      (loop :with results :with eof = '#:eof
             :for form = (read input nil eof)
             :until (eq form eof)
             :do (setf results (multiple-value-list (eval form)))
