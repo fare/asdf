@@ -37,9 +37,6 @@
     (:documentation "Base class for operations that apply the compile-time effects of a file"))
 
   (defclass basic-prepare-op (operation) ())
-  (defmethod perform ((operation basic-prepare-op) (system system))
-    (initialize-system-variables system)
-    (use-initial-system-variables system))
 
   (defvar *cl-reading-hook* 'call-function
     "Hook to call around operations that read CL code (since ASDF 3.1).

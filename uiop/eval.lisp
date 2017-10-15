@@ -10,8 +10,7 @@
    #:*shared-readtable* #:*shared-print-pprint-dispatch*
    #:*standard-syntax-variables*
    #:call-with-shared-syntax #:with-shared-syntax
-   #:eval-input #:eval-thunk #:shared-eval-thunk
-   #:ensure-variable #:variable-value))
+   #:eval-input #:eval-thunk #:shared-eval-thunk))
 (in-package :uiop/eval)
 
 ;;; Safe syntax
@@ -129,24 +128,3 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (with-shared-syntax (:package package)
         (eval-thunk thunk)))))
 
-;;; Late-binding variables
-(with-upgradability ()
-  (defun ensure-variable (name &key package (when-undefined 'error))
-    (etypecase name
-      (symbol name)
-      (string (or (ignore-errors
-                   (let ((s (safe-read-from-string name :package package)))
-                     (and (symbolp s) s)))
-                  (call-function when-undefined
-                                 "Cannot read non-nil symbol from ~S" name)))))
-
-  (defun variable-value (name &key package (when-undefined 'error))
-    (let ((var (ensure-variable name :package package :when-undefined when-undefined)))
-      (if (boundp var)
-          (symbol-value var)
-          (call-function when-undefined "Symbol ~S unbound" name))))
-
-  (defun (setf variable-value) (value name &key package (when-undefined 'error))
-    (if-let (var (ensure-variable name :package package :when-undefined when-undefined))
-      (setf (symbol-value var) value)
-      value)))

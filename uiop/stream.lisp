@@ -146,6 +146,7 @@ going through all the proper hooks."
   (defun call-with-safe-io-syntax (function &key package)
     (with-standard-io-syntax
       (let ((*package* (find-package (or package :common-lisp)))
+            (*read-default-float-format* 'double-float)
             (*print-readably* nil)
             (*read-eval* nil))
         (call-function function))))

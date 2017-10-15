@@ -35,9 +35,7 @@
    #:simple-style-warning #:style-warn ;; simple style warnings
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:not-implemented-error #:parameter-error
-   #:call-with-variables #:with-variables #:set-variables ;; variables
-   #:call-with-alist-variables #:with-alist-variables #:set-alist-variables))
+   #:not-implemented-error #:parameter-error))
 (in-package :uiop/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -647,38 +645,3 @@ message, that takes the functionality as its first argument (that can be skipped
            :format-control format-control
            :format-arguments format-arguments)))
 
-;;; Variables
-(with-upgradability ()
-  (defun call-with-variables (variables bindings thunk &key (name #'identity) (value #'identity))
-    (loop :for variable :in variables
-          :for binding :in bindings
-          :for var = (call-function name variable)
-          :when var
-            :collect var :into vars
-            :and :collect (call-function value binding) :into vals
-          :finally (progv vars vals (call-function thunk))))
-
-  (defmacro with-variables ((variables initializers &rest keys &key name value) &body body)
-    (declare (ignore name value))
-    `(call-with-variables ,variables ,initializers #'(lambda () ,@body) ,@keys))
-
-  (defun set-variables (variables bindings &key (name #'identity) (value #'identity))
-    (loop :for variable :in variables
-          :for binding :in bindings
-          :for var = (call-function name variable)
-          :when var
-            :collect var :into vars
-            :and :collect (call-function value binding) :into vals
-          :finally (map () #'set vars vals)))
-
-  (defun call-with-alist-variables (alist thunk &rest keys &key name value)
-    (declare (ignore name value))
-    (apply 'call-with-variables (mapcar #'car alist) (mapcar #'cdr alist) thunk keys))
-
-  (defmacro with-alist-variables ((alist &rest keys &key name value) &body body)
-    (declare (ignore name value))
-    `(call-with-alist-variables ,alist #'(lambda () ,@body) ,@keys))
-
-  (defun set-alist-variables (alist &rest keys &key name value)
-    (declare (ignore name value))
-    (apply 'set-variables (mapcar #'car alist) (mapcar #'cdr alist) keys)))

@@ -4,8 +4,7 @@
 (uiop/package:define-package :asdf/action
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf/plan :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-        :asdf/component :asdf/system :asdf/operation)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
   (:import-from :asdf/component #:%additional-input-files)
   (:export
@@ -18,7 +17,6 @@
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
-   #:with-action-context #:call-with-action-context
    #:action-path #:find-action
    #:operation-definition-warning #:operation-definition-error ;; condition
    #:action-valid-p
@@ -464,22 +462,12 @@ Returns two values:
 
 ;;;; Perform
 (with-upgradability ()
-  (defgeneric call-with-action-context (operation component thunk))
-  (define-convenience-action-methods call-with-action-context (operation component thunk))
-  (defmethod call-with-action-context ((o operation) (c component) thunk)
-    (with-updated-system-variables ((component-system c))
-      (call-function thunk)))
-  (defmacro with-action-context ((operation component) &body body)
-    `(call-with-action-context ,operation ,component #'(lambda () ,@body)))
-
   (defgeneric perform (operation component)
     (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
   (defmethod perform :around ((o operation) (c component))
-    (while-visiting-action (o c)
-      (with-action-context (o c)
-        (call-next-method))))
+    (while-visiting-action (o c) (call-next-method)))
   (defmethod perform :before ((o operation) (c component))
     (ensure-all-directories-exist (output-files o c)))
   (defmethod perform :after ((o operation) (c component))
