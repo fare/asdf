@@ -1,0 +1,29 @@
+;;-*- Lisp -*-
+;; Testing that ASDF builds with a controlled syntax
+;; when invoked with readtable different from the initial/shared readtable.
+
+(in-package :asdf-test)
+
+;; Simple stuff
+(setf *central-registry* (list (subpathname *test-directory* "syntax-control/")))
+
+;; Try to load lisp-invocation from ext/ or from the user environment.
+(initialize-source-registry
+ `(:source-registry
+   (:directory ,*asdf-directory*)
+   (:directory (,*asdf-directory* "uiop/"))
+   (:tree (,*asdf-directory* "ext/"))
+   :inherit-configuration))
+
+(DBG "Run test-quasiquote. Should be using the system's quasiquote.")
+(asdf:load-system :test-quasiquote :force t)
+
+(DBG "Run test-quasiquote. Should STILL be using the system's quasiquote.")
+(load-system :fare-quasiquote-readtable)
+(named-readtables:in-readtable :fare-quasiquote)
+(asdf:load-system :test-quasiquote :force t)
+
+(DBG "Run the previously compiled test-quasiquote. If it used fare-quasiquote, it will fail.")
+(asdf::clear-registered-systems)
+(delete-package :fare-quasiquote)
+(asdf:load-system :test-quasiquote)
