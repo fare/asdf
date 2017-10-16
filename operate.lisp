@@ -83,6 +83,7 @@ But do NOT depend on it, for this is deprecated behavior."))
      (let* ((*verbose-out* (and verbose *standard-output*))
             (*compile-file-warnings-behaviour* on-warnings)
             (*compile-file-failure-behaviour* on-failure)))
+     (with-shared-syntax (:package :asdf-user))
      (unwind-protect
           (progn
             (incf (operate-level))
