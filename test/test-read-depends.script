@@ -54,7 +54,7 @@
        ;; (trace asdf/action::component-operation-time)
        ;; #+allegro #+allegro
        ;; (trace (asdf:input-files :inside asdf/plan::compute-action-stamp)
-       ;;        (asdf/plan::stamp<= :inside asdf/plan::compute-action-stamp)
+       ;;        (asdf/plan::timestamp<= :inside asdf/plan::compute-action-stamp)
        ;;        (asdf/plan::get-file-stamp :inside asdf/plan::compute-action-stamp))
 
 ;;; bump the version
@@ -91,7 +91,7 @@
                    :inside asdf:find-system)
                   (asdf/find-system::get-file-stamp
                    :inside find-system)
-                  (asdf/find-system::stamp<=
+                  (asdf/find-system::timestamp<=
                                     :inside find-system))
            ;; AFAICT, the :WHEREIN in SBCL TRACE does not work
            ;; properly.  In my copious free time, I should see if I
