@@ -30,7 +30,7 @@ The above restrictions have always existed but were previously implicit.
 There is unhappily no enforcement against non-conservative extensions, so tread carefully.
 Do not re-bind this variable.")
 
-  (defvar *initial-print-pprint-dispatch* (with-standard-io-syntax *print-pprint-dispatch*)
+  (defvar *initial-print-pprint-dispatch* *print-pprint-dispatch*
     "The initial readtable, as inherited from the environment at the time UIOP was first loaded.
 It initially implements the syntax specified by the CLHS, but may also have implementation-specific
 extensions, and may grow user-defined extensions. You MUST ONLY make conservative extensions to it,
