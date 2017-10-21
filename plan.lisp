@@ -51,7 +51,7 @@
   (defmethod record-dependency ((plan sequential-plan) (o operation) (c component))
     (values)))
 
-(when-upgrading (:version "3.2.1")
+(when-upgrading (:version "3.3.0")
   (defmethod initialize-instance :after ((plan plan-traversal) &key &allow-other-keys)))
 
 
