@@ -4,6 +4,9 @@
 
 (in-package :asdf-test)
 
+#+(or cmucl mkcl)
+(leave-test "CMUCL and MKCL have trouble with named-readtables." 0)
+
 ;; Simple stuff
 (setf *central-registry* (list (subpathname *test-directory* "syntax-control/")))
 
