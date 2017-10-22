@@ -6,7 +6,7 @@
   ;; We return a list of entries in reverse chronological order,
   ;; which should also be more or less the order of decreasing relevance.
   ;; By default, we only test the last of each relevant series.
-  '("REQUIRE" "3.2.0" "3.1.7" "3.0.3" "2.26"))
+  '("REQUIRE" "3.3.0" "3.2.1" "3.2.0" "3.1.7" "3.1.2" "3.0.3" "2.26"))
 
 (defparameter *all-upgrade-test-tags*
   '("REQUIRE" ;; a magic tag meaning whatever your implementation provides, if anything

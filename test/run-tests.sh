@@ -371,7 +371,7 @@ upgrade_tags () {
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
     # We picked the last in each relevant series.
-    echo REQUIRE 3.2.0 3.1.7 3.0.3 2.26
+    echo REQUIRE 3.3.0 3.2.1 3.2.0 3.1.7 3.1.2 3.0.3 2.26
 
     #echo 3.1.7 3.1.6 3.1.5 3.1.4 3.1.3 3.1.2
     #echo 3.0.3 3.0.2 3.0.1
