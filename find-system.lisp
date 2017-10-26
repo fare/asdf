@@ -232,7 +232,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (let ((o (make-operation 'define-op)))
             (multiple-value-bind (stamp done-p)
                 (compute-action-stamp plan o system)
-              (return (and (stamp<= stamp (component-operation-time o system))
+              (return (and (timestamp<= stamp (component-operation-time o system))
                            done-p)))))
       (system-out-of-date () nil)))
 
@@ -259,7 +259,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                               (pathname-equal
                                (physicalize-pathname pathname)
                                (physicalize-pathname previous-pathname))))
-                     (stamp<= stamp previous-time)
+                     (timestamp<= stamp previous-time)
                      ;; TODO: check that all dependencies are up-to-date.
                      ;; This necessitates traversing them without triggering
                      ;; the adding of nodes to the plan.
