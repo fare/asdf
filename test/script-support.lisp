@@ -687,6 +687,10 @@ is bound, write a message and exit on an error.  If
   (format t "CR ~S~%" (symbol-value (asym :*central-registry*)))
   (format t "loading test-module-depend~%")
   (acall :oos (asym :load-op) :test-module-depend)
+  (assert-equal (asymval :*f2c* :test-package) 1)
+  (format t "loading test-module-depend again -- shouldn't rebuild anything~%")
+  (acall :oos (asym :load-op) :test-module-depend)
+  (assert-equal (asymval :*f2c* :test-package) 1)
   (format t "done loading~%"))
 
 (defun load-asdf (&optional tag)

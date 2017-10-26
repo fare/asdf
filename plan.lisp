@@ -139,7 +139,7 @@ or NIL if no the status is considered outside of a specific plan."))
     "Return the earliest status later than both status1 and status2"
     (make-action-status
      :bits (logand (status-bits status1) (status-bits status2))
-     :stamp (latest-stamp (status-stamp status1) (status-stamp status2))
+     :stamp (latest-timestamp (status-stamp status1) (status-stamp status2))
      :level (min (status-level status1) (status-level status2))
      :index (or (status-index status1) (status-index status2))))
 
@@ -292,22 +292,22 @@ initialized with SEED."
             (in-files (input-files o c))
             (in-stamps (mapcar #'get-file-stamp in-files))
             (missing-in (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
-            (latest-in (stamps-latest (cons dep-stamp in-stamps))))
+            (latest-in (timestamps-latest (cons dep-stamp in-stamps))))
        (when (and missing-in (not just-done)) (return (values nil nil))))
      (let* (;; collect timestamps from outputs, and exit early if any is missing
             (out-files (remove-if 'null (output-files o c)))
             (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
             (missing-out (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
-            (earliest-out (stamps-earliest out-stamps)))
+            (earliest-out (timestamps-earliest out-stamps)))
        (when (and missing-out (not just-done)) (return (values nil nil))))
      (let (;; Time stamps from the files at hand, and whether any is missing
            (all-present (not (or missing-in missing-out)))
            ;; Has any input changed since we last generated the files?
-           ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
+           ;; Note that we use timestamp<= instead of timestamp< to play nice with generated files.
            ;; Any race condition is intrinsic to the limited timestamp resolution.
-           (up-to-date-p (stamp<= latest-in earliest-out))
+           (up-to-date-p (timestamp<= latest-in earliest-out))
            ;; If everything is up to date, the latest of inputs and outputs is our stamp
-           (done-stamp (stamps-latest (cons latest-in out-stamps))))
+           (done-stamp (timestamps-latest (cons latest-in out-stamps))))
        ;; Warn if some files are missing:
        ;; either our model is wrong or some other process is messing with our files.
        (when (and just-done (not all-present))
