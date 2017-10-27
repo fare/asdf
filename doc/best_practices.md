@@ -1,4 +1,5 @@
-# ASDF Best Practices
+ASDF Best Practices
+===================
 
 This document presents the current best practices and conventions
 for using ASDF 3, as of 2017.
@@ -9,16 +10,63 @@ that he already knows what seems to be common knowledge among such users,
 and tries to complete this knowledge with less obvious points
 that are often wrong in systems seen in the wild.
 
-[TOC]
 
-## Trivial Examples
+<a name="toc"></a>Table of Contents
+-----------------------------------
+
+- [Trivial Examples](#trivial_examples)
+  + [Trivial Uses of ASDF](#trivial_asdf)
+    * [Loading a System](#loading_system)
+    * [Testing a System](#testing_system)
+    * [Designating a System](#designating_system)
+  + [Trivial System Definition](#trivial_system)
+    * [Using the system you defined](#using_system)
+  + [Trivial Testing Definition](#trivial_testing)
+    * [Notes on ASDF 2 compatibility](#notes_asdf2)
+  + [Trivial Packaging](#trivial_packaging)
+    * [Digression about symbols and packages](#digression)
+- [Simple Examples](#simple_examples)
+  + [Simple Uses of a System](#simple_uses)
+    * [Building a System](#building_system)
+    * [Inspecting a System](#inspecting_system)
+    * [Other Operations](#other_operations)
+  + [System Naming](#system_naming)
+    * [Primary Systems](#primary_systems)
+    * [Secondary Systems](#secondary_systems)
+  + [Simple System Definition](#simple_system)
+  + [Simple Packaging](#simple_packaging)
+    * [Initial Package for a Lisp File](#initial_package)
+    * [Using Symbols from ASDF and UIOP](#using_symbols)
+  + [Simple Testing](#simple_testing)
+  + [Other Secondary Systems](#other_secondary)
+    * [Delivering an Executable](#delivering_executable)
+    * [System Connections](#system_connections)
+- [More Elaborate Examples](#moreelaborate_examples)
+  + [More Elaborate Uses of ASDF](#moreelaborate_asdf)
+    * [force](#force)
+    * [force-not](#force_not)
+    * [Require](#require)
+  + [More Elaborate System Definitions](#elaborate_definitions)
+    * [package-inferred-system](#package_inferred)
+    * [Using ASDF Extensions](#using_extensions)
+    * [Code in .asd files](#code_asd)
+    * [Conditional Code](#conditional_code)
+  + [More Elaborate Testing](#moreelaborate_testing)
+  + [Defining ASDF Extensions](#defining_extensions)
+    * [Source File Types](#source_types)
+    * [Conditional Outputs and Conditional Perform](#conditional_outputs)
+- [Other](#other)
+
+
+<a name="trivial_examples"></a>Trivial Examples
+------------------------------------------------
 
 Let's start with some trivial examples.
 We'll see below how these examples evolve as systems grow more complex.
 
-### Trivial Uses of ASDF
+### <a name="trivial_asdf"></a>Trivial Uses of ASDF
 
-#### Loading a System
+#### <a name="loading_system"></a>Loading a System
 
 The most trivial use of ASDF is by calling `(asdf:load-system :foobar)`
 to load your library.
@@ -29,7 +77,7 @@ then you will be able to call it with `(foobar:some-fun ...)` or with:
     (in-package :foobar)
     (some-fun ...)
 
-#### Testing a System
+#### <a name="testing_system"></a>Testing a System
 
 To run the tests for a system, you may use:
 
@@ -37,7 +85,7 @@ To run the tests for a system, you may use:
 
 The convention is that an error SHOULD be signalled if tests are unsuccessful.
 
-#### Designating a System
+#### <a name="designating_system"></a>Designating a System
 
 Using keywords to name systems is good and well at the REPL.
 However, when writing a program, a bootstrap script, or a system definition,
@@ -64,7 +112,7 @@ But that is not where we are.
 In any case, system names designate `.asd` files, not Lisp bindings,
 and this determines their syntax.)
 
-### Trivial System Definition
+### <a name="trivial_system"></a>Trivial System Definition
 
 A trivial system would have a single Lisp file called `foobar.lisp`.
 That file would depend on some existing libraries,
@@ -96,7 +144,7 @@ As for contents of that file, they would look like this:
       ...)
     ...
 
-#### Using the system you defined
+#### <a name="using_system"></a>Using the system you defined
 
 Assuming your system is installed under the `~/common-lisp/` hierarchy
 or some other filesystem hierarchy already configured for ASDF,
@@ -107,7 +155,7 @@ If your Lisp was already started when you created that file,
 you may have to `(asdf:clear-configuration)` to re-process the configuration.
 
 
-### Trivial Testing Definition
+### <a name="trivial_testing"></a>Trivial Testing Definition
 
 Even the most trivial of systems needs some tests,
 if only because it will have to be modified eventually,
@@ -137,7 +185,7 @@ and the content of the `perform` method is how to invoke this library
 to run the test suite `:foobar`.
 Obvious YMMV if you use a different library.
 
-#### Note on ASDF 2 compatibility
+#### <a name="notes_asdf2"></a>Note on ASDF 2 compatibility
 
 The `:in-order-to ((test-op (test-op ...)))` idiom will not work with ASDF 2:
 attempts to `test-system` will result in failure due to circular dependencies;
@@ -184,7 +232,7 @@ and tell your users to upgrade their implementation and/or
 install a recent ASDF on top of their implementation's.
 
 
-### Trivial Packaging
+### <a name="trivial_packaging"></a>Trivial Packaging
 
 In the previous testing code, `symbol-call` is a function defined in package `uiop`.
 It helps deal with the fact that the package `:fiveam` isn't defined yet
@@ -226,7 +274,7 @@ You SHOULD be using the `slime-asdf` extension to SLIME
 if you are going to edit `.asd` file and then load them from SLIME,
 as it will automatically use `load-asd` to load the file contents.
 
-#### Digression about symbols and packages
+#### <a name="digression"></a>Digression about symbols and packages
 
 A crucial notion in Common Lisp is that of *symbols*, to which are associated
 functions, variables, macros, properties, and other meanings.
@@ -247,14 +295,16 @@ where each interned symbol is also a constant bound to its own name as a value.
 Using a keyword as designator rather than a string ensures that we can maintain
 the same convention of using lower-case in source code while the runtime will use uppercase.
 
-## Simple Examples
+
+<a name="simple_examples"></a>Simple Examples
+----------------------------------------------
 
 As systems grow, the above pattern quickly becomes insufficient,
 but systems can still remain simple.
 
-### Simple Uses of a System
+### <a name="simple_uses"></a>Simple Uses of a System
 
-#### Building a System
+#### <a name="building_system"></a>Building a System
 
 Some systems offer operations
 that are neither loading in the current image, nor testing.
@@ -269,7 +319,7 @@ the above will be equivalent to `(asdf:load-system :foobar)`,
 but for other Lisp systems, e.g. one that creates a shell command-line executable,
 `(asdf:make ...)` will do the Right Thing™, whatever that Right Thing™ is.
 
-#### Inspecting a System
+#### <a name="inspecting_system"></a>Inspecting a System
 
 To look at what ASDF knows of your system, try:
 
@@ -280,7 +330,7 @@ For the directory in which the `.asd` file resides, try `(asdf:system-source-dir
 For a specific file under that directory try
 `(asdf:system-relative-pathname "foobar" "path/to/the/file.extension")`.
 
-#### Other Operations
+#### <a name="other_operations"></a>Other Operations
 
 ASDF has the concept of an *operation* that can act upon a system (or a smaller component thereof).
 Typical operations that matter to end-users include:
@@ -318,9 +368,9 @@ The operation is typically specified as a symbol that names the operation class.
 Since ASDF 3, you can also use a keyword to specify an action in the ASDF package.
 Thus, `(asdf:oos :load-op :foobar)` is equivalent to `(asdf:load-system :foobar)`.
 
-### System Naming
+### <a name="system_naming"></a>System Naming
 
-#### Primary Systems
+#### <a name="primary_systems"></a>Primary Systems
 
 ASDF has a notion of *primary system*,
 that it can find in configured parts of the filesystem (the *source-registry*),
@@ -329,7 +379,7 @@ Thus, primary system `foobar` is defined in a file `foobar.asd`.
 
 While arbitrary strings are accepted in system names, it is strongly discouraged
 to use anything but lower-case ASCII letters and digits for primary system names,
-plus the separators `-` (dash) and `.` (dot).
+plus the separators `-` (hyphen) and `.` (dot).
 The `.` itself is only recommended in primary system names that are part of an informal hierarchy;
 for instance the popular library `iolib` contains many related systems:
 `iolib.asdf`, `iolib.base`, `iolib.common-lisp`, `iolib.conf`, `iolib.examples`,
@@ -338,13 +388,13 @@ The main one is ostensibly `iolib`, but it contains many systems,
 and for some reasons (notably proper phase separation)
 they cannot all be secondary systems in the same file.
 
-#### Secondary Systems
+#### <a name="secondary_systems"></a>Secondary Systems
 
 A *secondary system* is a system defined in the same file as a primary system.
 By convention, its name starts the same as the file's primary system,
 followed by a slash `/` and by a *suffix* made of some arbitrary characters,
-preferrably ASCII letters and digits
-plus the separators `-` (dash), `.` (dot) and `/` (slash).
+preferably ASCII letters and digits
+plus the separators `-` (hyphen), `.` (dot) and `/` (slash).
 We already saw an example of it with system `foobar/tests`
 in the trivial testing definition above.
 
@@ -357,7 +407,7 @@ and in practice many people used `foo-test` or such for secondary system names i
 however, ASDF 1 (and 2) couldn't find those systems by name, and horrific bugs could happen
 if a system was simultaneously defined in multiple files.)
 
-### Simple System Definition
+### <a name="simple_system"></a>Simple System Definition
 
 A simple system may be made of many files.
 
@@ -413,9 +463,9 @@ only in ASDF 3.3 or later, due to a bug in earlier versions of ASDF.
 But that precise order shouldn't matter, or it should be reflected
 in the `:depends-on` declarations (or in a `:serial t` declaration).
 
-### Simple Packaging
+### <a name="simple_packaging"></a>Simple Packaging
 
-#### Initial Package for a Lisp File
+#### <a name="initial_package"></a>Initial Package for a Lisp File
 
 You MAY assume that the current package uses `CL` at the beginning of a file,
 but you MUST NOT assume that it is any particular package at this point:
@@ -432,7 +482,7 @@ at which point you may as well `(cl:defpackage ...)` and `(cl:in-package ...)`).
 If it's a regular `cl-source-file`, it can assume the language is CL indeed,
 and that the readtable something reasonable, etc.
 
-#### Using symbols from ASDF and UIOP
+#### <a name="using_symbols"></a>Using Symbols from ASDF and UIOP
 
 You MAY use any of the symbols documented and exported by ASDF or UIOP.
 Actually, it is warmly recommended to use them everywhere that it matters,
@@ -445,7 +495,7 @@ ASDF 3.2 will issue a `style-warning` when you do, and ASDF 3.3 will issue a ful
 which will break the SBCL build.
 See `backward-interface.lisp` for a list of deprecated function — or just heed the damn warnings.
 
-### Simple Testing
+### <a name="simple_testing"></a>Simple Testing
 
 Test systems can also be divided in multiple files.
 If possible (which is not always the case), the file names for test files
@@ -472,14 +522,14 @@ As the system and its test system both grow, the test system may be moved to its
 
     (defsystem "foobar-tests" ...)
 
-### Other secondary systems
+### <a name="other_secondary"></a>Other secondary systems
 
 Other secondary systems may be created beyond test systems:
 for instance systems that provide independent aspects of the system,
 or optional add-ons to it.
 One case is a command that makes the Lisp functionality accessible from a Unix shell.
 
-#### Delivering an Executable
+#### <a name="delivering_executable"></a>Delivering an Executable
 
 To build an executable, define a system as follows
 (in this case, it's a secondary system, but it could also be a primary system).
@@ -537,7 +587,7 @@ Both `cl-launch` and `buildapp` have similar functionality
 to handle multicall binaries à la [Busybox](http://busybox.net/),
 with the same incompatibility as above.
 
-#### System Connections
+#### <a name="system_connections"></a>System Connections
 
 Sometimes, a system can provide an extension to another system.
 For instance, if you use both `metacopy` and `contextl`,
@@ -552,11 +602,13 @@ I recommend against using it, because it introduces side-effects within the buil
 Instead I recommend explicitly loading the system connections
 as part of the larger system that will use them.
 
-## More Elaborate Examples
 
-### More Elaborate Uses of ASDF
+<a name="moreelaborate_examples"></a>More Elaborate Examples
+--------------------------------------------------------
 
-#### force
+### <a name="moreelaborate_asdf"></a>More Elaborate Uses of ASDF
+
+#### <a name="force"></a>force
 
 Sometimes, you want to force ASDF to re-build some system.
 At those times, you can pass the `:force` argument to `asdf:operate`
@@ -564,7 +616,7 @@ At those times, you can pass the `:force` argument to `asdf:operate`
 Passing an argument `t` will force rebuild of just the system, and none of its dependencies
 (and that also means none of the dependencies that happen to be secondary systems
 with the same primary system name).
-Passing a list of system designators (preferrably lower-case strings)
+Passing a list of system designators (preferably lower-case strings)
 will force the specific systems to be rebuilt (if they appear in the build plan at all, that is).
 Finally, passing `:all` as argument will force a rebuild of everything, including all dependencies.
 
@@ -581,7 +633,7 @@ In the case of `prove`, we will have to work with its author so that the correct
 to use it doesn't violate ASDF invariants, but instead properly declare that
 ASDF should not consider tests already run.
 
-#### force-not
+#### <a name="force_not"></a>force-not
 
 The converse of `:force` is `:force-not`, and you can specify a list of systems to not rebuild.
 In this context `t` means "everything but this system" rather than " this system".
@@ -594,7 +646,7 @@ You MUST NOT call `asdf:operate` with `:force` or `:force-not` from within a bui
 Actually, you should probably not explicitly use `asdf:operate` at all,
 except maybe inside a `.asd` file in cases where `defsystem-depends-on` isn't sufficient.
 
-#### Require
+#### <a name="require"></a>Require
 
 You SHOULD NOT use `cl:require` as a substitute for `asdf:load-system`.
 You SHOULD NOT use `asdf:require-system` except at the toplevel.
@@ -633,9 +685,9 @@ and if not calls `asdf:load-system` on it.
 This function MUST only be used at the toplevel, never in a script or build.
 It may be deprecated in a future version of ASDF.
 
-### More Elaborate System Definitions
+### <a name="elaborate_definitions"></a>More Elaborate System Definitions
 
-#### package-inferred-system
+#### <a name="package_inferred"></a>package-inferred-system
 
 When you start writing large enough systems,
 putting everything in one big package leads to a big mess:
@@ -681,7 +733,7 @@ rather than the entire humongous library.
 This also helps you enforce a discipline wherein it is always clear in which file
 each symbol is defined, which files have symbols used by any other file, etc.
 
-#### Using ASDF Extensions
+#### <a name="using_extensions"></a>Using ASDF Extensions
 
 If you need an ASDF extension, the recommended way is to use `:defsystem-depends-on`.
 The extension will define new classes of operations or components, new functions, etc.
@@ -705,7 +757,7 @@ in your own extension.
 (In a prototype OO system, you could just mix and match extensions without defining a new class,
 but CLOS is not a prototype OO system.)
 
-#### Code in .asd files
+#### <a name="code_asd"></a>Code in .asd files
 
 ASDF currently allows arbitrary Lisp code in a `.asd` file.
 I would like to deprecate that in the future to make ASDF more declarative.
@@ -726,7 +778,7 @@ It is poor taste to define functions, variables or macros in package `asdf-user`
 unless strictly necessary or widely useful, and even then with a long name
 that distinctively includes the name of your system.
 However it is perfectly acceptable to define methods on existing functions,
-preferrably using the `:perform` syntax used above, as part of a `defsystem` form.
+preferably using the `:perform` syntax used above, as part of a `defsystem` form.
 
 If you must define new functions, variables or macros,
 you MUST define a new package in which to define them.
@@ -749,7 +801,7 @@ For versions, consider having ASDF extract the version from a file, as in
 `:version (:read-file-form "variables.lisp" :at (2 2 2)`.
 See the ASDF manual for details, and `asdf.asd` itself for an example.
 
-#### Conditional Code
+#### <a name="conditional_code"></a>Conditional Code
 
 The recommended way to conditionally use code is to rely on the CL features;
 yet, you SHOULD NOT use read-time conditionals if you can avoid it,
@@ -779,7 +831,7 @@ in particular, the mere fact of have loaded your system does not warrant a new f
 A feature is only warranted if your system is some deep infrastructure
 with mostly compatible rivals that it needs to be distinguished from.
 
-### More Elaborate Testing
+### <a name="moreelaborate_testing"></a>More Elaborate Testing
 
 You MUST NOT call `asdf:operate` or any of its derivatives,
 such as `asdf:load-system` or `asdf:test-system` from within a `perform` method.
@@ -793,9 +845,9 @@ You SHOULD NOT define methods on `asdf:operate` --- most of the time it's totall
 because users would be "operating" on your system, but on their system that depends on it.
 Instead you SHOULD define methods on `asdf:perform`, `asdf:component-depends-on`, etc.
 
-### Defining ASDF Extensions
+### <a name="defining_extensions"></a>Defining ASDF Extensions
 
-#### Source File Types
+#### <a name="source_types"></a>Source File Types
 
 You MUST NOT define methods on `source-file-type`. This bad ASDF 1 interface must die.
 Instead, override the slot `type` for your file class and provide a proper `:initform`, as in:
@@ -805,7 +857,7 @@ Instead, override the slot `type` for your file class and provide a proper `:ini
 You can then provide the name of that class as class name for individual components,
 or as `:default-component-class` to relevant systems or modules.
 
-#### Conditional Outputs and Conditional Perform
+#### <a name="conditional_outputs"></a>Conditional Outputs and Conditional Perform
 
 An operation MUST actually create all the outputs declared by the `output-files` method.
 If some of these outputs are conditional, the `output-files` method MUST check the condition
@@ -823,7 +875,9 @@ operations on a given component, you MAY want to override or wrap around
 the `component-if-feature` method for that component instead of defining
 all those `perform`, `output-files` and `input-files` methods.
 
-## Other
+
+<a name="other"></a>Other
+--------------------------
 
 Do not side-effect the current `*readtable*`,
 which is never guaranteed to be writable, and
