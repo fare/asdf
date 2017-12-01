@@ -43,8 +43,9 @@
           and the ability to deliver standalone executables.
           Its notable versions include pre-release 2.27 on February 1st 2013,
           first stable release 3.0.1 on May 16th 2013,
-          major releases 3.1.2 on May 6th 2014 and 3.2.0 on January 10th 2017,
-          and latest release 3.2.1 on April 3rd 2017.
+          major releases 3.1.2 on May 6th 2014,
+          3.2.0 on January 10th 2017 and 3.3.0 on October 6th 2017,
+          and latest release 3.3.1 on November 4th 2017.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -412,7 +413,7 @@ Corman Common Lisp <admin@cormanlisp.com>
           About the latest developments in ASDF 3.2 and ASDF 3.3, see our demo
           <cite><a href="http://fare.tunes.org/files/asdf2017/asdf2017.html"
                    >Delivering Common Lisp Applications with ASDF 3.3</a></cite>
-          (<a href="http://fare.tunes.org/files/asdf2017/asdf2017.pdf">PDF</a>,
+          (2-page <a href="http://fare.tunes.org/files/asdf2017/asdf2017.pdf">PDF</a>,
           <a href="http://fare.tunes.org/files/asdf2017/els2017-slides.pdf">slides</a>,
           <a href="https://github.com/fare/asdf2017">git</a>).
           Regarding the internal design of ASDF in general,
@@ -640,13 +641,12 @@ Corman Common Lisp <admin@cormanlisp.com>
         <dl>
           <dt>November 2017</dt>
           <dd>Release of 3.3.1: bugfix release for 3.3.0 addressing
-        one backwards-incompatibility issue with timestamp
-        computations, and other minor tweaks.</dd>
-        <dl>
+            a backwards-incompatibility issue with timestamp computations,
+            and other minor breakage.</dd>
           <dt>October 2017</dt>
-          <dd>Release of 3.3.0, with substantial revision to the build
-        plan, adding correct handling of
-        <code>DEFSYSTEM-DEPENDS-ON</code> dependencies.</dd>
+          <dd>Release of 3.3.0, with substantial revision to the build plan
+            to correct handle multiple phases of loading, due to e.g.
+            <code>DEFSYSTEM-DEPENDS-ON</code> dependencies.</dd>
           <dt>April 2017</dt>
           <dd>Release of 3.2.1, with many small bugfixes and cleanups.
             Presentation at ELS 2017 about ASDF 3.3.
@@ -760,9 +760,9 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2016 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2017 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2017-04-30</div>
+        <div id="timestamp">Last updated 2017-12-01</div>
     </div>
   </body>
 </html>
