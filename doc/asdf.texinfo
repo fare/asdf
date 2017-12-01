@@ -6347,9 +6347,10 @@ Also, bugs are currently tracked on launchpad:
   Available in updated-for-CL form on the web at
   @url{http://nhplace.com/kent/Papers/Large-Systems.html}
 @item Dan Weinreb and David Moon:
-  ``Lisp Machine Manual'', MIT, 1981.
+  ``Lisp Machine Manual'', 3rd Edition MIT, March 1981.
   The famous CHINE NUAL describes one of the earliest variants of DEFSYSTEM.
-  @url{https://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_4thEd_Jul81.pdf}
+  (NB: Not present in the second preliminary version of January 1979)
+  @url{http://bitsavers.org/pdf/mit/cadr/chinual_3rdEd_Mar81.pdf}
 @end itemize
 
 
