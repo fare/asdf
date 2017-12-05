@@ -118,6 +118,12 @@ This means that if some component side-effects the `*readtable*` variable
 and/or the state of the data structure it's bound to,
 the effects will be seen by all components compiled with ASDF,
 *including components that do not "depends-on" support functions* that the reader output produces.
+<!-- I'm not sure I understand the preceding sentence.  I get it -->
+<!-- that this will be seen by all components compiled by ASDF, but I'm not -->
+<!-- sure what "components that do not `depends-on' support function" -->
+<!-- means.  ASDF doesn't define what it means to depend on a function... -->
+<!-- I think you have an intuitive meaning here, but I don't know what -->
+<!-- it is. - RPG -->
 This causes catastrophic failure, when at the REPL you e.g.
 
 ```
@@ -198,9 +204,24 @@ either as part of the shared readtable or as part of private readtables:
      4. Free software libraries will register these changes in
         a suitable page of cliki.net: < http://cliki.net/Macro%20Characters >
 
+<!-- Does the above actually protect users? -->
+<!-- Even if all the libraries play by the rules, absent your -->
+<!-- mechanism below ("ASDF enforces that the same readtable will be -->
+<!-- used whenever building Lisp software"), if you ever accidentally -->
+<!-- invoke ASDF in a context where *readtable* is rebound, the above -->
+<!-- steps don't protect you, do they?  IIUC, it seems like people -->
+<!-- who obey the above, but don't control the readtable themselves -->
+<!-- can still end up with bad outcomes, but with some cognitive -->
+<!-- load.  So is it worth introducing this, or should we try to -->
+<!-- simply move people to controlling their readtables when needed? - RPG -->
+
   * Optionally, declare a moratorium on defining any further such extension,
     except as part of a [CDR](https://common-lisp.net/project/cdr/);
     let's call that option 1.1.1 (and no such option 1.1.0).
+    <!-- Don't favor this declaration because I think it would just give -->
+    <!-- programmers a false sense of security: they might think they were -->
+    <!-- safer, but they have no real way of telling whether any library -->
+    <!-- obeys these constraints. - RPG -->
 
   * Have ASDF itself enforce that the same readtable will be used
     whenever building Lisp software, by defining a `uiop:*shared-readtable*`
@@ -208,6 +229,15 @@ either as part of the shared readtable or as part of private readtables:
     allowing developers who want to keep using the above shared modifications
     and developers who prefer to use private readtables
     to work without interfering with each other anymore.
+    <!-- I believe you mean here that the variable UIOP:*SHARED-READTABLE*
+    will be bound around all loading, so that users can count on it,
+    but it's arguably a consistent interpretation that you mean that
+    *READTABLE* will be bound to UIOP:*SHARED-READTABLE*. Rewrite to
+    clarify? Also, is this worth doing?  If we fix the readtable
+    issue, then people need to rewrite their systems ANYWAY* to use
+    UIOP:*SHARED-READTABLE*: wouldnt it be better for them to go the
+    whole way and simply control the readtable? In which case,
+    UIOP:*SHARED-READTABLE* is just technical debt for ASDF.- RPG -->
 
   * Optionally, have a similar mechanism for the `*print-pprint-dispatch*`,
     for all variables modified by `with-standard-io-syntax`, and/or
@@ -222,6 +252,12 @@ Note that for a minimal change, the bindings should only go around `operate`,
 at which point changes to syntax variables can still backward-compatibly escape
 from one system to the other, and it remains the responsibility of the user
 to make sure that it happens in a deterministic fashion.
+
+<!-- If this does indeed maintain backward compatibility, then it must be -->
+<!-- because the "bind *READTABLE* to UIOP:*SHARED-READTABLE*" -->
+<!-- interpretation of the above is correct.  Right?  Because if the -->
+<!-- programmer has to know to use UIOP:*SHARED-READTABLE*, then we're out -->
+<!-- of the territory of backward compatibility? -->
 
 My vote is for next version of ASDF (i.e. ASAP) to implement this proposal 1,
 with options 1.1.1 and 1.2.2 (and maybe later 1.2.3, if the code is ready).
@@ -246,6 +282,10 @@ as opposed to when publishing free software libraries.
 But this approach is indeed possible, and we may want to keep supporting it,
 at least until we have better alternatives to offer.
 
+<!-- Good point: since ASDF can be used to build both "composite standalone -->
+<!-- systems" -- systems that consume dependencies, but are not intended to -->
+<!-- be themselves depended upon -- or libraries -- systems that may or may -->
+<!-- not consume dependencies, but are intended to be depended upon. -->
 
 ### Details of the proposed implementation of Proposal 1
 
@@ -256,7 +296,18 @@ This readtable is presumably the
 This readtable comes with all the restrictions described above.
 UIOP also remembers a read-only `uiop:*standard-readtable*`
 with only the standard characters.
-The two above variables are not mean to be re-bound after initialization.
+The two above variables are not mean to be re-bound after
+initialization.
+
+<!-- Why the use of the current value of cl:*readtable* instead of binding -->
+<!-- with (copy-readtable nil)? Do we not expect -->
+<!-- UIOP:*STANDARD-READTABLE* and UIOP:*INITIAL-READTABLE* to be -->
+<!-- initially identical in contents (but not to be the same actual -->
+<!-- object)?  I take it that the initial value of `cl:*readtable*` is -->
+<!-- used so that side effects happen exactly as before.  If I am -->
+<!-- right about this, let's document the rationale. -->
+
+<!-- How do we go about making UIOP:*STANDARD-READTABLE* be read-only? -->
 
 Last but not least, UIOP maintains a `uiop:*shared-readtable*`.
 Its default value is `uiop:*initial-readtable*` which is backward compatible.
@@ -274,6 +325,8 @@ that are *not* part of the *standard readtable*, such as
 a `#!` ignorer sometimes, or importantly in CCL the `#$` and `#_` readers, etc.
 A strict reading of the CLHS might make this non-conformant, but
 many systems might rely on it, as the ITA codebase for QRes used to.
+
+<!-- This explains why the use of the initial readtable. -->
 
 Systems that want to modify a persistent readtable
 in ways not permitted with respect to the initial readtable
