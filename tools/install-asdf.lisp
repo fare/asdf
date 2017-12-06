@@ -108,7 +108,7 @@ a command-line executable for LispWorks this way:
 
 (defun install-asdf-as-module ()
   (nest
-   (let* ((asdf.lisp (system-relative-pathname :uiop "../build/asdf.lisp"))
+   (let* ((asdf.lisp (subpathname *asdf-dir* "build/asdf.lisp"))
           (asdf.fasl (asdf-module-fasl))
           #+(or clasp ecl mkcl) (asdf.o (object-file asdf.fasl :object))
           #+(or clasp ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
