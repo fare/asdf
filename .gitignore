@@ -67,5 +67,7 @@ debian/files
 
 /.DS_Store
 
+core
+
 # Hack: ignore the GNUmakefile here, so you can ln -s Makefile-lisp-scripting GNUmakefile
 GNUmakefile
