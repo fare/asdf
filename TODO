@@ -10,12 +10,14 @@
 ** Maybe remove old versions from upgrade tests; or maybe not:
    if we support old versions in any way,
    it should be for upgrade only, and "punt" is acceptable.
-** Maybe remove upgrade from antique ASDF altogether.
-   Clear all the code in the header, and/or
-   move a few elements to asdf/upgrade.
 ** Upgrade tests might be split in two test sets: short and long.
 ** Make tests stateless and/or make any modifications private,
    so that they can be run in parallel.
+
+* Have a better story for linking C static or dynamic libraries.
+** Some groundwork has been done in cffi-toolchain, but an interface must be designed.
+** Then you'll have to migrate all the code in Quicklisp to use your new interface.
+** See commonqt's qt.asd and qtools's qt-libs.asd for instances of ugliness.
 
 * Testing support
 ** Replace test-op with run-test-op and test-report-op ?
@@ -122,6 +124,7 @@
      rather than `#(1 2 3 2 3 2 3 2 3)` or even better `#(1 2 3 3 3)`.
 *** It purports to support Unicode, but it has only 16-bit characters.
    Note that (subtypep 'character 'base-char) says T -- everything is a base char(!)
+*** In general, running upgrade tests triggers massive CLOS breakage on CMUCL.
 
 ** SCL has bugs:
 *** it doesn't like run-program from a modified directory?
@@ -222,12 +225,6 @@
 * Learn to use cl-grid-test
 ** So we can easily make sure ASDF changes don't break stuff,
    and that breakage gets fixed quickly.
-** So we see if ASDF-USER can :use most (all?) of UIOP.
-  SB-GROVEL used (until 25c1769 from 2013-02-23) to :use both ASDF and
-  SB-EXT, which prevents ASDF from exporting RUN-PROGRAM, but
-  should not be a problem with ASDF-USER :use'ing UIOP.
-  A run of quicklisp is necessary, with an eye also for warnings
-  from .asd's that might be overriding definitions in UIOP(!)
 
 * Diagnostics
 ** have a mode to explain WHY a component needs to be recompiled.
@@ -244,39 +241,18 @@
 
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
 
-* Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
-  are not in strict defsystem-depends-on dependency order.
-** At least document the issue.
-** Real solution: defer parsing and evaluation of defsystem forms?
-   Or simply detect circularity and issue an appropriate error?
-
-* Include some ABL test for stassats's (now obsolete?) thing:
-   (asdf:enable-asdf-binary-locations-compatibility
-   :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
-** Or deprecate and remove ABL compatibility altogether? Move it to contrib?
-   No one has been using ASDF1 for years.
-   There is no ABL to be compatible with —
-   is anyone still using the compatibility mode?
-   Maybe issue a warning, then a cerror, before to remove the code?
-
-* Make load-op a generic operation that selects the proper strategy?
-  for each system, module or file, according to component properties and user-configuration:
-  compile the lisp file then load the fasl (load-fasl-op on a cl-source-file),
-  load the lisp file without compiling (load-source-op),
-  compile all files for the system, link them and load the result
-   (load-fasl-op on the system),
-  compile all files for the system *and* its dependencies, link and load (monolithic-load-fasl-op),
-  concatenate all files for the system, then load the result (load-concatenated-source-op),
-  concatenate all files for the system, then link them and load the result (load-compiled-concatenated-op),
-  concatenate all files for the system *and* its dependencies, link and load (monolithic-load-compiled-concatenated-op).
-
 * operation cleanup?
-** Kill backward-compat functions after all clients have moved on.
-** Kill original-initargs -- BEWARE, it currently has clients!
-*** current ECL users used to depend on it for bundles, and may or may
-   not be satisfied with how it's not propagated anymore.
-*** SLIME uses it (!)
-*** weblocks uses it (!)
+** Refactor operation classes in action.lisp to not use slots for metadata
+*** See commit message for 8e68ac229c19b7b611caf942a7f0998c88047a79
+*** The problem: slots will NOT get properly upgraded with new initform.
+*** Bad solution: A U-I-F-R-C method might do but would be much more complex to maintain,
+not just for ASDF but potentially for anyone who defines extensions to ASDF.
+*** The solution: use defmethod self-operation, not a self-operation slot.
+This solution is trivially backward-compatible with older variants of ASDF.
+*** Migration: find everyone on Quicklisp that defines an operation, and have them use defmethod.
+Document all that in asdf.texinfo. Yet, unless noone is affected in Quicklisp,
+don't modify ASDF classes themselves until a year or two afterwards, for compatibility purposes;
+and/or when ASDF classes themselves need to be modified for the sake of some fix.
 ** To allow semantically distinct operations of the same class:
 You'd need to have a protocol to canonicalize them
 in the *OPERATIONS* memoization table, not by class name,
@@ -461,8 +437,15 @@ a reified context for featurep checks, etc.
    by having all functions and macros under the old package name be
    proxies to those in the new package name?
    (Exception: special variables can't be proxies, have to be imported.)
-** Eradicate Quicklisp systems that depend on asdf-driver or
-   asdf-package-system, make them depend on uiop and asdf3.1 instead.
+** Delete asdf-driver.asd, nobody has used it in years
+** Eradicate Quicklisp systems that depend on asdf-package-system, make them depend on asdf3.1 instead.
+** Deprecate and remove asdf-binary-locations (ABL) compatibility altogether.
+  No one has been using ASDF1 for years.
+  There is no ABL to be compatible with —
+  is anyone still using the compatibility mode?
+  Maybe issue a warning, then a cerror, before to remove the code?
+
+
 
 * Fix plan
 ** Goal: Implement proper incrementality for defsystem-depends-on.
