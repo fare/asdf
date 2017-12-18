@@ -56,6 +56,8 @@ that are often wrong in systems seen in the wild.
     * [Source File Types](#source_types)
     * [Conditional Outputs and Conditional Perform](#conditional_outputs)
 - [Other](#other)
+  + [Syntax Control](#syntax_control)
+  + [Using ASDF Internals](#using_asdf_internals)
 
 
 <a name="trivial_examples"></a>Trivial Examples
@@ -881,6 +883,8 @@ all those `perform`, `output-files` and `input-files` methods.
 <a name="other"></a>Other
 --------------------------
 
+### <a name="syntax_control"></a>Syntax Control
+
 Do not side-effect the current `*readtable*`,
 which is never guaranteed to be writable, and
 may not be what is current when you need the modification.
@@ -890,3 +894,28 @@ To bind the readtable, use `named-readtables:in-readtable` or `cl-syntax:in-synt
 in each file that needs a non-standard readtable, and/or use an `:around-compile` hook
 to automatically bind it around every file in a module or system.
 
+See the syntax-control document (in the syntax-control branch if it wasn't merged yet).
+
+
+### <a name="using_asdf_internals"></a>Using ASDF Internals
+
+At times, you will have to use some ASDF internals to get your software to work.
+When this happens, follow these rules to minimize the breakage associated to bitrot:
+
+  * You MUST use the `asdf::` package prefix rather than `asdf/foo:`
+    to name the symbols internal to ASDF.
+    Indeed, from one version of ASDF to the next,
+    which internal package a symbol will reside in may change;
+    for instance `asdf/find-system:primary-system-name` recently became
+    `asdf/system:primary-system-name`
+    (it is still present, not exported, in the former system);
+    but it is always present (though not currently exported) in package `asdf`.
+
+  * When you use internals, you MUST notify the ASDF maintainers, and request
+    that they either export the symbol and support the API, or
+    offer an alternative API more to their liking for the same functionality.
+    Otherwise, they will be justified in modifying internals
+    that no one is supposed to use, and they will blame you when
+    they later change or remove these internals and your software breaks.
+
+Note that the latter point is true of all software, not just ASDF.
