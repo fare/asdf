@@ -7,19 +7,19 @@
 (setf *central-registry* `(,*test-directory* ,tmp))
 
 ;; Don't rely on ln -s on Windows
-(cond
-  ((os-unix-p)
-   (multiple-value-bind (output error-output return-code)
-       (uiop:run-program
-	(format nil "ln -sf ~A ~A"
-		(native-namestring asd)
-		(native-namestring asd2)) :ignore-error-status t)
-     (declare (ignore output error-output))
-     (oos 'load-source-op (if (zerop return-code)
-			      'test-multiple-too
-			      'test-multiple))))
-  (t
-   (oos 'load-source-op 'test-multiple)))
-(assert (asymval :*file3* :test-package))
+(defparameter symlinkp
+  (progn
+    #+os-unix
+    (zerop
+     (nth-value 2
+                (run-program
+                 `("ln" "-sf" ,(native-namestring asd) ,(native-namestring asd2))
+                 :output t :error-output t :input nil :ignore-error-status t)))))
+(oos 'load-source-op (if symlinkp 'test-multiple-too 'test-multiple))
+(assert (asymval :*file2* :test-package))
 (load-system 'test-multiple-free)
 (assert (probe-file* file4))
+(assert (asymval :*file4* :test-package))
+(setf test-package::*file4* nil)
+(load-system 'test-multiple-free)
+(assert-equal test-package::*file4* nil)
