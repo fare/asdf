@@ -126,21 +126,33 @@ a SYMBOL (designing its name, downcased), or a STRING (designing itself)."
       (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
 
   (defun primary-system-name (system-designator)
-    "Given a system designator NAME, return the name of the corresponding primary system,
-after which the .asd file is named. That's the first component when dividing the name
-as a string by / slashes. A component designates its system."
+    "Given a system designator NAME, return the name of the corresponding
+primary system, after which the .asd file in which it is defined is named.
+If given a string or symbol (to downcase), do it syntactically
+ by stripping anything from the first slash on.
+If given a component, do it semantically by extracting
+the system-primary-system-name of its system."
     (etypecase system-designator
       (string (if-let (p (position #\/ system-designator))
                 (subseq system-designator 0 p) system-designator))
       (symbol (primary-system-name (coerce-name system-designator)))
-      (component (primary-system-name (coerce-name (component-system system-designator))))))
+      (component (let* ((system (component-system system-designator))
+                        (source-file (physicalize-pathname (system-source-file system))))
+                   (and source-file
+                        (equal (pathname-type source-file) "asd")
+                        (pathname-name source-file))))))
 
   (defun primary-system-p (system)
     "Given a system designator SYSTEM, return T if it designates a primary system, or else NIL.
-Also return NIL if system is neither a SYSTEM nor a string designating one."
-    (typecase system
+If given a string, do it syntactically and return true if the name does not contain a slash.
+If given a symbol, downcase to a string then fallback to previous case (NB: for NIL return T).
+If given a component, do it semantically and return T if it's a SYSTEM and its primary-system-name
+is the same as its component-name."
+    (etypecase system
       (string (not (find #\/ system)))
-      (system (primary-system-p (coerce-name system)))))
+      (symbol (primary-system-p (coerce-name system)))
+      (component (and (typep system 'system)
+                      (equal (component-name system) (primary-system-name system))))))
 
   (defun coerce-filename (name)
     "Coerce a system designator NAME into a string suitable as a filename component.
