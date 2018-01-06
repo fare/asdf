@@ -153,7 +153,7 @@ To protect users who use anything but the shared readtable at the REPL,
 ASDF should make sure this shared readtable is used whenever building software.
 
 
-## Statu quo: Readtable discipline
+## Status quo: Readtable discipline
 
 The _de facto_ though tacit requirements for all Common Lisp software currently
 is to follow a double discipline,
@@ -241,7 +241,7 @@ and there is thus a counter-selective effect whereby
 only reckless programmers do define such extensions.
 
 
-### Shared Reatable Restoration
+### Shared Readtable Restoration
 
 The second discipline that users must follow as they invoke ASDF is
 to *never* call ASDF while the current `*readtable*` is bound
@@ -297,6 +297,25 @@ The second requirement is amended by having ASDF itself
 save the initial readtable and bind the `*readtable*` to it around evaluation,
 so users of private readtables don't have to worry about it.
 
+### Terminology
+
+* Standard readtable/standard syntax: defined by the ANSI spec as
+  follows: "standard syntax n. the syntax represented by the standard
+  readtable and used as a reference syntax throughout this document."
+
+* Initial syntax: the syntax in place when UIOP and ASDF are loaded.
+  This *may* be the same as the standard syntax, but is not
+  necessarily.
+
+* Private syntax: a syntax intended for use by a system, or a coherent
+  set of systems.  Note that while there is a single standard syntax,
+  initial syntax, and shared syntax, there may be multiple private
+  syntaxes.
+
+* Shared syntax: the syntax that will be shared by ASDF across the
+  systems it is loading.  The shared syntax will be initialized to the
+  initial syntax, rather than standard syntax, in order to preserve
+  backwards compatibility.
 
 ### Documenting Monotonicity
 
@@ -376,7 +395,7 @@ Thus, developers use monotonic modifications to "the" shared readtable, and
 developers who use private readtables (whether by preference or necessity)
 can keep working together without interfering with each other anymore.
 
-Importantly, as long as they keep abiding by the restrictions of the statu quo,
+Importantly, as long as they keep abiding by the restrictions of the status quo,
 developers do not have to be aware of this change,
 or of the existence of `uiop:*shared-readtable*`:
 things "just work", as ASDF takes care of business.
@@ -428,15 +447,16 @@ for a future release of ASDF (e.g. 3.5 or such).
 
 ### Some hacks still supported under Proposal 1
 
-One notably way to modify the syntax in a deterministic way
-that works with the current ASDF 3.3.1 and would keep working under Proposal 1
+One way to modify the syntax in a deterministic way
+that works with the current ASDF 3.3.1 and will keep working under Proposal 1
 is to serialize all dependencies through a syntax-modification system:
 a system called e.g. `my-modified-syntax`
-depends on all the regular-syntaxed software dependencies in the project,
-before it itself modifies syntax variables;
-all other systems in the project will then depend-on `my-modified-syntax`,
+depends on all the software dependencies in the project that must be
+built with standard syntax,
+before it itself modifies syntax variables.
+All the systems in the project that use the modified syntax will then depend-on `my-modified-syntax`,
 forcing the order of evaluation of the syntactic side-effects.
-The above setup ensures that all regular CL files are build with regular syntax,
+The above setup ensures that all regular CL files are built with standard syntax,
 and that all files that depend on the modified syntax see that modified syntax.
 
 Proposal 1 ensures that the latter modifications do not cause non-deterministic
@@ -476,7 +496,7 @@ that will be used when compiling using ASDF.
 Its default value is the same as that of `uiop:*initial-readtable*`,
 for backward compatibility:
 Using the `uiop:*standard-readtable*` would break backward compatibility
-with the statu quo because that table is read-only
+with the status quo because that table is read-only
 whether that restriction is enforced by the implementation or not
 (at which point *bad things* can happen).
 Even using a mutable copy of the standard readtable with `(copy-readtable nil)`
