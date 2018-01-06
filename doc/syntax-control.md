@@ -302,20 +302,31 @@ so users of private readtables don't have to worry about it.
 * Standard readtable/standard syntax: defined by the ANSI spec as
   follows: "standard syntax n. the syntax represented by the standard
   readtable and used as a reference syntax throughout this document."
+  The standard way to access the standard syntax is with
+  `with-standard-io-syntax`. It is *always* an error to try to modify
+  that readtable, but, as of January 2018, only a few implementations
+  (SBCL, ECL, Allegro, CMUCL) will protect you and make the table read-only.
+  You can safely copy it with `copy-readtable` and modify a copy.
 
 * Initial syntax: the syntax in place when UIOP and ASDF are loaded.
-  This *may* be the same as the standard syntax, but is not
-  necessarily.
+  This *may* be the same as a copy of the standard syntax, and cannot
+  conflict with it; but on some implementations (e.g. CCL) it legitimately
+  contains some extensions. It is always safe to modify it, but
+  only in monotonic ways that never interfere with previous behavior.
 
 * Private syntax: a syntax intended for use by a system, or a coherent
-  set of systems.  Note that while there is a single standard syntax,
-  initial syntax, and shared syntax, there may be multiple private
-  syntaxes.
+  set of systems.  Note that while there is a single (constant, read-only)
+  standard syntax, and single (constant identity, modifiable) initial syntax,
+  and a single shared syntax (specially bound, within constraints),
+  there may be multiple private syntaxes (e.g. using `named-readtables`).
 
 * Shared syntax: the syntax that will be shared by ASDF across the
   systems it is loading.  The shared syntax will be initialized to the
   initial syntax, rather than standard syntax, in order to preserve
-  backwards compatibility.
+  backwards compatibility.  System integrators may achieve interesting effects
+  by binding it to their own syntax, but regular libraries must avoid
+  changing it to remain modular and play nice with other libraries.
+
 
 ### Documenting Monotonicity
 
@@ -453,11 +464,16 @@ is to serialize all dependencies through a syntax-modification system:
 a system called e.g. `my-modified-syntax`
 depends on all the software dependencies in the project that must be
 built with standard syntax,
-before it itself modifies syntax variables.
+before it itself modifies syntax variables in non-monotonic ways.
 All the systems in the project that use the modified syntax will then depend-on `my-modified-syntax`,
 forcing the order of evaluation of the syntactic side-effects.
 The above setup ensures that all regular CL files are built with standard syntax,
 and that all files that depend on the modified syntax see that modified syntax.
+
+Note that if there are any non-standard changes in the modified syntax
+that would interfere with building the base libraries (e.g. use of `fare-quasiquote`),
+then you *must not* ever rebuild the base libraries from an image with the modified syntax,
+but instead rebuild them from scratch.
 
 Proposal 1 ensures that the latter modifications do not cause non-deterministic
 build issues when one of the regular systems is modified
