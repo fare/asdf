@@ -3781,19 +3781,20 @@ if it begins with a paren @code{(},
 otherwise it will be interpreted much like @code{TEXINPUTS},
 as a list of paths, where
 
-  * paths are separated
-   by a @code{:} (colon) on Unix platforms (including cygwin),
-   by a @code{;} (semicolon) on other platforms (mainly, Windows).
+@itemize
+@item paths are separated by a @code{:} (colon) on Unix platforms
+   (including cygwin), by a @code{;} (semicolon) on other platforms
+   (mainly, Windows).
 
-  * each entry is a directory to add to the search path.
+@item each entry is a directory to add to the search path.
 
-  * if the entry ends with a double slash @code{//}
-    then it instead indicates a tree in the subdirectories
-    of which to recurse.
+@item if the entry ends with a double slash @code{//} then it instead
+   indicates a tree in the subdirectories of which to recurse.
 
-  * if the entry is the empty string (which may only appear once),
-    then it indicates that the inherited configuration should be
-    spliced there.
+@item if the entry is the empty string (which may only appear once),
+   then it indicates that the inherited configuration should be spliced
+   there.
+@end itemize
 
 @node Search Algorithm, Caching Results, Shell-friendly syntax for configuration, Controlling where ASDF searches for systems
 @section Search Algorithm
