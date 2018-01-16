@@ -10,4 +10,16 @@ We urge implementations that are currently bundling previous versions of ASDF --
 
 Here is the changelog entry for 3.3.1:
 
-FIXME: Changelog here.
+cl-asdf (2:3.3.167-1) unstable; urgency=low
+
+  New milestone:
+  * UIOP compatibility fix: Introduced new replacement "timestamp"
+    comparison functions, because of inadvertent change in the
+    API. Functions that are compatible with the old semantics are retained
+    as "stamp" comparison functions, but will eventually be deprecated.
+  * Upgrade fix: Upgrade from 3.2.1 needed repair.
+  * Syntax manipulation: Fix for bugs that could be introduced when the
+    default readtable was manipulated during the loading of a
+    defsystem-depends-on system.
+  * Tests: tests for new capabilities and bugs
+  * Documentation: a number of improvements and clarifications.

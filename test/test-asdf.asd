@@ -103,3 +103,9 @@
 (defsystem "test-asdf/dep-can-appear"
   :depends-on ("test-asdf-location-change")
   :perform (load-op (o c) (incf *ta/dca*)))
+
+(defsystem :test-asdf/upgrade
+  :version "0"
+  :depends-on (:test-asdf/all)
+  :components ((:file "properly-upgraded")))
+

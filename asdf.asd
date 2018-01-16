@@ -84,7 +84,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "3.3.1" ;; to be automatically updated by make bump-version
+  :version "3.3.1.3" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   :class #+asdf3.1 package-inferred-system #-asdf3.1 system

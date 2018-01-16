@@ -756,9 +756,9 @@ is bound, write a message and exit on an error.  If
     (acall (list new-method :asdf-test))
     (format t "Testing it~%")
     (register-directory *test-directory*)
-    (load-test-system :test-asdf/all)
-    (assert (asymval '#:*file1* :test-package))
-    (assert (asymval '#:*file3* :test-package))))
+    (load-test-system :test-asdf/upgrade)
+    (assert (symbol-value '*properly-upgraded*))))
+
 
 (defun join-namestrings (namestrings)
   (format nil (format nil "~~{~~A~~^~A~~}" (acall :inter-directory-separator)) namestrings))

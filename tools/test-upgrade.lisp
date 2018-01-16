@@ -6,15 +6,24 @@
   ;; We return a list of entries in reverse chronological order,
   ;; which should also be more or less the order of decreasing relevance.
   ;; By default, we only test the last of each relevant series.
-  '("REQUIRE" "3.3.0" "3.2.1" "3.2.0" "3.1.7" "3.1.2" "3.0.3" "2.26"))
+  '("REQUIRE" "3.3.1" "3.3.0" "3.2.1" "3.2.0" "3.1.7" "3.1.2" "3.0.3" "2.26"))
 
 (defparameter *all-upgrade-test-tags*
   '("REQUIRE" ;; a magic tag meaning whatever your implementation provides, if anything
 
+    ;; Below are versions that once were notable enough to be worth testing an upgrade from.
+    ;; This list is not meant at being exhaustive of releases, particularly not old ones.
+
+    ;; The 3.3 series provides the asdf3.3 feature, meaning users can rely on
+    ;; all its new features (proper phase separation) as well as earlier features.
+    "3.3.1" ;; (2017-11-14) bug fixes, second and latest in 3.3 series
+    "3.3.0" ;; (2017-10-06) first in 3.3 series
+
     ;; The 3.2 series provides the asdf3.2 feature, meaning users can rely on
     ;; all its new features (launch-program, improved bundle support), as well as
     ;; the improvements done in 3.1 (e.g. XDG support).
-    "3.2.0" ;; (2017-01-08) first (and latest) in 3.2 series
+    "3.2.1" ;; (2017-04-03) bug fixes, second and last in 3.2 series
+    "3.2.0" ;; (2017-01-08) first in 3.2 series
 
     ;; The 3.1 series provides the asdf3.1 feature, meaning users can rely on
     ;; all the stabilization work done in 3.0 so far, plus extra developments

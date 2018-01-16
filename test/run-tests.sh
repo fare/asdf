@@ -366,12 +366,18 @@ upgrade_tags () {
     # The 3.2 series provides the asdf3.2 feature, meaning users can rely on
     # all its new features (launch-program, improved bundle support), as well as
     # the improvements done in 3.1 (e.g. XDG support).
-    #   3.2.0 (2017-01-08) first (and latest) in 3.2 series
+    #   3.2.0 (2017-01-08) first in 3.2 series
+    #   3.2.1 (2017-04-03) bug fixes, second and last in 3.2 series
+    #
+    # The 3.3 series provides the asdf3.3 feature, meaning users can rely on
+    # all its new features (proper phase separation) as well as earlier features.
+    #   3.3.0 (2017-10-06) first in 3.3 series
+    #   3.3.1 (2017-11-14) bug fixes, second and latest in 3.3 series
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
-    # We picked the last in each relevant series.
-    echo REQUIRE 3.3.0 3.2.1 3.2.0 3.1.7 3.1.2 3.0.3 2.26
+    # We picked the last and first in each relevant series, plus 2.26.
+    echo REQUIRE 3.3.1 3.3.0 3.2.1 3.2.0 3.1.7 3.1.2 3.0.3 2.26
 
     #echo 3.1.7 3.1.6 3.1.5 3.1.4 3.1.3 3.1.2
     #echo 3.0.3 3.0.2 3.0.1

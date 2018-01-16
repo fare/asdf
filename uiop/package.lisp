@@ -732,7 +732,10 @@ export symbols with the same name as those exported from p.  Note that in the ca
 of shadowing, etc. the symbols with the same name may not be the same symbols.
 UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
-          `(apply 'ensure-package ',(parse-define-package-form package clauses))))
+         `(prog1
+              (apply 'ensure-package ',(parse-define-package-form package clauses))
+            #+sbcl (setf (sb-impl::package-source-location (find-package ',package))
+                         ,(sb-c:source-location)))))
     `(progn
        #+(or clasp ecl gcl mkcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
