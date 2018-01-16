@@ -82,11 +82,9 @@
   ;; TODO: could this file be refactored so that locate-system is merely
   ;; the cache-priming call to input-files here?
   (defmethod input-files ((o define-op) (s system))
-    (assert (equal (coerce-name s) (primary-system-name s)))
     (if-let ((asd (system-source-file s))) (list asd)))
 
   (defmethod perform ((o define-op) (s system))
-    (assert (equal (coerce-name s) (primary-system-name s)))
     (nest
      (if-let ((pathname (first (input-files o s)))))
      (let ((readtable *readtable*) ;; save outer syntax tables. TODO: proper syntax-control
@@ -195,21 +193,25 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
 
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.
-Returns five values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
+Returns six values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME PREVIOUS-PRIMARY
 FOUNDP is true when a system was found,
 either a new unregistered one or a previously registered one.
 FOUND-SYSTEM when not null is a SYSTEM object that may be REGISTER-SYSTEM'ed.
 PATHNAME when not null is a path from which to load the system,
 either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
-PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
+PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
+PREVIOUS-PRIMARY when not null is the primary system for the PREVIOUS system."
     (with-asdf-session () ;; NB: We don't cache the results. We once used to, but it wasn't useful,
       ;; and keeping a negative cache was a bug (see lp#1335323), which required
       ;; explicit invalidation in clear-system and find-system (when unsucccessful).
       (let* ((name (coerce-name name))
              (previous (registered-system name)) ; load from disk if absent or newer on disk
-             (primary (registered-system (primary-system-name name)))
-             (previous-time (and previous primary (component-operation-time 'define-op primary)))
+             (previous-primary-name (and previous (primary-system-name previous)))
+             (previous-primary-system (and previous-primary-name
+                                           (registered-system previous-primary-name)))
+             (previous-time (and previous-primary-system
+                                 (component-operation-time 'define-op previous-primary-system)))
              (found (search-for-system-definition name))
              (found-system (and (typep found 'system) found))
              (pathname (ensure-pathname
@@ -222,37 +224,38 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         (unless (check-not-old-asdf-system name pathname)
           (check-type previous system) ;; asdf is preloaded, so there should be a previous one.
           (setf found-system nil pathname nil))
-        (values foundp found-system pathname previous previous-time))))
+        (values foundp found-system pathname previous previous-time previous-primary-system))))
+
+  ;; TODO: make a prepare-define-op node for this
+  ;; so we can properly cache the answer rather than recompute it.
+  (defun definition-dependencies-up-to-date-p (system)
+    (check-type system system)
+    (or (not (primary-system-p system))
+        (handler-case
+            (loop :with plan = (make-instance *plan-class*)
+              :for action :in (definition-dependency-list system)
+              :always (action-up-to-date-p
+                       plan (action-operation action) (action-component action))
+              :finally
+              (let ((o (make-operation 'define-op)))
+                (multiple-value-bind (stamp done-p)
+                    (compute-action-stamp plan o system)
+                  (return (and (timestamp<= stamp (component-operation-time o system))
+                               done-p)))))
+          (system-out-of-date () nil))))
 
   ;; Main method for find-system: first, make sure the computation is memoized in a session cache.
   ;; Unless the system is immutable, use locate-system to find the primary system;
   ;; reconcile the finding (if any) with any previous definition (in a previous session,
   ;; preloaded, with a previous configuration, or before filesystem changes), and
   ;; load a found .asd if appropriate. Finally, update registration table and return results.
-
-  (defun definition-dependencies-up-to-date-p (system)
-    (check-type system system)
-    (assert (primary-system-p system))
-    (handler-case
-        (loop :with plan = (make-instance *plan-class*)
-          :for action :in (definition-dependency-list system)
-          :always (action-up-to-date-p
-                   plan (action-operation action) (action-component action))
-          :finally
-          (let ((o (make-operation 'define-op)))
-            (multiple-value-bind (stamp done-p)
-                (compute-action-stamp plan o system)
-              (return (and (timestamp<= stamp (component-operation-time o system))
-                           done-p)))))
-      (system-out-of-date () nil)))
-
   (defmethod find-system ((name string) &optional (error-p t))
     (nest
      (with-asdf-session (:key `(find-system ,name)))
      (let ((name-primary-p (primary-system-p name)))
        (unless name-primary-p (find-system (primary-system-name name) nil)))
      (or (and *immutable-systems* (gethash name *immutable-systems*) (registered-system name)))
-     (multiple-value-bind (foundp found-system pathname previous previous-time)
+     (multiple-value-bind (foundp found-system pathname previous previous-time previous-primary)
          (locate-system name)
        (assert (eq foundp (and (or found-system pathname previous) t))))
      (let ((previous-pathname (system-source-file previous))
@@ -263,18 +266,18 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (setf (system-source-file system) pathname))
        (if-let ((stamp (get-file-stamp pathname)))
          (let ((up-to-date-p
-                (and previous
+                (and previous previous-primary
                      (or (pathname-equal pathname previous-pathname)
                          (and pathname previous-pathname
                               (pathname-equal
                                (physicalize-pathname pathname)
                                (physicalize-pathname previous-pathname))))
                      (timestamp<= stamp previous-time)
-                     ;; TODO: check that all dependencies are up-to-date.
-                     ;; This necessitates traversing them without triggering
-                     ;; the adding of nodes to the plan.
-                     (or (not name-primary-p)
-                         (definition-dependencies-up-to-date-p previous)))))
+                     ;; Check that all previous definition-dependencies are up-to-date,
+                     ;; traversing them without triggering the adding of nodes to the plan.
+                     ;; TODO: actually have a prepare-define-op, extract its timestamp,
+                     ;; and check that it is less than the stamp of the previous define-op ?
+                     (definition-dependencies-up-to-date-p previous-primary))))
            (unless up-to-date-p
              (restart-case
                  (signal 'system-out-of-date :name name)
