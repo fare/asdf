@@ -735,7 +735,7 @@ UNINTERN -- Remove symbols here from PACKAGE."
          `(prog1
               (apply 'ensure-package ',(parse-define-package-form package clauses))
             #+sbcl (setf (sb-impl::package-source-location (find-package ',package))
-                         ,(sb-c:source-location)))))
+                         (sb-c:source-location)))))
     `(progn
        #+(or clasp ecl gcl mkcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
