@@ -700,13 +700,13 @@ or when loading the package is optional."
         :and :do (setf use-p t) :else
       :when (eq kw :unintern) :append args :into unintern :else
         :do (error "unrecognized define-package keyword ~S" kw)
-      :finally (return `(,package
-                         :nicknames ,nicknames :documentation ,documentation
-                         :use ,(if use-p use '(:common-lisp))
-                         :shadow ,shadow :shadowing-import-from ,shadowing-import-from
-                         :import-from ,import-from :export ,export :intern ,intern
-                         :recycle ,(if recycle-p recycle (cons package nicknames))
-                         :mix ,mix :reexport ,reexport :unintern ,unintern)))))
+      :finally (return `(',package
+                         :nicknames ',nicknames :documentation ',documentation
+                         :use ',(if use-p use '(:common-lisp))
+                         :shadow ',shadow :shadowing-import-from ',shadowing-import-from
+                         :import-from ',import-from :export ',export :intern ',intern
+                         :recycle ',(if recycle-p recycle (cons package nicknames))
+                         :mix ',mix :reexport ',reexport :unintern ',unintern)))))
 
 (defmacro define-package (package &rest clauses)
   "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form
@@ -733,7 +733,7 @@ of shadowing, etc. the symbols with the same name may not be the same symbols.
 UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
          `(prog1
-              (apply 'ensure-package ',(parse-define-package-form package clauses))
+              (funcall 'ensure-package ,@(parse-define-package-form package clauses))
             #+sbcl (setf (sb-impl::package-source-location (find-package ',package))
                          (sb-c:source-location)))))
     `(progn
