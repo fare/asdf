@@ -15,11 +15,18 @@
                 (run-program
                  `("ln" "-sf" ,(native-namestring asd) ,(native-namestring asd2))
                  :output t :error-output t :input nil :ignore-error-status t)))))
-(oos 'load-source-op (if symlinkp 'test-multiple-too 'test-multiple))
+(defmacro with-bad-system-names (&body body)
+  `(handler-bind ((bad-system-name #'(lambda (c) (muffle-warning c))))
+     ,@body))
+
+(with-bad-system-names
+ (oos 'load-source-op (if symlinkp 'test-multiple-too 'test-multiple)))
 (assert (asymval :*file2* :test-package))
-(load-system 'test-multiple-free)
+(with-bad-system-names
+ (load-system 'test-multiple-free))
 (assert (probe-file* file4))
 (assert (asymval :*file4* :test-package))
 (setf test-package::*file4* nil)
-(load-system 'test-multiple-free)
+(with-bad-system-names
+    (load-system 'test-multiple-free))
 (assert-equal test-package::*file4* nil)

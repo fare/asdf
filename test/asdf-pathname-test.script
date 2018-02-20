@@ -464,7 +464,9 @@
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
 
 #-gcl ;; expected-failure: GCL crashes badly
-(assert (test-component-pathnames :delete-host t :support-string-pathnames nil))
+(assert
+ (handler-bind ((bad-system-name #'(lambda (c) (muffle-warning c))))
+   (test-component-pathnames :delete-host t :support-string-pathnames nil)))
 
 #+os-unix
 (test-pathname-parsing)
