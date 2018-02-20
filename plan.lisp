@@ -246,6 +246,24 @@ initialized with SEED."
   ;; so they need not refer to the state of the filesystem,
   ;; and the stamps could be cryptographic checksums rather than timestamps.
   ;; Such a change remarkably would only affect COMPUTE-ACTION-STAMP.
+  (define-condition dependency-not-done (warning)
+    ((op
+      :initarg :op)
+     (component
+      :initarg :component)
+     (dep-op
+      :initarg :dep-op)
+     (dep-component
+      :initarg :dep-component)
+     (plan
+      :initarg :plan
+      :initform nil))
+    (:report (lambda (condition stream)
+               (with-slots (op component dep-op dep-component plan) condition
+                 (format stream "Computing just-done stamp ~@[in plan ~S~] for action ~S, but dependency ~S wasn't done yet!"
+                         plan
+                         (action-path (make-action op component))
+                         (action-path (make-action dep-op dep-component)))))))
 
   (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
     ;; Given an action, figure out at what time in the past it has been done,
@@ -279,10 +297,10 @@ initialized with SEED."
                       (just-done
                        ;; It's OK to lose some ASDF action stamps during self-upgrade
                        (unless (equal "asdf" (primary-system-name dc))
-                         (warn "Computing just-done stamp in plan ~S for action ~S, but dependency ~S wasn't done yet!"
-                               plan
-                               (action-path (make-action o c))
-                               (action-path (make-action do dc))))
+                         (warn 'dependency-not-done
+                               :plan plan
+                               :op o :component c
+                               :dep-op do :dep-component dc))
                        status)
                       (t
                        (return (values nil nil))))))
