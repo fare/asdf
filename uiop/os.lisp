@@ -59,6 +59,10 @@ keywords explicitly."
     "Is the underlying operating system Haiku?"
     (featurep :haiku))
 
+  (defun os-mezzano-p ()
+    "Is the underlying operating system Mezzano?"
+    (featurep :mezzano))
+
   (defun detect-os ()
     "Detects the current operating system. Only needs be run at compile-time,
 except on ABCL where it might change between FASL compilation and runtime."
@@ -66,7 +70,8 @@ except on ABCL where it might change between FASL compilation and runtime."
            :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
                                          (:os-windows . os-windows-p)
                                          (:genera . os-genera-p) (:os-oldmac . os-oldmac-p)
-                                         (:haiku . os-haiku-p))
+                                         (:haiku . os-haiku-p)
+                                         (:mezzano . os-mezzano-p))
            :when (and (or (not o) (eq feature :os-macosx)) (funcall detect))
            :do (setf o feature) (pushnew feature *features*)
            :else :do (setf *features* (remove feature *features*))
@@ -103,7 +108,7 @@ use getenvp to return NIL in such a case."
         (ct:free buffer)
         (ct:free buffer1)))
     #+gcl (system:getenv x)
-    #+genera nil
+    #+(or genera mezzano) nil
     #+lispworks (lispworks:environment-variable x)
     #+mcl (ccl:with-cstrs ((name x))
             (let ((value (_getenv name)))
@@ -111,7 +116,7 @@ use getenvp to return NIL in such a case."
                 (ccl:%get-cstring value))))
     #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
     #+sbcl (sb-ext:posix-getenv x)
-    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mezzano mkcl sbcl scl xcl)
     (not-implemented-error 'getenv))
 
   (defsetf getenv (x) (val)
@@ -157,7 +162,7 @@ then returning the non-empty string value of the variable"
      '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp)
        (:cmu :cmucl :cmu) :clasp :ecl :gcl
        (:lwpe :lispworks-personal-edition) (:lw :lispworks)
-       :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
+       :mcl :mezzano :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
 
   (defvar *implementation-type* (implementation-type)
     "The type of Lisp implementation used, as a short UIOP-standardized keyword")
@@ -172,7 +177,8 @@ then returning the non-empty string value of the variable"
        (:solaris :solaris :sunos)
        (:bsd :bsd :freebsd :netbsd :openbsd :dragonfly)
        :unix
-       :genera)))
+       :genera
+       :mezzano)))
 
   (defun architecture ()
     "The CPU architecture of the current host"
@@ -230,6 +236,9 @@ then returning the non-empty string value of the variable"
         (multiple-value-bind (major minor) (sct:get-system-version "System")
           (format nil "~D.~D" major minor))
         #+mcl (subseq s 8) ; strip the leading "Version "
+        #+mezzano (format nil "~A-~D"
+                          (subseq s 0 (position #\space s)) ; strip commit hash
+                          sys.int::*llf-version*)
         ;; seems like there should be a shorter way to do this, like ACALL.
         #+mkcl (or
                 (let ((fname (find-symbol* '#:git-describe-this-mkcl :mkcl nil)))
@@ -255,7 +264,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 (with-upgradability ()
   (defun hostname ()
     "return the hostname of the current host"
-    #+(or abcl clasp clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
+    #+(or abcl clasp clozure cmucl ecl genera lispworks mcl mezzano mkcl sbcl scl xcl) (machine-instance)
     #+cormanlisp "localhost" ;; is there a better way? Does it matter?
     #+allegro (symbol-call :excl.osi :gethostname)
     #+clisp (first (split-string (machine-instance) :separator " "))
@@ -275,7 +284,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
   (defun getcwd ()
     "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-    (or #+(or abcl genera xcl) (truename *default-pathname-defaults*) ;; d-p-d is canonical!
+    (or #+(or abcl genera mezzano xcl) (truename *default-pathname-defaults*) ;; d-p-d is canonical!
         #+allegro (excl::current-directory)
         #+clisp (ext:default-directory)
         #+clozure (ccl:current-directory)
@@ -293,7 +302,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
   (defun chdir (x)
     "Change current directory, as per POSIX chdir(2), to a given pathname object"
     (if-let (x (pathname x))
-      #+(or abcl genera xcl) (setf *default-pathname-defaults* (truename x)) ;; d-p-d is canonical!
+      #+(or abcl genera mezzano xcl) (setf *default-pathname-defaults* (truename x)) ;; d-p-d is canonical!
       #+allegro (excl:chdir x)
       #+clisp (ext:cd x)
       #+clozure (setf (ccl:current-directory) x)

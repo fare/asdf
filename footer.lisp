@@ -7,8 +7,8 @@
         :asdf/system ;; used by ECL
         :asdf/upgrade :asdf/system-registry :asdf/operate :asdf/bundle)
   ;; Happily, all those implementations all have the same module-provider hook interface.
-  #+(or abcl clasp cmucl clozure ecl mkcl sbcl)
-  (:import-from #+abcl :sys #+(or clasp cmucl ecl) :ext #+clozure :ccl #+mkcl :mk-ext #+sbcl sb-ext
+  #+(or abcl clasp cmucl clozure ecl mezzano mkcl sbcl)
+  (:import-from #+abcl :sys #+(or clasp cmucl ecl) :ext #+clozure :ccl #+mkcl :mk-ext #+sbcl sb-ext #+mezzano :sys.int
 		#:*module-provider-functions*
 		#+ecl #:*load-hooks*)
   #+(or clasp mkcl) (:import-from :si #:*load-hooks*))
@@ -24,7 +24,7 @@
 
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
-#+(or abcl clasp clisp clozure cmucl ecl mkcl sbcl)
+#+(or abcl clasp clisp clozure cmucl ecl mezzano mkcl sbcl)
 (with-upgradability ()
   ;; Hook into CL:REQUIRE.
   #-clisp (pushnew 'module-provide-asdf *module-provider-functions*)

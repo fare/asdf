@@ -139,6 +139,9 @@ This is designed to abstract away the implementation specific quit forms."
           (dbg:*debug-print-level* *print-level*)
           (dbg:*debug-print-length* *print-length*))
       (dbg:bug-backtrace nil))
+    #+mezzano
+    (let ((*standard-output* stream))
+      (sys.int::backtrace count))
     #+sbcl
     (sb-debug:print-backtrace :stream stream :count (or count most-positive-fixnum))
     #+xcl
@@ -227,12 +230,12 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+clozure ccl:*command-line-argument-list*
     #+(or cmucl scl) extensions:*command-line-strings*
     #+gcl si:*command-args*
-    #+(or genera mcl) nil
+    #+(or genera mcl mezzano) nil
     #+lispworks sys:*line-arguments-list*
     #+mkcl (loop :for i :from 0 :below (mkcl:argc) :collect (mkcl:argv i))
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mezzano mkcl sbcl scl xcl)
     (not-implemented-error 'raw-command-line-arguments))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
