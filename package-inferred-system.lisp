@@ -138,7 +138,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
                         previous
                         (eval `(defsystem ,system
                                  :class package-inferred-system
-                                 :source-file nil
+                                 :source-file ,(system-source-file top)
                                  :pathname ,dir
                                  :depends-on ,dependencies
                                  :around-compile ,around-compile
