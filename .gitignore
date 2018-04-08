@@ -49,6 +49,7 @@ test/try-reloading-dependency.asd
 test/fileMissing.lisp
 test/hello-world-example
 test/test-include.asd
+test/test-multiple-too.asd
 
 build-stamp
 
