@@ -232,7 +232,7 @@ case "$lisp" in
         # as the corresponding executables.  the "build" executable
         # runs an ACL image in the current terminal instead of a
         # separate window, as is normal on Windows.
-        bcmd="${adir}/${build}.exe -I ${command}.dxl $flags" ;
+        bcmd="${adir}/${build}.exe -I ${adir}/${allegroName}.dxl $flags" ;
     fi
     eval="-e" ;;
   ccl)
