@@ -1,3 +1,16 @@
+cl-asdf (2:3.3.2-0) unstable; urgency=low
+
+  New milestone:
+  * Upgrade More fixes to the upgrade process, with additional tests.
+  * Tests: multiple improvements to the tests.
+  * Documentation: add discussion of best practices.
+  * Package-inferred system: Improve source file handling.
+  * Miscellaneous: miscellaneous bug fixes, including make define-package
+    more SBCL-friendly, better handle secondary systems, let SBCL find
+    package definitions from UIOP:DEFINE-PACKAGE.
+
+  -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 12 Nov 2017 17:39:04 -0600
+
 cl-asdf (2:3.3.1-1) unstable; urgency=low
 
   New milestone:
