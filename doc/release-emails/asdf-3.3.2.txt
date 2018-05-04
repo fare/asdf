@@ -10,6 +10,8 @@ Today we release ASDF 3.3.2, the second bugfix release for the 3.3 release serie
 
 We urge implementations that are currently bundling previous versions of ASDF -- and especially those bundling 3.3.0 or 3.3.1 -- to upgrade to 3.3.2 at their earliest convenience.
 
+Immense thanks, as always, to Fare Rideau.  Also thanks to the many bug reporters and patch submitters (see the Changelog), and to Anton Vodonosov and Dave Cooper for help with testing.
+
 Here is the changelog entry for 3.3.2:
 
 cl-asdf (2:3.3.2-1) unstable; urgency=low
