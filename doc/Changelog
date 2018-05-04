@@ -1,15 +1,21 @@
-cl-asdf (2:3.3.2-0) unstable; urgency=low
+cl-asdf (2:3.3.2-1) unstable; urgency=low
 
-  New milestone:
-  * Upgrade More fixes to the upgrade process, with additional tests.
-  * Tests: multiple improvements to the tests.
+  Bug fix release:
+  * Dependency tracking: fix bugs in handling misnamed secondary systems.
+    We now distinguish between "syntactic" and "semantic" primariness,
+    properly warn in case a secondary system is misnamed, yet properly
+    recompile or avoid spurious recompilation depending on whether
+    there or not is a conflict or redefinition.
+    Similarly handle package-inferred-system (thanks to Eric Timmons).
+    Better warning in a fishy case of compute-action-stamp.
+  * UIOP: Add package location information to define-package on SBCL.
+  * Upgrade: fix issue with asdf/bundle.
+  * Portability: add support for Mezzano (thanks to E. Housel, H. Harrington)
   * Documentation: add discussion of best practices.
   * Package-inferred system: Improve source file handling.
-  * Miscellaneous: miscellaneous bug fixes, including make define-package
-    more SBCL-friendly, better handle secondary systems, let SBCL find
-    package definitions from UIOP:DEFINE-PACKAGE.
+  * Test and documentation improvements.
 
-  -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 12 Nov 2017 17:39:04 -0600
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 03 May 2018 22:46:19 -0400
 
 cl-asdf (2:3.3.1-1) unstable; urgency=low
 
@@ -25,7 +31,7 @@ cl-asdf (2:3.3.1-1) unstable; urgency=low
   * Tests: tests for new capabilities and bugs
   * Documentation: a number of improvements and clarifications.
 
-  -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 12 Nov 2017 17:39:04 -0600
+ -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 12 Nov 2017 17:39:04 -0600
 
 cl-asdf (2:3.3.0-1) unstable; urgency=low
 
@@ -62,7 +68,7 @@ cl-asdf (2:3.3.0-1) unstable; urgency=low
   * Deprecation: starting to emit STYLE-WARNINGs for deprecated
     functions.  Will gradually escalate to true WARNINGs and then ERRORs.
 
-  -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 20 August 2017 21:00:00 -0500
+ -- Robert P. Goldman <rpgoldman@sift.net>  Sun, 20 August 2017 21:00:00 -0500
 
 cl-asdf (2:3.2.1-1) unstable; urgency=low
 
