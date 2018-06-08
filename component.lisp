@@ -77,9 +77,9 @@ or NIL for top-level components (a.k.a. systems)"))
   (defmethod component-parent ((component null)) nil)
 
   ;; Deprecated: Backward compatible way of computing the FILE-TYPE of a component.
-  ;; TODO: find users, have them stop using that, remove it for ASDF4.
-  (defgeneric source-file-type (component system)
-    (:documentation "DEPRECATED. Use the FILE-TYPE of a COMPONENT instead."))
+  (with-asdf-deprecation (:style-warning "3.4")
+   (defgeneric source-file-type (component system)
+     (:documentation "DEPRECATED. Use the FILE-TYPE of a COMPONENT instead.")))
 
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))
