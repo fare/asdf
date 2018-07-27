@@ -122,7 +122,17 @@ a command-line executable for LispWorks this way:
      (create-image asdf.a (list asdf.o) :kind :lib))))
 
 (defun install-uiop-and-asdf-as-modules ()
-  (let ((uiop.fasl (uiop-module-fasl)))
+  (let ((uiop.fasl (uiop-module-fasl))
+        (uiop.asd (subpathname *asdf-dir* "uiop/uiop.asd")))
+    ;; We need to *explicitly* LOAD UIOP's system definition because FIND-SYSTEM
+    ;; will hide any uiop.asd files with a version that is not strictly greater
+    ;; than the one that is loaded. Because the first step of the install
+    ;; procedure is to load the version of ASDF/UIOP that we're trying to
+    ;; install, that obviously causes issues. We are unable to LOAD-ASD the asd
+    ;; file because UIOP is a PRELOADED system so LOAD-ASD will use the existing
+    ;; system definition (which is essentially empty) to try and find the source
+    ;; files and CLEAR-SYSTEM doesn't help either.
+    (load uiop.asd)
     (with-file-replacement (uiop.fasl)
       (operate 'compile-bundle-op "uiop")
       (rename-file-overwriting-target (first (output-files 'compile-bundle-op "uiop")) uiop.fasl)
