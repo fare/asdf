@@ -172,7 +172,7 @@ clean:
 		     find $$dir \( -name "*.$$ext" \) \
 		    -and -not -path \""*/.git/*"\" \
 			  -and -not -path \""*/_darcs/*"\" \
-			  -and -not -path \""*/tags/*"\" -print -delete; \
+			  -and -not -path \""*/tags/*"\" -delete; \
 		done; \
 	     fi; \
 	    echo "Cleaned $$dir"; \
