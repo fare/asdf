@@ -66,8 +66,9 @@
 
 (defun uiop-files ()
   "list files in uiop"
-  (list* "README.md" "uiop.asd" "asdf-driver.asd" "contrib/debug.lisp"
-         (system-source-files "uiop")))
+  (let ((*asdf-version* "3")) ;; prevent check-not-old-asdf-system from hiding uiop.asd.
+    (list* "README.md" "uiop.asd" "asdf-driver.asd" "contrib/debug.lisp"
+           (system-source-files "uiop"))))
 (defun uiop-name ()
   (format nil "uiop-~A" (version-from-file)))
 (deftestcmd make-uiop-tarball ()

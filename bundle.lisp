@@ -523,8 +523,15 @@ which is probably not what you want; you probably need to tweak your output tran
                      :static-library (resolve-symlinks* pathname))))
 
   (defun linkable-system (x)
-    (or (if-let (s (find-system x))
+    (or ;; If the system is available as source, use it.
+        (if-let (s (find-system x))
           (and (output-files 'lib-op s) s))
+        ;; If an ASDF upgrade is available from source, but not a UIOP upgrade to that,
+        ;; then use the asdf/driver system instead of
+        ;; the UIOP that was disabled by check-not-old-asdf-system.
+        (if-let (s (and (equal x "uiop") (output-files 'lib-op "asdf") (find-system "asdf/driver")))
+          (and (output-files 'lib-op s) s))
+        ;; If there was no source upgrade, look for modules provided by the implementation.
         (if-let (p (system-module-pathname (coerce-name x)))
           (make-prebuilt-system x p))))
 
