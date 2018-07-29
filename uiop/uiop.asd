@@ -27,10 +27,6 @@ It is transcluded into asdf.lisp together with ASDF/DEFSYSTEM, so if you did (re
 you already have a matching UIOP loaded."
   :author "Francois-Rene Rideau"
   :licence "MIT"
-  :class #+asdf3.1 package-system #-asdf3.1 system
-  #+asdf3.1 :version #+asdf3.1 (:read-file-form "version.lisp" :at (2 2 2))
-  #+asdf3 :encoding #+asdf3 :utf-8
-  #+asdf3 :around-compile #+asdf3 call-without-redefinition-warnings
   :components
   ((:static-file "contrib/debug.lisp")
    (:file "package")
@@ -47,4 +43,10 @@ you already have a matching UIOP loaded."
    (:file "run-program" :depends-on ("launch-program"))
    (:file "configuration" :depends-on ("image"))
    (:file "backward-driver" :depends-on ("lisp-build" "run-program" "configuration" "version"))
-   (:file "driver" :depends-on ("backward-driver"))))
+   (:file "driver" :depends-on ("backward-driver")))
+  . #-asdf3 () #+asdf3
+  (:encoding :utf-8
+   :around-compile call-without-redefinition-warnings
+   . #-asdf3.1 () #+asdf3.1
+   (:class package-system
+    :version (:read-file-form "version.lisp" :at (2 2 2)))))
