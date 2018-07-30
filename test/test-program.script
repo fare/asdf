@@ -2,8 +2,13 @@
 (DBG :foo (current-lisp-file-pathname))
 
 (unless (or #+(or allegro (and clisp os-unix) clozure cmucl
-                  (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
+                  (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl)
+            t)
   (DBG "Creating images is not supported on your CL implementation")
+  (leave-test "Skipping test" 0))
+
+(when (or #+clisp t)
+  (DBG "clisp does not reliably run test-program.")
   (leave-test "Skipping test" 0))
 
 #+(and sbcl openbsd)
