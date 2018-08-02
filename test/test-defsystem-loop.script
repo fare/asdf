@@ -1,0 +1,9 @@
+;;; -*- Lisp -*-
+
+#+ignore #+ignore
+(signals FORMATTED-SYSTEM-DEFINITION-ERROR
+ (def-test-system "foo" :perform ((test-op (o c)))))
+
+(leave-test "Correctly detected ill-formed system definition." 0)
+
+(leave-test "Skipping this test for bug not fixed on master." 0)
