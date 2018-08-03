@@ -420,7 +420,6 @@ objects. Side-effects for cached file location computation."
              (ssd (x) (ignore-errors (symbol-call :asdf :system-source-directory x))))
       ;; NB: conspicuously *not* including searches based on #.(current-lisp-pathname)
       (or
-       (getenv-absolute-directory "UIOP_SOURCE_DIR")
        ;; Look under uiop if available as source override, under asdf if avaiable as source
        (ssd "uiop")
        (sub (ssd "asdf") "uiop/")
@@ -431,5 +430,6 @@ objects. Side-effects for cached file location computation."
        (xdg-data-pathname "common-lisp/source/cl-asdf/uiop/") ; traditional Debian location
        ;; The last one below is useful for Fare, primary (sole?) known user
        (sub (user-homedir-pathname) "cl/asdf/uiop/")
-       (cerror "Set environment variable UIOP_SOURCE_DIR and retry" "Unable to find UIOP directory")
+       (cerror "Configure source registry to include UIOP source directory and retry."
+               "Unable to find UIOP directory")
        (uiop-directory)))))
