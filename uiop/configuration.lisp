@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :uiop/configuration
   (:recycle :uiop/configuration :asdf/configuration) ;; necessary to upgrade from 2.27.
-  (:use :uiop/common-lisp :uiop/utility
+  (:use :uiop/package :uiop/common-lisp :uiop/utility
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image :uiop/lisp-build)
   (:export
    #:user-configuration-directories #:system-configuration-directories ;; implemented in backward-driver
@@ -18,7 +18,8 @@
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form* #:*user-cache*
    #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
-   #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration))
+   #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration
+   #:uiop-directory))
 (in-package :uiop/configuration)
 
 (with-upgradability ()
@@ -410,4 +411,25 @@ or just the first one (for direction :output or :io).
     "Compute (and return) the location of the default user-cache for translate-output
 objects. Side-effects for cached file location computation."
     (setf *user-cache* (xdg-cache-home "common-lisp" :implementation)))
-  (register-image-restore-hook 'compute-user-cache))
+  (register-image-restore-hook 'compute-user-cache)
+
+  (defun uiop-directory ()
+    "Try to locate the UIOP source directory at runtime"
+    (labels ((pf (x) (ignore-errors (probe-file* x)))
+             (sub (x y) (pf (subpathname x y)))
+             (ssd (x) (ignore-errors (symbol-call :asdf :system-source-directory x))))
+      ;; NB: conspicuously *not* including searches based on #.(current-lisp-pathname)
+      (or
+       ;; Look under uiop if available as source override, under asdf if avaiable as source
+       (ssd "uiop")
+       (sub (ssd "asdf") "uiop/")
+       ;; Look in recommended path for user-visible source installation
+       (sub (user-homedir-pathname) "common-lisp/asdf/uiop/")
+       ;; Look in XDG paths under known package names for user-invisible source installation
+       (xdg-data-pathname "common-lisp/source/asdf/uiop/")
+       (xdg-data-pathname "common-lisp/source/cl-asdf/uiop/") ; traditional Debian location
+       ;; The last one below is useful for Fare, primary (sole?) known user
+       (sub (user-homedir-pathname) "cl/asdf/uiop/")
+       (cerror "Configure source registry to include UIOP source directory and retry."
+               "Unable to find UIOP directory")
+       (uiop-directory)))))
