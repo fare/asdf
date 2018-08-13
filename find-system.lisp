@@ -141,8 +141,9 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
   (defvar *old-asdf-systems* (make-hash-table :test 'equal))
 
   ;; (Private) function to check that a system that was found isn't an asdf downgrade.
-  ;; Returns T if everything went right, NIL if the system was an ASDF of the same or older version,
-  ;; that shall not be loaded. Also issue a warning if it was a strictly older version of ASDF.
+  ;; Returns T if everything went right, NIL if the system was an ASDF at an older version,
+  ;; or UIOP of the same or older version, that shall not be loaded.
+  ;; Also issue a warning if it was a strictly older version of ASDF.
   (defun check-not-old-asdf-system (name pathname)
     (or (not (member name '("asdf" "uiop") :test 'equal))
         (null pathname)
@@ -153,9 +154,12 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
                              (read-file-form version-pathname :at (if asdfp '(0) '(2 2 2)))))
                (old-version (asdf-version)))
           (cond
-            ;; Don't load UIOP of the exact same version: we already loaded it as part of ASDF.
-            ((and (equal old-version version) (equal name "uiop")) nil)
-            ((version<= old-version version) t) ;; newer or same version: Good!
+            ;; Same version is OK for ASDF, to allow loading from modified source.
+            ;; However, do *not* load UIOP of the exact same version:
+            ;; it was already loaded it as part of ASDF and would only be double-loading.
+            ;; Be quiet about it, though, since it's a normal situation.
+            ((equal old-version version) asdfp)
+            ((version< old-version version) t) ;; newer version: Good!
             (t ;; old version: bad
              (ensure-gethash
               (list (namestring pathname) version) *old-asdf-systems*
