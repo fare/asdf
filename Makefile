@@ -160,6 +160,7 @@ push:
 doc: ;
 website:
 	${MAKE} -C doc website
+	${MAKE} -C uiop/doc website
 
 clean_dirs = $(sourceDirectory)
 clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl ufasl o bak x86f vbin amd64f sparcf sparc64f hpf hp64f
@@ -181,6 +182,7 @@ clean:
 	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
 	rm -rf test/hello-world-example.exe test/mkcl_*.dll # needed only on MS-Windows
 	${MAKE} -C doc clean
+	${MAKE} -C uiop/doc clean
 
 mrproper:
 	git clean -xfd

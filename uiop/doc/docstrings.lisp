@@ -442,7 +442,7 @@ with #\@. Optionally downcase the result."
 
 ;;; line markups
 
-(defvar *not-symbols* '("ANSI" "CLHS" "OS" "GCL" "MCL" "ABCL" "CCL" "CMUCL" "CLASP" "CLISP" "ECL" "MKCL" "SBCL" "SCL" "XCL"))
+(defvar *not-symbols* '("ANSI" "CLHS" "OS" "CL" "CR" "LF" "CRLF" "CR+LF" "GCL" "MCL" "ABCL" "CCL" "CMUCL" "CLASP" "CLISP" "ECL" "MKCL" "SBCL" "SCL" "XCL"))
 
 (defun locate-symbols (line)
   "Return a list of index pairs of symbol-like parts of LINE."
@@ -894,11 +894,12 @@ docstring contains invalid Texinfo markup, you lose."
 (defparameter *prefix-of-lines-to-be-replaced* "@c REPLACE_ME_WITH ")
 (defun complete-texinfo-template (template-pathname dest-pathname &optional (include-directory "include/"))
   "Complete a template Texinfo file by inserting the @include
-statements to the lines [*PREFIX-OF-LINES-TO-BE-REPLACED*] [PACKAGE-NAME]:
+statements to the lines [*PREFIX-OF-LINES-TO-BE-REPLACED*] [package-name]:
 e.g.
 @c REPLACE_ME_WITH UIOP/UTILITY
 
-The included files are searched in INCLUDE-DIRECTORY."
+The included files are searched in `include-directory', which should
+be outputted by `generate-includes' beforehand."
   (let* ((template-pathname (merge-pathnames template-pathname))
          (dest-pathname (merge-pathnames dest-pathname))
          (include-directory (merge-pathnames include-directory))
