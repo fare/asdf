@@ -22,17 +22,22 @@ clean-crap:
 	rm -f *.aux *.cp *.fn *.fns *.ky *.log *.pg *.toc *.tp *.tps *.vr
 
 clean: clean-include
-	rm -rf  *.pdf *.html *.info ${uiop}.texinfo ${uiop}
+	rm -rf  *.pdf *.html *.info ${uiop}.texinfo ${uiop} *.fasl
 
-include:
+fasl: docstrings.lisp
 	sbcl --no-userinit --eval '(require :asdf)' \
-	--load docstrings.lisp \
+	--eval '(compile-file "docstrings.lisp")' \
+	--eval '(quit)'
+
+include: fasl
+	sbcl --no-userinit --eval '(require :asdf)' \
+	--load docstrings \
 	--eval '(sb-texinfo:generate-includes "include/" (list :UIOP/PACKAGE :UIOP/COMMON-LISP :UIOP/UTILITY :UIOP/VERSION :UIOP/OS :UIOP/PATHNAME :UIOP/FILESYSTEM :UIOP/STREAM :UIOP/IMAGE :UIOP/LISP-BUILD :UIOP/LAUNCH-PROGRAM :UIOP/RUN-PROGRAM :UIOP/CONFIGURATION :UIOP/BACKWARD-DRIVER))' \
 	--eval '(quit)'
 
 texinfo : include
 	sbcl --no-userinit --eval '(require :asdf)' \
-	--load docstrings.lisp \
+	--load docstrings \
 	--eval "(sb-texinfo:complete-texinfo-template \"template.texinfo\" \"${uiop}.texinfo\" \"include/\")" \
 	--eval '(quit)'
 

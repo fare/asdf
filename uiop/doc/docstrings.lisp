@@ -88,7 +88,7 @@ you deserve to lose.")
 (defparameter *symbol-characters* "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890*:-+&#"
   "List of characters that make up symbols in a docstring.")
 
-(defparameter *symbol-delimiters* " ,.!?;()'")
+(defparameter *symbol-delimiters* " ,.!?;()'\"")
 
 (defparameter *ordered-documentation-kinds*
   '(package type structure condition class macro))
@@ -440,7 +440,7 @@ with #\@. Optionally downcase the result."
 
 ;;; line markups
 
-(defvar *not-symbols* '("ANSI" "CLHS" "OS" "CL" "CR" "LF" "CRLF" "CR+LF" "GCL" "MCL" "ABCL" "CCL" "CMUCL" "CLASP" "CLISP" "ECL" "MKCL" "SBCL" "SCL" "XCL"))
+(defvar *not-symbols* '("ANSI" "CLHS" "ASDF" "DSL" "OS" "CL" "CR" "LF" "CRLF" "CR+LF" "CPU" "FASL" "POSIX" "GCL" "MCL" "ABCL" "CCL" "CMUCL" "CLASP" "CLISP" "ECL" "MKCL" "SBCL" "SCL" "XCL"))
 
 (defun locate-symbols (line)
   "Return a list of index pairs of symbol-like parts of LINE."
