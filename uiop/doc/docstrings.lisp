@@ -9,8 +9,7 @@
 ;;;; the COPYING file for more information.
 ;;;;
 ;;;; Written by Rudi Schlatte <rudi@constantly.at>, mangled
-;;;; by Nikodemus Siivola.
-;;;; Tweaked for UIOP by Hugo Ishimaru.
+;;;; by Nikodemus Siivola. Tweaked for UIOP by Hugo Ishimaru.
 
 ;;;; TODO
 ;;;; * Verbatim text
@@ -181,6 +180,10 @@ up filename handling. See `*character-replacements*' and
     name))
 
 ;;;; generating various names
+(defun short-package-name (package)
+  (unless (eq package *base-package*)
+    (car (sort (copy-list (cons (package-name package) (package-nicknames package)))
+               #'< :key #'length))))
 
 (defgeneric name (thing)
   (:documentation "Name for a documented thing. Names are either
@@ -228,11 +231,6 @@ symbols or lists of symbols."))
   "Returns TexInfo node name as a string for a DOCUMENTATION instance."
   (let ((kind (get-kind doc)))
     (format nil "~:(~A~) ~(~A~)" kind (name-using-kind/name kind (get-name doc) doc))))
-
-(defun short-package-name (package)
-  (unless (eq package *base-package*)
-    (car (sort (copy-list (cons (package-name package) (package-nicknames package)))
-               #'< :key #'length))))
 
 ;;; Definition titles for DOCUMENTATION instances
 
@@ -703,8 +701,14 @@ followed another tabulation label or a tabulation body."
   (not (and (typep (find-class symbol nil) 'standard-class)
             (docstring slot t))))
 
+(defun replace-ampersand (string)
+  (substitute #\a #\& string :test #'char=))
+
 (defun texinfo-anchor (doc)
   (format *texinfo-output* "@anchor{~A}~%" (node-name doc)))
+
+(defparameter *omit-package-prefix* t
+  "Omit package designator from each definition of symbol.")
 
 ;;; KLUDGE: &AUX *PRINT-PRETTY* here means "no linebreaks please"
 (defun texinfo-begin (doc &aux *print-pretty*)
@@ -718,7 +722,9 @@ followed another tabulation label or a tabulation body."
               (t
                "deffn"))
             (map 'string (lambda (char) (if (eql char #\-) #\Space char)) (string kind))
-            (title-name doc)
+            (if *omit-package-prefix*
+                (get-name doc)
+                (title-name doc))
             ;; &foo would be amusingly bold in the pdf thanks to TeX/Texinfo
             ;; interactions,so we escape the ampersand -- amusingly for TeX.
             ;; sbcl.texinfo defines macros that expand @&key and friends to &key.
@@ -833,9 +839,6 @@ package, as well as for the package itself."
                                     :if-does-not-exist :create
                                     :if-exists :supersede)
     ,@forms))
-
-(defun replace-ampersand (string)
-  (substitute #\a #\& string :test #'char=))
 
 (defun write-ifnottex ()
   ;; We use @&key, etc to escape & from TeX in lambda lists -- so we need to

@@ -22,7 +22,7 @@ clean-crap:
 	rm -f *.aux *.cp *.fn *.fns *.ky *.log *.pg *.toc *.tp *.tps *.vr
 
 clean: clean-include
-	rm -f  *.pdf *.html *.info ${uiop}.texinfo
+	rm -rf  *.pdf *.html *.info ${uiop}.texinfo ${uiop}
 
 include:
 	sbcl --no-userinit --eval '(require :asdf)' \
@@ -41,6 +41,9 @@ pdf: texinfo
 
 html: texinfo
 	makeinfo --html --no-split ${uiop}.texinfo
+
+htmls: texinfo
+	makeinfo --html ${uiop}.texinfo
 
 info: texinfo
 	makeinfo ${uiop}.texinfo
