@@ -49,9 +49,9 @@ which is released under an MIT style License:
 
 @contents
 
-@ifnottex
-
 @include include/ifnottex.texinfo
+
+@ifnottex
 
 @node Top
 @comment  node-name,  next,  previous,  up

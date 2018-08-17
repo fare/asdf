@@ -701,8 +701,11 @@ followed another tabulation label or a tabulation body."
   (not (and (typep (find-class symbol nil) 'standard-class)
             (docstring slot t))))
 
-(defun replace-ampersand (string)
-  (substitute #\a #\& string :test #'char=))
+(defun make-macro-name (string)
+  "Make an appropriate name for Texinfo macro."
+  (concatenate 'string
+               "sbtexinfo"
+               (substitute-if #\x (complement #'alpha-char-p) string)))
 
 (defun texinfo-anchor (doc)
   (format *texinfo-output* "@anchor{~A}~%" (node-name doc)))
@@ -731,7 +734,7 @@ followed another tabulation label or a tabulation body."
             (mapcar (lambda (name)
                       (if (member name (load-time-value
                                         (remove '&aux lambda-list-keywords)))
-                          (format nil "@~A" (replace-ampersand (string-downcase name)))
+                          (format nil "@~A" (make-macro-name (string-downcase name)))
                           name))
                     (lambda-list doc)))))
 
@@ -845,8 +848,8 @@ package, as well as for the package itself."
   ;; define them for info as well.
   (flet ((macro (name)
                  (let ((string (string-downcase name)))
-                   (format *texinfo-output* "@macro ~A~%~A~%@end macro~%"
-                           (replace-ampersand string) string))))
+                   (format *texinfo-output* "@macro ~A~%~A @:~%@end macro~%"
+                           (make-macro-name string) string))))
     (macro '&allow-other-keys)
     (macro '&optional)
     (macro '&rest)

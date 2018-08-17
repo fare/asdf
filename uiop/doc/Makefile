@@ -19,7 +19,7 @@ clean-include:
 	rm -rf include
 
 clean-crap:
-	rm -f *.aux *.cp *.fn *.fns *.ky *.log *.pg *.toc *.tp *.tps *.vr
+	rm -f *.aux *.cp *.fn *.fns *.ky *.log *.pg *.toc *.tp *.tps *.vr *.vrs
 
 clean: clean-include
 	rm -rf  *.pdf *.html *.info ${uiop}.texinfo ${uiop} *.fasl
