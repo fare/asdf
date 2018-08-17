@@ -90,8 +90,13 @@ abstract over discrepancies between implementations, between operating
 systems, and between what the standard provides and what programmers
 actually need, to write portable Common Lisp programs.
 
-It is organized by topic in many packages, all of which are available
-in a single package @code{uiop}.
+It is organized by topic in many files, each of which defines its own package
+according to its topic: e.g @file{pathname.lisp}
+will define package @code{uiop/pathname} and contain utilities related to
+the handling of pathname objects.
+All exported symbols are reexported in a convenience package @code{uiop},
+except for those from @code{uiop/common-lisp}.
+We recommend package @code{uiop} be used to access all the symbols.
 
 The following API reference is auto-generated from the docstrings in
 the code. The chapters are arranged in dependency order.

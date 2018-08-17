@@ -27,6 +27,11 @@ doc/version.texinfo
 doc/*.log
 *.tmp
 
+uiop/doc/uiop.html
+uiop/doc/uiop.info
+uiop/doc/uiop.pdf
+uiop/doc/uiop.texinfo
+
 LICENSE
 README.html
 tmp/

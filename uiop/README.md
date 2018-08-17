@@ -106,22 +106,27 @@ Each file starts with a package definition form that lists the exported symbols.
 All the exported functions, macros and variables ought to have proper docstrings.
 If not, then it's a legitimate bug that we invite you to report.
 
-Maybe some automated tool will extract all that information and
+You can extract a manual from the docstrings
+by running `make` in the directory `uiop/doc`.
+
+Other automated tools may hopefully extract all that information and
 make a webpage from it, at which point it would be nice to insert a link here.
+But many tools fail to extract useful data.
 
 One tool with which you can extract all the documentation is HEΛP.
 At this time, the interface is not great: it isn't obvious at all that you can indeed
 use a scrollbar on the right of the top left side panel to navigate the many packages;
 once you click on the package you're interested in, you can see its defined symbols:
+<http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html>
 
-* <http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html>
+The next version of [Declt](https://www.lrde.epita.fr/~didier/software/lisp/misc.php#declt)
+and through it of QuickRef will support extracting the documentation from UIOP:
+<https://quickref.common-lisp.net/>
 
 Another automated documentation tool is quickdocs, but unhappily, at the time of this writing,
 it only extracts information from the first package
 (see [bug #24](https://github.com/fukamachi/quickdocs/issues/24)):
-
-* <http://quickdocs.org/uiop/api>
-
+<http://quickdocs.org/uiop/api>
 
 Help wanted extracting working documentation from UIOP's docstrings.
 
