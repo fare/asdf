@@ -71,7 +71,13 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
        (or (ignore-errors (truename p))
            ;; this is here because trying to find the truename of a directory pathname WITHOUT supplying
            ;; a trailing directory separator, causes an error on some lisps.
-           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p nil)) (ignore-errors (truename d)))))))
+           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p nil)) (ignore-errors (truename d)))
+           ;; On Genera, truename of a directory pathname will probably fail as Genera
+           ;; will merge in a filename/type/version from *default-pathname-defaults* and
+           ;; will try to get the truename of a file that probably doesn't exist.
+           #+genera (when (directory-pathname-p p)
+                      (let ((d (scl:send p :directory-pathname-as-file)))
+                        (ensure-directory-pathname (ignore-errors (truename d)) nil)))))))
 
   (defun safe-file-write-date (pathname)
     "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."

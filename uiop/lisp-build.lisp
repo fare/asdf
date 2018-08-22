@@ -714,9 +714,10 @@ it will filter them appropriately."
             (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
               (with-muffled-compiler-conditions ()
                 (or #-(or clasp ecl mkcl)
-                    (apply 'compile-file input-file :output-file tmp-file
-                           #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
-                           #-sbcl keywords)
+                    (let (#+genera (si:*common-lisp-syntax-is-ansi-common-lisp* t))
+                      (apply 'compile-file input-file :output-file tmp-file
+                             #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                             #-sbcl keywords))
                     #+ecl (apply 'compile-file input-file :output-file
                                 (if object-file
                                     (list* object-file :system-p t keywords)
@@ -768,19 +769,20 @@ it will filter them appropriately."
   (defun load* (x &rest keys &key &allow-other-keys)
     "Portable wrapper around LOAD that properly handles loading from a stream."
     (with-muffled-loader-conditions ()
-      (etypecase x
-        ((or pathname string #-(or allegro clozure genera) stream #+clozure file-stream)
-         (apply 'load x keys))
-        ;; Genera can't load from a string-input-stream
-        ;; ClozureCL 1.6 can only load from file input stream
-        ;; Allegro 5, I don't remember but it must have been broken when I tested.
-        #+(or allegro clozure genera)
-        (stream ;; make do this way
-         (let ((*package* *package*)
-               (*readtable* *readtable*)
-               (*load-pathname* nil)
-               (*load-truename* nil))
-           (eval-input x))))))
+      (let (#+genera (si:*common-lisp-syntax-is-ansi-common-lisp* t))
+        (etypecase x
+          ((or pathname string #-(or allegro clozure genera) stream #+clozure file-stream)
+           (apply 'load x keys))
+          ;; Genera can't load from a string-input-stream
+          ;; ClozureCL 1.6 can only load from file input stream
+          ;; Allegro 5, I don't remember but it must have been broken when I tested.
+          #+(or allegro clozure genera)
+          (stream ;; make do this way
+           (let ((*package* *package*)
+                 (*readtable* *readtable*)
+                 (*load-pathname* nil)
+                 (*load-truename* nil))
+             (eval-input x)))))))
 
   (defun load-from-string (string)
     "Portably read and evaluate forms from a STRING."

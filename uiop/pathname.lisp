@@ -91,8 +91,8 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmucl genera lispworks sbcl scl) :unspecific
-    #+(or clasp clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl mezzano) nil
+    #+(or abcl allegro clozure cmucl lispworks sbcl scl) :unspecific
+    #+(or genera clasp clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl mezzano) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
   (defun make-pathname* (&rest keys &key directory host device name type version defaults
@@ -330,7 +330,14 @@ actually-existing directory."
            (make-pathname :directory (append (or (normalize-pathname-directory-component
                                                   (pathname-directory pathspec))
                                                  (list :relative))
-                                             (list (file-namestring pathspec)))
+                                             (list #-genera (file-namestring pathspec)
+                                                   ;; On Genera's native filesystem (LMFS),
+                                                   ;; directories have a type and version
+                                                   ;; which must be ignored when converting
+                                                   ;; to a directory pathname
+                                                   #+genera (if (typep pathspec 'fs:lmfs-pathname)
+                                                                (pathname-name pathspec)
+                                                                (file-namestring pathspec))))
                           :name nil :type nil :version nil :defaults pathspec)
          (error (c) (call-function on-error (compatfmt "~@<error while trying to create a directory pathname for ~S: ~A~@:>") pathspec c)))))))
 
