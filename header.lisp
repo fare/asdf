@@ -45,3 +45,14 @@
 ;;; The problem with writing a defsystem replacement is bootstrapping:
 ;;; we can't use defsystem to compile it.  Hence, all in one file.
 
+#+genera
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (multiple-value-bind (system-major system-minor)
+      (sct:get-system-version)
+    (multiple-value-bind (is-major is-minor)
+	(sct:get-system-version "Intel-Support")
+      (unless (or (> system-major 452)
+		  (and is-major
+		       (or (> is-major 3)
+			   (and (= is-major 3) (> is-minor 86)))))
+	(error "ASDF requires either System 453 or later or Intel Support 3.87 or later")))))
