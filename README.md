@@ -150,7 +150,7 @@ Debugging ASDF
 To interactively debug ASDF, you may load it in such a way that `M-.` will work,
 by installing the source code, and running:
 
-    (map () 'load (asdf:input-files :monolithic-concatenate-source-op "asdf"))
+    (map () 'load (asdf:input-files :monolithic-concatenate-source-op "asdf/defsystem"))
 
 To interactively use the `asdf-tools`, you need to either have
 all its dependencies installed and configured.
@@ -295,4 +295,5 @@ How do I navigate this source tree?
     * This file.
 
 *   [TODO](TODO)
-    * Plenty of ideas for how to further improve ASDF.
+    * Plenty of ideas for how to further improve ASDF
+      (not all of them guaranteed good ideas.)
