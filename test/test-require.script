@@ -178,7 +178,7 @@
    #+allegro :sax
    #+clisp (first (remove "asdf" *dynmod-list* :test 'equal))
    #+(or clozure cmucl) :defsystem
-   #+ecl :rt ;; loads faster than :ecl-quicklisp
+   #+ecl :sockets
    #+lispworks "comm"
    #+mkcl :walker
    #+sbcl :sb-md5
