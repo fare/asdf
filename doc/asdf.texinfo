@@ -1001,18 +1001,13 @@ compiling, loading and testing.
 @c FIXME: the following is too complicated for here, especially since
 @c :force hasn't been defined yet.  Move it. [2014/02/27:rpg]
 
-@vindex *load-system-operation*
 @findex already-loaded-systems
 
 @defun load-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
-Apply @code{operate} with the operation from
-@code{*load-system-operation*}
-the @var{system}, and any provided keyword arguments.
-@code{*load-system-operation*} by default is @code{load-op};
-it would be @code{load-bundle-op} by default on ECL,
-if only an implementation bug were fixed.
-Calling @code{load-system} is the regular, recommended way
-to load a system into the current image.
+Apply @code{operate} with the operation @code{load-op}, the
+@var{system}, and any provided keyword arguments.  Calling
+@code{load-system} is the regular, recommended way to load a system
+into the current image.
 @end defun
 
 @defun compile-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
