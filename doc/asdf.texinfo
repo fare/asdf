@@ -1268,7 +1268,7 @@ see the discussion of the @code{:pathname} option in @ref{The defsystem grammar}
 
 @item
 The @code{:serial t} says that each sub-component of @code{mod} depends on the previous components,
-so that @file{cooker.lisp} depends-on @file{utils.lisp}, which depends-on @file{reader.lisp}.
+so that @file{cooker.lisp} depends-on @file{reader.lisp}, which depends-on @file{utils.lisp}.
 Also @file{data.raw} depends on all of them, but that doesn't matter since it's a static file;
 on the other hand, if it appeared first, then all the Lisp files would be recompiled
 when the data is modified, which is probably not what is desired in this case.
