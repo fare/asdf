@@ -36,11 +36,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{https://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2016 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2018 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2016 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2018 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2016 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2018 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -281,7 +281,7 @@ ASDF development FAQs
 @cindex :asdf2
 @cindex :asdf3
 
-ASDF is Another System Definition Facility:
+ASDF, or Another System Definition Facility, is a @emph{build system}:
 a tool for specifying how systems of Common Lisp software
 are made up of components (sub-systems and files),
 and how to operate on these components in the right order
@@ -308,8 +308,8 @@ it plays a role like @code{make} or @code{ant}, not like a package manager.
 In particular, ASDF should not to be confused with Quicklisp or ASDF-Install,
 that attempt to find and download ASDF systems for you.
 Despite what the name might suggest,
-ASDF-Install was never a part of ASDF, it was a separate piece of software.
-ASDF-Install is also unmaintained and obsolete.
+ASDF-Install was never a part of ASDF; it was always a separate piece of software.
+ASDF-Install has also been unmaintained and obsolete for a very long time.
 We recommend you use Quicklisp
 (@uref{http://www.quicklisp.org/}) instead,
 a Common Lisp package manager which works well and is being actively maintained.
@@ -6284,6 +6284,29 @@ Also, bugs are currently tracked on launchpad:
 @unnumbered Bibliography
 
 @itemize
+@item Andrey Mokhov, Neil Mitchell and Simon Peyton Jones:
+``Build Systems à la Carte'', 2018.
+  @url{https://www.microsoft.com/en-us/research/uploads/prod/2018/03/build-systems-final.pdf}
+  This article provides axes along which to describe build systems in general;
+  ASDF, in addition to being in-image (an axis not considered by these authors),
+  has the following characteristics:
+  ASDF's persistent build information is file modification times
+  (the way ASDF is written, it should be easy enough to write an extension that modifies it
+  to use a ``cloud cache'' à la Bazel,
+  but that would involve using some database, network and cryptographic libraries,
+  which cannot reasonably be included in the base ASDF,
+  that must remain a minimal bootstrappable system with no external dependencies).
+  The object model of ASDF was initially designed for ``static'' dependencies
+  with a ``topological'' scheduler, but its @code{defsystem-depends-on} mechanism
+  (and more generally, the ability to call ASDF from within an @code{.asd} file)
+  allows for multiple @emph{phases} of execution resulting
+  in ``dynamic'' dependencies with a ``suspending'' scheduler.
+  The rebuilder essentially uses a ``dirty bit'', except that the in-image model
+  and the multiple phase support mean that's actually more than a bit:
+  instead three bits, the timestamp and a phase depth level.
+  The build is guaranteed ``minimal'' in number of steps computed.
+  It is local; it assumes but does not enforce determinism;
+  it does not assume early cutoff of the build when rebuild dependencies didn't change.
 @item Francois-Rene Rideau:
   ``ASDF 3, or Why Lisp is Now an Acceptable Scripting Language'', 2014.
   This article describes the innovations in ASDF 3 and 3.1,
