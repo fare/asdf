@@ -30,8 +30,10 @@
 If no system is found, then signal an error if ERROR-P is true (the default), or else return NIL.
 A system designator is usually a string (conventionally all lowercase) or a symbol, designating
 the same system as its downcased name; it can also be a system object (designating itself)."))
+
   (defgeneric system-source-file (system)
     (:documentation "Return the source file in which system is defined."))
+
   ;; This is bad design, but was the easiest kluge I found to let the user specify that
   ;; some special actions create outputs at locations controled by the user that are not affected
   ;; by the usual output-translations.
@@ -50,6 +52,7 @@ NB: This interface is subject to change. Please contact ASDF maintainers if you 
 (with no argument) when running an image dumped from the COMPONENT.
 
 NB: This interface is subject to change. Please contact ASDF maintainers if you use it."))
+
   (defmethod component-entry-point ((c component))
     nil))
 
