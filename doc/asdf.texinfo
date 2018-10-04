@@ -1690,9 +1690,8 @@ Instead of a string representing the version,
 the @code{:version} argument can be an expression that is resolved to
 such a string using the following trivial domain-specific language:
 in addition to being a literal string, it can be an expression of the form
-@code{(:read-file-form <pathname-or-string> [:at <access-at-specifier]>)},
-or @code{(:read-file-line <pathname-or-string> [:at
-<access-at-specifier]?>)}.
+@code{(:read-file-form <pathname-or-string> [:at <access-at-specifier>])},
+or @code{(:read-file-line <pathname-or-string> [:at <access-at-specifier>])}.
 As the name suggests, the former will be resolved by reading a form in the specified pathname
 (read as a subpathname of the current system if relative or a
 unix-namestring), and the latter by reading a line.
@@ -1717,10 +1716,10 @@ where significant API incompatibilities are signaled by an increased major numbe
 
 Use the implementation's own @code{require} to load the @var{module-name}.
 
-It is good taste to use @code{:if-feature @emph{:implementation-name}}
-rather than @code{#+@emph{implementation-name}}
+It is good taste to use @code{(:feature @emph{:implementation-name} (:require @var{module-name}))}
+rather than @code{#+@emph{implementation-name} (:require @var{module-name})}
 to only depend on the specified module on the specific implementation that provides it.
-@xref{if-feature-option}.
+@xref{The defsystem grammar,,Feature dependencies}.
 
 @subsection Feature dependencies
 @cindex :feature dependencies
