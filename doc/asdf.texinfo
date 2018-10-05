@@ -1999,9 +1999,10 @@ packages used or provided by your system and its components
 where the name of the system that provides the package
 is not the downcase of the package name.
 
-Then, a file @file{interface/order.lisp} under the @code{my-lib}
-hierarchy will start with the following form, dependencies being
-trivially computed from the @code{:use} and @code{:mix} clauses:
+Then, each file under the @code{my-lib} hierarchy will start with a
+package definition, dependencies being trivially computed from the
+@code{:use} and @code{:mix} clauses. Take a file
+@file{interface/order.lisp} as an example:
 
 @example
 (uiop:define-package :my-lib/interface/order
@@ -2015,6 +2016,35 @@ trivially computed from the @code{:use} and @code{:mix} clauses:
 ASDF can tell that this file depends on system @code{closer-mop} (registered above),
 @code{my-lib/interface/definition}, @code{my-lib/interface/base}
 (package and system names match, and they will be looked up hierarchically).
+
+How can ASDF find the file @file{interface/order.lisp} from the
+toplevel system @code{my-lib}, however? In the example above,
+@file{interface/all.lisp} (and other @code{all.lisp}) will reexport
+all the symbols at once from the packages at the same or lower levels
+of the hierarchy. This can be easily done with
+@code{uiop:define-package}:
+
+@example
+(uiop:define-package :my-lib/interface/all
+  (:nicknames :my-lib-interface)
+  (:use :closer-common-lisp)
+  (:mix :fare-utils :uiop :alexandria)
+  (:use-reexport
+   :my-lib/interface/definition
+   :my-lib/interface/base
+   :my-lib/interface/order
+   :my-lib/interface/monad/continuation))
+@end example
+
+And thus you have only to refer to each @code{my-lib/.../all} system
+in the toplevel system because ASDF detects
+@file{interface/order.lisp} and all other dependencies from
+@code{:use-reexport} clause.
+
+The form @code{uiop:define-package} is supported as well as
+@code{defpackage}, and has many options that prove useful in this
+context, such as @code{:use-reexport} and @code{:mix-reexport} that
+allow for ``inheritance'' of symbols being exported.
 
 ASDF also detects dependencies from @code{:import-from} clauses.
 You may thus import a well-defined set of symbols from an existing package
@@ -2030,30 +2060,6 @@ via an @code{:import-from} clause with an empty list of symbols, as in:
   (:import-from :foo/quux)
   (:export ...))
 @end example
-
-The form @code{uiop:define-package} is supported as well as @code{defpackage},
-and has many options that prove useful in this context,
-such as @code{:use-reexport} and @code{:mix-reexport}
-that allow for ``inheritance'' of symbols being exported.
-
-In @code{my-lib} example above, @file{my-lib/interface/all.lisp} (and
-other @code{all.lisp}) will reexport all the symbols at once from the
-packages at the same or lower levels of the hierarchy. This can be
-done with @code{:use-reexport}:
-
-@example
-(uiop:define-package :my-lib/interface/all
-  (:nicknames :my-lib-interface)
-  (:use :closer-common-lisp)
-  (:mix :fare-utils :uiop :alexandria)
-  (:use-reexport
-   :my-lib/interface/definition
-   :my-lib/interface/base
-   :my-lib/interface/order
-   :my-lib/interface/monad/continuation))
-@end example
-
-And thus you have only to refer to each @code{my-lib/.../all} system in the toplevel system.
 
 Note that starting with ASDF 3.1.5.6 only, ASDF will look for source files under
 the @code{component-pathname} as specified via the @code{:pathname} option,
