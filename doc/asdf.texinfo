@@ -2083,7 +2083,7 @@ has many options that are useful in system definitions,
 such as @code{:use-reexport} and @code{:mix-reexport}
 that allow for ``inheritance'' of symbols being exported.
 
-In @code{my-lib} example above, @file{my-lib/interface/all.lisp} (and
+In the @code{my-lib} example above, @file{my-lib/interface/all.lisp} (and
 other @code{all.lisp}) will reexport all the symbols from the
 packages at the same or lower levels of the hierarchy. This can be
 done with @code{:use-reexport}, as follows:
@@ -2100,7 +2100,7 @@ done with @code{:use-reexport}, as follows:
    :my-lib/interface/monad/continuation))
 @end example
 
-Not only does this simplify package referencdes, it also means that
+Not only does this simplify package references, it also means that
 you have only to refer to each @code{my-lib/.../all} system in the
 toplevel system, and ASDF will find all the implied dependencies.
 
