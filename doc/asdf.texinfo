@@ -1969,7 +1969,9 @@ and create a file @file{my-lib.asd}
 with the @code{:class :package-inferred-system} option in its @code{defsystem}.
 For instance:
 @example
-#-asdf3.1 (error "my-lib requires ASDF 3.1")
+;; This example is based on lil.asd of LISP-INTERFACE-LIBRARY.
+
+#-asdf3.1 (error "MY-LIB requires ASDF 3.1 or later.")
 (defsystem "my-lib"
   :class :package-inferred-system
   :depends-on ("my-lib/interface/all"
@@ -1989,32 +1991,29 @@ For instance:
  '(:c2mop :closer-common-lisp :c2cl :closer-common-lisp-user :c2cl-user))
 @end example
 
-In the code above, the first line checks that we are using ASDF 3.1,
-which provides @code{package-inferred-system}.
+In the code above, the first form checks that we are using ASDF 3.1 or
+later, which provides @code{package-inferred-system}.
 
 The function @code{register-system-packages} has to be called to register
 packages used or provided by your system and its components
 where the name of the system that provides the package
 is not the downcase of the package name.
 
-Then, file @file{interface/order.lisp} under the @code{lil} hierarchy,
-that defines abstract interfaces for order comparisons,
-starts with the following form,
-dependencies being trivially computed from the @code{:use} and @code{:mix} clauses:
+Then, a file @file{interface/order.lisp} under the @code{my-lib}
+hierarchy will start with the following form, dependencies being
+trivially computed from the @code{:use} and @code{:mix} clauses:
 
 @example
-(uiop:define-package :lil/interface/order
+(uiop:define-package :my-lib/interface/order
   (:use :closer-common-lisp
-   :lil/interface/definition
-   :lil/interface/base
-   :lil/interface/eq :lil/interface/group)
+   :my-lib/interface/definition
+   :my-lib/interface/base)
   (:mix :fare-utils :uiop :alexandria)
   (:export ...))
 @end example
 
 ASDF can tell that this file depends on system @code{closer-mop} (registered above),
-@code{lil/interface/definition}, @code{lil/interface/base},
-@code{lil/interface/eq}, and @code{lil/interface/group}
+@code{my-lib/interface/definition}, @code{my-lib/interface/base}
 (package and system names match, and they will be looked up hierarchically).
 
 ASDF also detects dependencies from @code{:import-from} clauses.
@@ -2036,6 +2035,25 @@ The form @code{uiop:define-package} is supported as well as @code{defpackage},
 and has many options that prove useful in this context,
 such as @code{:use-reexport} and @code{:mix-reexport}
 that allow for ``inheritance'' of symbols being exported.
+
+In @code{my-lib} example above, @file{my-lib/interface/all.lisp} (and
+other @code{all.lisp}) will reexport all the symbols at once from the
+packages at the same or lower levels of the hierarchy. This can be
+done with @code{:use-reexport}:
+
+@example
+(uiop:define-package :my-lib/interface/all
+  (:nicknames :my-lib-interface)
+  (:use :closer-common-lisp)
+  (:mix :fare-utils :uiop :alexandria)
+  (:use-reexport
+   :my-lib/interface/definition
+   :my-lib/interface/base
+   :my-lib/interface/order
+   :my-lib/interface/monad/continuation))
+@end example
+
+And thus you have only to refer to each @code{my-lib/.../all} system in the toplevel system.
 
 Note that starting with ASDF 3.1.5.6 only, ASDF will look for source files under
 the @code{component-pathname} as specified via the @code{:pathname} option,
