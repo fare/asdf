@@ -2038,7 +2038,7 @@ ASDF can tell that this file/system depends on system @code{closer-mop} (registe
 
 How can ASDF find the file @file{interface/order.lisp} from the
 toplevel system @code{my-lib}, however? In the example above,
-@file{interface/all.lisp} (and other @code{all.lisp}) reexport
+@file{interface/all.lisp} (and other @file{all.lisp}) reexport
 all the symbols exported from the packages at the same or lower levels
 of the hierarchy. This can be easily done with
 @code{uiop:define-package}, which has many options that prove useful in this
@@ -2066,14 +2066,13 @@ ASDF also detects dependencies from @code{:import-from} clauses.
 You may thus import a well-defined set of symbols from an existing
 package, and ASDF will know to load the system that provides that
 package.  In the following example, ASDF will infer that the current
-system depends on
-@code{''foo/bar''} from the first @code{:import-from}.
+system depends on @code{foo/baz} from the first @code{:import-from}.
 If you prefer to use any such symbol fully qualified by a package prefix,
 you may declare a dependency on such a package and its corresponding system
 via an @code{:import-from} clause with an empty list of symbols.  For
 example, if we preferred to use the name `foo/quux:bletch`, the second,
 empty, @code{:import-from} form would cause ASDF to load
-@code{''foo/quux''}.
+@code{foo/quux}.
 
 @example
 (defpackage :foo/bar
