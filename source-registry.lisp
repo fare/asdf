@@ -90,7 +90,7 @@ after having found a .asd file? True by default.")
                    (recurse-beyond-asds *recurse-beyond-asds*) ignore-cache)
     (let ((visited (make-hash-table :test 'equalp)))
       (flet ((collectp (dir)
-               (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
+               (unless (and (not ignore-cache) (process-source-registry-cache dir collect))
                  (let ((asds (collect-asds-in-directory dir collect)))
                    (or recurse-beyond-asds (not asds)))))
              (recursep (x)                    ; x will be a directory pathname
