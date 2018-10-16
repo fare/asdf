@@ -2398,12 +2398,12 @@ or for the entire application.
 
 @code{compile-bundle-op} will create a single fasl file for each of the systems needed,
 grouping all its many fasls in one,
-so you can deliver each system as a single fasl
+so you can deliver each system as a single fasl.
 @code{monolithic-compile-bundle-op} will create a single fasl file for the target system
 and all its dependencies,
 so you can deliver your entire application as a single fasl.
 @code{load-bundle-op} will load the output of @code{compile-bundle-op}.
-Note that if it the output is not up-to-date,
+Note that if the output is not up-to-date,
 @code{compile-bundle-op} may load the intermediate fasls as a side-effect.
 Bundling fasls together matters a lot on ECL,
 where the dynamic linking involved in loading tens of individual fasls
@@ -2459,7 +2459,7 @@ for building a linkable @file{.a} file (Windows: @file{.lib})
 from all linkable object dependencies (FFI files, and on ECL, Lisp files too),
 and its monolithic equivalent @code{monolithic-lib-op}.
 And there is also @code{dll-op}
-(respectively its monolithic equivalent @code{monolithic-lib-op})
+(respectively its monolithic equivalent @code{monolithic-dll-op})
 for building a linkable @file{.so} file
 (Windows: @file{.dll}, MacOS X: @file{.dynlib})
 to create a single dynamic library
