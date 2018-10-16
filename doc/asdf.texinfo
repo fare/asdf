@@ -2198,8 +2198,8 @@ discuss these in turn below.
 
 Operations are invoked on systems via @code{operate}.
 @anchor{operate}
-@deffn {Generic function} @code{operate} @var{operation} @var{component} @Arest{} @var{initargs} @Akey{} @code{force} @code{force-not} @code{verbose} @AallowOtherKeys
-@deffnx {Generic function} @code{oos} @var{operation} @var{component} @Arest{} @var{initargs} @Akey{} @AallowOtherKeys{}
+@deffn {Generic function} operate @var{operation} @var{component} @Arest{} @var{initargs} @Akey{} @code{force} @code{force-not} @code{verbose} @AallowOtherKeys
+@deffnx {Generic function} oos @var{operation} @var{component} @Arest{} @var{initargs} @Akey{} @AallowOtherKeys{}
 @code{operate} invokes @var{operation} on @var{system}.
 @code{oos} is a synonym for @code{operate} (it stands for operate-on-system).
 
@@ -2251,7 +2251,7 @@ To see what @code{operate} would do, you can use:
 
 @end deffn
 
-@defun @code{make-operation} @var{operation-class} @Arest{} @var{initargs}
+@defun make-operation @var{operation-class} @Arest{} @var{initargs}
 @anchor{make-operation}
 
 The @var{initargs} are passed to @code{make-instance} call
@@ -2270,8 +2270,6 @@ instances will cause a run-time error.
 @node Predefined operations of ASDF, Creating new operations, Operations, Operations
 @comment  node-name,  next,  previous,  up
 @subsection Predefined operations of ASDF
-@c FIXME: All these deffn's should be replaced with deftyp.  Also, we
-@c should set up an appropriate index.
 
 All the operations described in this section are in the @code{asdf} package.
 They are invoked via the @code{operate} generic function.
@@ -2280,7 +2278,7 @@ They are invoked via the @code{operate} generic function.
 (asdf:operate 'asdf:@var{operation-name} :@var{system-name} @{@var{operation-options ...}@})
 @end lisp
 
-@deffn Operation @code{compile-op}
+@deftp Operation compile-op
 
 This operation compiles the specified component.
 A @code{cl-source-file} will be @code{compile-file}'d.
@@ -2295,9 +2293,9 @@ all these dependencies will be loaded as well as compiled;
 yet, some parts of the system main remain unloaded,
 because nothing depends on them.
 Use @code{load-op} to load a system.
-@end deffn
+@end deftp
 
-@deffn Operation @code{load-op}
+@deftp Operation load-op
 
 This operation loads the compiled code for a specified component.
 A @code{cl-source-file} will have its compiled fasl @code{load}ed,
@@ -2308,27 +2306,28 @@ which fasl is the output of @code{compile-op} that @code{load-op} depends on.
 @code{load-op} also depends on @code{prepare-op} which
 itself depends on a @code{load-op} of all of a component's dependencies,
 as well as of its parent's dependencies.
-@end deffn
+@end deftp
 
-@deffn Operation @code{prepare-op}
+@deftp Operation prepare-op
 
 This operation ensures that the dependencies of a component
 and its recursive parents are loaded (as per @code{load-op}),
 as a prerequisite before @code{compile-op} and @code{load-op} operations
 may be performed on a given component.
-@end deffn
+@end deftp
 
-@deffn Operation @code{load-source-op}, @code{prepare-source-op}
+@deftp Operation load-source-op
+@deftpx Operation prepare-source-op
 
 @code{load-source-op} will load the source for the files in a module
 rather than the compiled fasl output.
 It has a @code{prepare-source-op} analog to @code{prepare-op},
 that ensures the dependencies are themselves loaded via @code{load-source-op}.
 
-@end deffn
+@end deftp
 
 @anchor{test-op}
-@deffn Operation @code{test-op}
+@deftp Operation test-op
 
 This operation will perform some tests on the module.
 The default method will do nothing.
@@ -2376,11 +2375,22 @@ Then one defines @code{perform} methods on
   ...)
 @end lisp
 
-@end deffn
+@end deftp
 
 
 
-@deffn Operation @code{compile-bundle-op}, @code{monolithic-compile-bundle-op}, @code{load-bundle-op}, @code{monolithic-load-bundle-op}, @code{deliver-asd-op}, @code{monolithic-deliver-asd-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{image-op}, @code{program-op}
+@deftp Operation compile-bundle-op
+@deftpx Operation monolithic-compile-bundle-op
+@deftpx Operation load-bundle-op
+@deftpx Operation monolithic-load-bundle-op
+@deftpx Operation deliver-asd-op
+@deftpx Operation monolithic-deliver-asd-op
+@deftpx Operation lib-op
+@deftpx Operation monolithic-lib-op
+@deftpx Operation dll-op
+@deftpx Operation monolithic-dll-op
+@deftpx Operation image-op
+@deftpx Operation program-op
 
 These are ``bundle'' operations, that can create a single-file ``bundle''
 for all the contents of each system in an application,
@@ -2469,9 +2479,16 @@ unless the operation is equal to
 the @code{:build-operation} argument to @code{defsystem}.
 This behaviour is not very satisfactory and may change in the future.
 Maybe you have suggestions on how to better configure it?
-@end deffn
+@end deftp
 
-@deffn Operation @code{concatenate-source-op}, @code{monolithic-concatenate-source-op}, @code{load-concatenated-source-op}, @code{compile-concatenated-source-op}, @code{load-compiled-concatenated-source-op}, @code{monolithic-load-concatenated-source-op}, @code{monolithic-compile-concatenated-source-op}, @code{monolithic-load-compiled-concatenated-source-op}
+@deftp Operation concatenate-source-op
+@deftpx Operation monolithic-concatenate-source-op
+@deftpx Operation load-concatenated-source-op
+@deftpx Operation compile-concatenated-source-op
+@deftpx Operation load-compiled-concatenated-source-op
+@deftpx Operation monolithic-load-concatenated-source-op
+@deftpx Operation monolithic-compile-concatenated-source-op
+@deftpx Operation monolithic-load-compiled-concatenated-source-op
 
 These operations, as their respective names indicate,
 will concatenate all the @code{cl-source-file} source files in a system
@@ -2487,7 +2504,7 @@ ASDF itself is delivered as a single source file this way,
 using @code{monolithic-concatenate-source-op},
 prepending a prelude and the @code{uiop} library
 before the @code{asdf/defsystem} system itself.
-@end deffn
+@end deftp
 
 
 @node  Creating new operations,  , Predefined operations of ASDF, Operations
@@ -3086,7 +3103,7 @@ so use symbols or keywords or something.
 @comment  node-name,  next,  previous,  up
 @subsection Pre-defined subclasses of component
 
-@deffn Component source-file
+@deftp Component source-file
 
 A source file is any file that the system does not know how to
 generate from other components of the system.
@@ -3103,9 +3120,9 @@ these do count as source files for our purposes.
 
 Subclasses of source-file exist for various languages.
 @emph{FIXME: describe these.}
-@end deffn
+@end deftp
 
-@deffn Component module
+@deftp Component module
 
 A module is a collection of sub-components.
 
@@ -3138,9 +3155,9 @@ most operations will not need to provide methods specialised on modules.
 
 @code{module} may be subclassed to represent components such as
 foreign-language linked libraries or archive files.
-@end deffn
+@end deftp
 
-@deffn Component system
+@deftp Component system
 
 @code{system} is a subclass of @code{module}.
 
@@ -3150,7 +3167,7 @@ purposes; these are given elsewhere.
 
 Users can create new classes for their systems:
 the default @code{defsystem} macro takes a @code{:class} keyword argument.
-@end deffn
+@end deftp
 
 @node  Creating new component types,  , Pre-defined subclasses of component, Components
 @comment  node-name,  next,  previous,  up
