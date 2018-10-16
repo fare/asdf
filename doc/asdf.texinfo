@@ -6385,15 +6385,16 @@ Also, bugs are currently tracked on launchpad:
   modulo a different setup for toplevel hierarchies.
 @item Zach Beane:
   ``Quicklisp'', 2011.
-  The Quicklisp blog and Xach's livejournal contain information on Quicklisp.
+  The Quicklisp blog and Xach's personal blogs contain information on Quicklisp.
   @url{http://blog.quicklisp.org/}
-  @url{http://xach.livejournal.com/}
+  @url{http://lispblog.xach.com/} (new)
+  @url{http://xach.livejournal.com/} (old)
 @item Francois-Rene Rideau and Robert Goldman:
   ``Evolving ASDF: More Cooperation, Less Coordination'', 2010.
   This article describes the main issues solved by ASDF 2,
   and exposes its design principles.
-  @url{https://common-lisp.net/project/asdf/doc/ilc2010draft.pdf}
-  @url{https://gitlab.common-lisp.org/asdf/ilc2010}
+  @url{https://common-lisp.net/project/asdf/ilc2010draft.pdf}
+  @url{http://rpgoldman.goldman-tribe.org/papers/ilc2010-asdf.pdf}
 @item Francois-Rene Rideau and Spencer Brody:
   ``XCVB: an eXtensible Component Verifier and Builder for Common Lisp'', 2009.
   This article describes XCVB, a proposed competitor for ASDF;
@@ -6423,7 +6424,7 @@ Also, bugs are currently tracked on launchpad:
   are available in the CLOCC repository as @code{defsystem-3.x}.
 @item Richard Elliot Robbins:
   ``BUILD: A Tool for Maintaining Consistency in Modular Systems'', MIT AI TR 874, 1985.
-  @url{ftp://publications.ai.mit.edu/ai-publications/pdf/AITR-874.pdf}
+  @url{http://www.dtic.mil/dtic/tr/fulltext/u2/a162744.pdf}
 @item Kent M. Pitman (kmp): ``The Description of Large Systems'', MIT AI Memo 801, 1984.
   Available in updated-for-CL form on the web at
   @url{http://nhplace.com/kent/Papers/Large-Systems.html}
