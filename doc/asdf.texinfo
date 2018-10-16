@@ -3,7 +3,6 @@
 @documentencoding UTF-8
 @setfilename asdf.info
 @settitle ASDF Manual
-@syncodeindex tp fn
 @c %**end of header
 
 @c We use @&key, etc to escape & from TeX in lambda lists --
@@ -106,9 +105,9 @@ Manual for Version 3.3.2.10
 * Ongoing Work::
 * Bibliography::
 * Concept Index::
-* Function and Class Index::
+* Function and Macro Index::
 * Variable Index::              @c @detailmenu
-@c
+* Class and Type Index::        @c
 
 @detailmenu
  --- The Detailed Node Listing ---
@@ -6436,20 +6435,25 @@ Also, bugs are currently tracked on launchpad:
 @end itemize
 
 
-@node Concept Index, Function and Class Index, Bibliography, Top
+@node Concept Index, Function and Macro Index, Bibliography, Top
 @unnumbered Concept Index
 
 @printindex cp
 
-@node Function and Class Index, Variable Index, Concept Index, Top
-@unnumbered Function and Class Index
+@node Function and Macro Index, Variable Index, Concept Index, Top
+@unnumbered Function and Macro Index
 
 @printindex fn
 
-@node Variable Index,  , Function and Class Index, Top
+@node Variable Index, Class and Type Index, Function and Macro Index, Top
 @unnumbered Variable Index
 
 @printindex vr
+
+@node  Class and Type Index,  , Variable Index, Top
+@unnumbered Class and Type Index
+
+@printindex tp
 
 @bye
 
