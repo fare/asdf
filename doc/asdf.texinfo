@@ -1034,7 +1034,7 @@ The default behaviour is to load the system as if by @code{load-system};
 but system authors can override this default in their system definition
 they may specify an alternate operation as the intended use of their system,
 with a @code{:build-operation} option in the @code{defsystem} form
-(@pxref{The defsystem grammar, build-operation}),
+(@pxref{Build-operation}),
 and an intended output pathname for that operation with
 @code{:build-pathname}.
 @c Document :build-operation in the defsystem section.
@@ -1187,7 +1187,7 @@ especially if you intend your software to be eventually included in Quicklisp.
 @item
 Make sure you know how the @code{:version} numbers will be parsed!
 Only period-separated non-negative integers are accepted at present.
-See below Version specifiers in @ref{The defsystem grammar}.
+@xref{Version specifiers}.
 
 @item
 This file contains a single form, the @code{defsystem} declaration.
@@ -1423,7 +1423,7 @@ system-definition := ( defsystem system-designator @var{system-option}* )
 
 system-option := :defsystem-depends-on system-list
                  | :weakly-depends-on @var{system-list}
-                 | :class class-name (see discussion below)
+                 | :class class-name # @pxref{System class names}
                  | :build-operation @var{operation-name}
                  | system-option
                  | module-option
@@ -1436,6 +1436,7 @@ system-option := :homepage string
                  | :long-name string
                  | :source-control source-control
                  | :version version-specifier
+                 | :entry-point object # @pxref{Entry point}
 
 source-control := (keyword string)
 
@@ -1463,13 +1464,13 @@ component-def  := ( component-type simple-component-name @var{option}* )
 component-type := :module | :file | :static-file | other-component-type
 
 other-component-type := symbol-by-name
-                        (@pxref{The defsystem grammar,,Component types})
+                        # @pxref{Component types}
 
 # This is used in :depends-on, as opposed to ``dependency,''
 # which is used in :in-order-to
 dependency-def := simple-component-name
                | ( :feature @var{feature-expression} dependency-def )
-                 # (@pxref{The defsystem grammar,,Feature dependencies})
+                 # @pxref{Feature dependencies}
                | ( :version simple-component-name version-specifier )
                | ( :require module-name )
 
@@ -1492,7 +1493,8 @@ line-specifier := :at integer # base zero
 form-specifier := :at [ integer | ( integer+ )]
 
 method-form := (operation-name qual lambda-list @Arest{} body)
-qual := method qualifier?
+qual := method-qualifier?
+method-qualifier = :before | :after | :around
 
 feature-expression := keyword
                       | (:and @var{feature-expression}*)
@@ -1507,6 +1509,7 @@ Component names (@code{simple-component-name})
 may be either strings or symbols.
 
 @subsection Component types
+@anchor{Component types}
 
 Component type names, even if expressed as keywords, will be looked up
 by name in the current package and in the asdf package, if not found in
@@ -1518,6 +1521,7 @@ the current package @code{my-system-asd} can be specified as
 allowed as component types for such children components.
 
 @subsection System class names
+@anchor {System class names}
 
 A system class name will be looked up
 in the same way as a Component type (see above),
@@ -1549,6 +1553,7 @@ system definition.
 
 @subsection Build-operation
 @cindex :build-operation
+@anchor{Build-operation}
 
 The @code{:build-operation} option to @code{defsystem} allows the
 programmer to specify an operation that will be applied, in place of
@@ -1596,6 +1601,7 @@ this anomalous behaviour may be removed without warning.
 
 @subsection Pathname specifiers
 @cindex pathname specifiers
+@anchor{Pathname specifiers}
 
 A pathname specifier (@code{pathname-specifier})
 may be a pathname, a string or a symbol.
@@ -1651,7 +1657,7 @@ a shorthand for @code{#.(parse-namestring ...)}
 and that the behaviour of @code{parse-namestring} is completely non-portable,
 unless you are using Common Lisp @code{logical-pathname}s,
 which themselves involve other non-portable behaviour
-(@pxref{The defsystem grammar,,Using logical pathnames}, below).
+(@pxref{Using logical pathnames}).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
@@ -1676,6 +1682,7 @@ be forced upon you if you were specifying a string.
 @subsection Version specifiers
 @cindex version specifiers
 @cindex :version
+@anchor{Version specifiers}
 
 Version specifiers are strings to be parsed as period-separated lists of integers.
 I.e., in the example, @code{"0.2.1"} is to be interpreted,
@@ -1719,10 +1726,11 @@ Use the implementation's own @code{require} to load the @var{module-name}.
 It is good taste to use @code{(:feature @emph{:implementation-name} (:require @var{module-name}))}
 rather than @code{#+@emph{implementation-name} (:require @var{module-name})}
 to only depend on the specified module on the specific implementation that provides it.
-@xref{The defsystem grammar,,Feature dependencies}.
+@xref{Feature dependencies}.
 
 @subsection Feature dependencies
 @cindex :feature dependencies
+@anchor{Feature dependencies}
 
 A feature dependency is of the form
 @code{(:feature @var{feature-expression} @var{dependency})}
@@ -1738,11 +1746,12 @@ definition to be loaded.  E.g., one cannot use @code{(:feature :sbcl)}
 to require that a system only be used on SBCL.
 
 Feature dependencies are not to be confused with the obsolete
-feature requirement (@pxref{The defsystem grammar,,feature requirement}), or
+feature requirement (@pxref{feature requirement}), or
 with @code{if-feature}.
 
 @subsection Using logical pathnames
 @cindex logical pathnames
+@anchor{Using logical pathnames}
 
 We do not generally recommend the use of logical pathnames,
 especially not so to newcomers to Common Lisp.
@@ -1874,7 +1883,7 @@ from within an editor without clobbering its source location)
 
 @subsection if-feature option
 @cindex :if-feature component option
-@anchor{if-feature-option}      @c redo if this ever becomes a node in
+@anchor{if-feature option}      @c redo if this ever becomes a node in
 @c its own right...
 
 This option allows you to specify a feature expression to be evaluated
@@ -1899,9 +1908,17 @@ been performed.
 This option was added in ASDF 3.  For more information,
 @xref{required-features, Required features}.
 
+@subsection Entry point
+@cindex :entry-point
+@anchor{Entry point}
+The @code{:entry-point} option allows a developer to specify the entry point of an executable program created by @code{program-op}.
+
+When @code{program-op} is invoked, the form passed to this option is converted to a function by @code{uiop:ensure-function} and bound to @code{uiop:*image-entry-point*}. Typically one will specify a string, e.g. @code{"foo:main"}, so that the executable starts with the @code{foo:main} function. Note that using the symbol @code{foo:main} instead might not work because the @code{foo} package doesn't necessarily exist when ASDF reads the @code{defsystem} form. For more information on @code{program-op}, @pxref{Predefined operations of ASDF}.
+
 @subsection feature requirement
+@anchor{feature requirement}
 This requirement was removed in ASDF 3.1.  Please do not use it.  In
-most cases, @code{:if-feature} (@pxref{if-feature-option}) will provide
+most cases, @code{:if-feature} (@pxref{if-feature option}) will provide
 an adequate substitute.
 
 The @code{feature} requirement used to ensure that a chain of component
@@ -2890,7 +2907,7 @@ performed by the exported function @code{coerce-name}.
 Unless overridden by a @code{:pathname} attribute,
 the name will be interpreted as a pathname specifier according
 to a Unix-style syntax.
-@xref{The defsystem grammar,,Pathname specifiers}.
+@xref{Pathname specifiers}.
 
 @subsubsection Version identifier
 @findex version-satisfies
@@ -2898,8 +2915,7 @@ to a Unix-style syntax.
 
 This optional attribute specifies a version for the current component.
 The version should typically be a string of integers separated by dots,
-for example @samp{1.0.11}.
-For more information on version specifiers, see @ref{The defsystem grammar}.
+for example @samp{1.0.11}. @xref{Version specifiers}.
 
 A version may then be queried by the generic function @code{version-satisfies},
 to see if @code{:version} dependencies are satisfied,
@@ -2945,7 +2961,7 @@ when the implementation is SBCL, CMUCL or Scieneer CL on an x86 machine.
 You cannot write it as @code{:if-feature (and x86 (or sbcl cmu scl))}
 since the symbols would not be read as keywords.
 
-@xref{if-feature-option}.
+@xref{if-feature option}.
 
 @subsubsection Dependencies
 
@@ -3044,7 +3060,7 @@ in the defsystem grammar.
 This attribute is optional and if absent (which is the usual case),
 the component name will be used.
 
-@xref{The defsystem grammar,,Pathname specifiers},
+@xref{Pathname specifiers},
 for an explanation of how this attribute is interpreted.
 
 Note that the @code{defsystem} macro (used to create a ``top-level'' system)
@@ -3139,7 +3155,7 @@ are inferred to be of this type.
 @item
 @code{:if-component-dep-fails}
 This attribute was removed in ASDF 3. Do not use it.
-Use @code{:if-feature} instead (@pxref{required-features}, and @pxref{if-feature-option}).
+Use @code{:if-feature} instead (@pxref{required-features}, and @pxref{if-feature option}).
 
 @item
 @code{:serial} When this attribute is set,
@@ -3266,7 +3282,7 @@ Therefore @code{"1.9.1"}, @code{"1.9.2"} and @code{"1.10"} all satisfy @code{"1.
 but @code{"1.8.4"} or @code{"1.9"} do not.
 For more information about how @code{version-satisfies} parses and interprets
 version strings and specifications,
-@pxref{The defsystem grammar} (version specifiers) and
+@pxref{Version specifiers} and
 @ref{Common attributes of components}.
 
 Note that in versions of ASDF prior to 3.0.1,
@@ -4775,7 +4791,7 @@ It takes two mandatory arguments @var{system} and @var{name}
 and a keyword argument @var{type}:
 @var{system} is name of a system, whereas @var{name} and optionally @var{type}
 specify a relative pathname, interpreted like a component pathname specifier
-by @code{coerce-pathname}. @xref{The defsystem grammar,,Pathname specifiers}.
+by @code{coerce-pathname}. @xref{Pathname specifiers}.
 
 It returns a pathname built from the location of the system's
 source directory and the relative pathname. For example:
@@ -5319,7 +5335,7 @@ where you must now use an explicit pathname object:
 must now be written with the @code{#p} syntax:
 @code{(defsystem ... :pathname #p"LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}
 
-@xref{The defsystem grammar,,Pathname specifiers}.
+@xref{Pathname specifiers}.
 
 
 @node Output translations, Source Registry Configuration, ASDF can portably name files in subdirectories, What has changed between ASDF 1 ASDF 2 and ASDF 3?
