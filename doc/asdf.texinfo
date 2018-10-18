@@ -4309,7 +4309,7 @@ An @code{:inherit-configuration} statement causes the search to recurse with the
 specifications from the next configuration in the bulleted list.
 @xref{Controlling where ASDF saves compiled files,,Configurations}, above.
 
-@vindex @code{asdf::*user-cache*}
+@vindex asdf::*user-cache*
 @itemize
 @item
 @code{:enable-user-cache} is the same as @code{(t :user-cache)}.
@@ -4527,17 +4527,17 @@ But so are good design ideas and elegant implementation tricks.
 @node  Error handling, Miscellaneous additional functionality, Controlling where ASDF saves compiled files, Top
 @comment  node-name,  next,  previous,  up
 @chapter Error handling
-@findex SYSTEM-DEFINITION-ERROR
-@findex OPERATION-ERROR
+@tindex system-definition-error
+@tindex operation-error
 
 @section ASDF errors
 
 If ASDF detects an incorrect system definition, it will signal a generalised instance of
-@code{SYSTEM-DEFINITION-ERROR}.
+@code{system-definition-error}.
 
 Operations may go wrong (for example when source files contain errors).
 These are signalled using generalised instances of
-@code{OPERATION-ERROR}.
+@code{operation-error}.
 
 @section Compilation error and warning handling
 @vindex *compile-file-warnings-behaviour*
