@@ -9,6 +9,7 @@
    #:system-source-file #:system-source-directory #:system-relative-pathname
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
+   #:system-version
    #:definition-dependency-list #:definition-dependency-set #:system-defsystem-depends-on
    #:system-depends-on #:system-weakly-depends-on
    #:component-build-pathname #:build-pathname
@@ -77,19 +78,21 @@ a SYSTEM is redefined and its class is modified."))
   (defclass system (module proto-system)
     ;; Backward-compatibility: inherit from module. ASDF4: only inherit from parent-component.
     (;; {,long-}description is now inherited from component, but we add the legacy accessors
-     (description :accessor system-description)
-     (long-description :accessor system-long-description)
-     (author :accessor system-author :initarg :author :initform nil)
-     (maintainer :accessor system-maintainer :initarg :maintainer :initform nil)
-     (licence :accessor system-licence :initarg :licence
-              :accessor system-license :initarg :license :initform nil)
-     (homepage :accessor system-homepage :initarg :homepage :initform nil)
-     (bug-tracker :accessor system-bug-tracker :initarg :bug-tracker :initform nil)
-     (mailto :accessor system-mailto :initarg :mailto :initform nil)
-     (long-name :accessor system-long-name :initarg :long-name :initform nil)
+     (description :writer (setf system-description))
+     (long-description :writer (setf system-long-description))
+     (author :writer (setf system-author) :initarg :author :initform nil)
+     (maintainer :writer (setf system-maintainer) :initarg :maintainer :initform nil)
+     (licence :writer (setf system-licence) :initarg :licence
+              :writer (setf system-license) :initarg :license
+              :initform nil)
+     (homepage :writer (setf system-homepage) :initarg :homepage :initform nil)
+     (bug-tracker :writer (setf system-bug-tracker) :initarg :bug-tracker :initform nil)
+     (mailto :writer (setf system-mailto) :initarg :mailto :initform nil)
+     (long-name :writer (setf system-long-name) :initarg :long-name :initform nil)
      ;; Conventions for this slot aren't clear yet as of ASDF 2.27, but whenever they are, they will be enforced.
      ;; I'm introducing the slot before the conventions are set for maximum compatibility.
-     (source-control :accessor system-source-control :initarg :source-control :initform nil)
+     (source-control :writer (setf system-source-control) :initarg :source-control :initform nil)
+
      (builtin-system-p :accessor builtin-system-p :initform nil :initarg :builtin-system-p)
      (build-pathname
       :initform nil :initarg :build-pathname :accessor component-build-pathname)
@@ -163,6 +166,35 @@ The (current) transformation is to replace characters /:\\ each by --,
 the former being forbidden in a filename component.
 NB: The onus is unhappily on the user to avoid clashes."
     (frob-substrings (coerce-name name) '("/" ":" "\\") "--")))
+
+
+;;; System virtual slot readers, recursing to the primary system if needed.
+(with-upgradability ()
+  (defvar *system-virtual-slots* '(long-name description long-description
+                                   author maintainer mailto
+                                   homepage source-control
+                                   licence version bug-tracker)
+    "The list of system virtual slot names.")
+  (defun system-virtual-slot-value (system slot-name)
+    "Return SYSTEM's virtual SLOT-NAME value.
+If SYSTEM's SLOT-NAME value is NIL and SYSTEM is a secondary system, look in
+the primary one."
+    (or (slot-value system slot-name)
+        (unless (primary-system-p system)
+          (slot-value (find-system (primary-system-name system))
+                      slot-name))))
+  (defmacro define-system-virtual-slot-reader (slot-name)
+    `(defun* ,(intern (concatenate 'string (string :system-)
+                                   (string slot-name)))
+         (system)
+       (system-virtual-slot-value system ',slot-name)))
+  (defmacro define-system-virtual-slot-readers ()
+    `(progn ,@(mapcar (lambda (slot-name)
+                        `(define-system-virtual-slot-reader ,slot-name))
+                *system-virtual-slots*)))
+  (define-system-virtual-slot-readers)
+  (defun system-license (system)
+    (system-virtual-slot-value system 'licence)))
 
 
 ;;;; Pathnames

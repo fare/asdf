@@ -77,6 +77,7 @@
    #:system-maintainer
    #:system-license
    #:system-licence
+   #:system-version
    #:system-source-file
    #:system-source-directory
    #:system-relative-pathname
