@@ -32,7 +32,8 @@ DEPRECATED. Use UIOP:XDG-CONFIG-PATHNAMES instead."
     (xdg-config-pathnames "common-lisp"))
   (defun system-configuration-directories ()
     "Return the list of system configuration directories for common-lisp.
-DEPRECATED. Use UIOP:CONFIG-SYSTEM-PATHNAMES instead."
+DEPRECATED. Use UIOP:SYSTEM-CONFIG-PATHNAMES (with argument \"common-lisp\"),
+instead."
     (system-config-pathnames "common-lisp"))
   (defun in-first-directory (dirs x &key (direction :input))
     "Finds the first appropriate file named X in the list of DIRS for I/O
