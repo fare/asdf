@@ -25,4 +25,5 @@
                              (declare (ignorable c))
                              (format t "~&Catching bad name warning: ~A~%" c)
                              (throw 'bad-name-warn nil))))
-     (find-system "cl-ppcre"))))
+     (let ((asdf::*known-name-exception-systems* '("test-bad-system-name")))
+       (find-system "test-bad-system-name")))))
