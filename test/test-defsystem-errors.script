@@ -1,6 +1,7 @@
 ;;; -*- Lisp -*-
 
 (defun defsystem-error-handler (form &optional (error 'error))
+  (declare (ignore error))
   (handler-case (eval form)
     (error () t)
     (:no-error (&rest values)
@@ -16,3 +17,12 @@
 (defsystem-error (non-toplevel-system)
     :foo :components ((:system :bar)))
 
+;;; test for my kluge for cl-ppcre
+(assert
+ (catch 'bad-name-warn
+   (handler-bind
+       ((bad-system-name #'(lambda (c)
+                             (declare (ignorable c))
+                             (format t "~&Catching bad name warning: ~A~%" c)
+                             (throw 'bad-name-warn nil))))
+     (find-system "cl-ppcre"))))
