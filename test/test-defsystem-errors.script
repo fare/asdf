@@ -25,5 +25,6 @@
                              (declare (ignorable c))
                              (format t "~&Catching bad name warning: ~A~%" c)
                              (throw 'bad-name-warn nil))))
-     (let ((asdf::*known-name-exception-systems* '("test-bad-system-name")))
+     (let ((asdf::*known-systems-with-bad-secondary-system-names*
+            (list-to-hash-set '("test-bad-system-name"))))
        (find-system "test-bad-system-name")))))

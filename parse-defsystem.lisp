@@ -17,7 +17,8 @@
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
    #:non-toplevel-system #:non-system-system #:bad-system-name
-   #:*known-name-exception-systems*
+   #:*known-systems-with-bad-secondary-system-names*
+   #:known-system-with-bad-secondary-system-names-p
    #:sysdef-error-component #:check-component-input
    #:explain))
 (in-package :asdf/parse-defsystem)
@@ -345,7 +346,12 @@ system names contained using COERCE-NAME. Return the result."
            (coerce-name (component-system component))))
         component)))
 
-  (defparameter* *known-name-exception-systems* '("cl-ppcre"))
+  (defparameter* *known-systems-with-bad-secondary-system-names*
+    (list-to-hash-set '("cl-ppcre")))
+  (defun known-system-with-bad-secondary-system-names-p (asd-name)
+    ;; Does .asd file with name ASD-NAME contain known exceptions
+    ;; that should be screened out of checking for BAD-SYSTEM-NAME?
+    (gethash asd-name *known-systems-with-bad-secondary-system-names*))
 
   (defun register-system-definition
       (name &rest options &key pathname (class 'system) (source-file () sfp)
@@ -360,21 +366,15 @@ system names contained using COERCE-NAME. Return the result."
      (with-asdf-session ())
      (let* ((name (coerce-name name))
             (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))))
-     (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))
-            (known-exception (name)
-              ;; is NAME a known exception that should be screened out
-              ;; of checking for BAD-SYSTEM-NAME?
-              (member-if #'(lambda (x) (uiop:string-prefix-p x name))
-                                  *known-name-exception-systems*))))
+     (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))))
      (let* ((asd-name (and source-file
                            (equal "asd" (fix-case (pathname-type source-file)))
                            (fix-case (pathname-name source-file))))
-            ;; note that PRIMARY-NAME is a *syntactically* primary name --
-            ;; so "cl-ppcre-test" (grrr.....) is a PRIMARY-NAME.
+            ;; note that PRIMARY-NAME is a *syntactically* primary name
             (primary-name (primary-system-name name)))
        (when (and asd-name
                   (not (equal asd-name primary-name))
-                  (not (known-exception primary-name)))
+                  (not (known-system-with-bad-secondary-system-names-p asd-name)))
          (warn (make-condition 'bad-system-name :source-file source-file :name name))))
      (let* (;; NB: handle defsystem-depends-on BEFORE to create the system object,
             ;; so that in case it fails, there is no incomplete object polluting the build.
