@@ -40,7 +40,7 @@ you already have a matching UIOP loaded."
    (:file "image" :depends-on ("stream"))
    (:file "lisp-build" :depends-on ("image"))
    (:file "launch-program" :depends-on ("stream"))
-   (:file "run-program" :depends-on ("launch-program"))
+   (:file "run-program" :depends-on ("launch-program" "version"))
    (:file "configuration" :depends-on ("image"))
    (:file "backward-driver" :depends-on ("lisp-build" "run-program" "configuration" "version"))
    (:file "driver" :depends-on ("backward-driver")))
