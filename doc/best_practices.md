@@ -185,7 +185,7 @@ The `:perform` clause in the second system does the testing itself.
 In the test system, `fiveam` is the name of a popular test library,
 and the content of the `perform` method is how to invoke this library
 to run the test suite `:foobar`.
-Obvious YMMV if you use a different library.
+Obviously your mileage may vary if you use a different library.
 
 #### <a name="notes_asdf2"></a>Note on ASDF 2 compatibility
 
@@ -773,7 +773,7 @@ in a separate `.asd` file that you `:defsystem-depends-on`.
 Then, `.asd` files are read with the current package being `asdf-user`.
 You MAY use any symbols defined in packages `cl`, `asdf` and `uiop`,
 and you SHOULD stay in package `asdf-user` if it suffices;
-you SHOULD NOT needlessly create a package for you system definition file
+you SHOULD NOT needlessly create a package for your system definition file
 if you're not going to define any such function nor variable nor macro.
 But you MUST NOT pollute that package with bindings that could clash with uses by other systems.
 
@@ -830,7 +830,7 @@ to the otherwise deprecated use of read-time conditionals, as in:
 If the condition you want to express doesn't have a corresponding `*features*` keyword,
 you MAY use a `(when ... (pushnew :my-keyword *features*))` form to add a feature keyword for it.
 However, you SHOULD NOT needlessly push new features;
-in particular, the mere fact of have loaded your system does not warrant a new feature.
+in particular, the mere fact of having loaded your system does not warrant a new feature.
 A feature is only warranted if your system is some deep infrastructure
 with mostly compatible rivals that it needs to be distinguished from.
 
