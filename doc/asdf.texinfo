@@ -934,15 +934,17 @@ ASDF hooks into the @code{cl:require} facility and you can just use:
 (require :@var{foo})
 @end example
 
-Note that the canonical name of a system is a string, conventionally lowercase.
-A system name can also be specified as a symbol (including a keyword),
-in which case its @code{symbol-name} is taken and lowercased.
+Note that the canonical name of a system is a string, in @emph{lowercase}.
+System names can also be specified as symbols (including keyword
+symbols).
+If a symbol is given as argument, its package is ignored,
+its @code{symbol-name} is taken, and converted to lowercase.
 The name must be a suitable value for the @code{:name} initarg
 to @code{make-pathname} in whatever filesystem the system is to be found.
 
-The lower-casing-symbols behaviour is unconventional,
+Using lowercase as canonical is unconventional,
 but was selected after some consideration.
-The type of systems we want to support
+The type of file systems we  support
 either have lowercase as customary case (Unix, Mac, Windows)
 or silently convert lowercase to uppercase (lpns).
 @c so this makes more sense than attempting to use @code{:case :common},
@@ -1505,8 +1507,15 @@ feature-expression := keyword
 
 @subsection Component names
 
-Component names (@code{simple-component-name})
-may be either strings or symbols.
+Component names (@code{simple-component-name}) may be either strings or
+symbols.  It is safest to use lower case exclusively for component
+names, and avoid underscores.  Note that system names @emph{must} be
+lower case, and symbols will be interpreted as shorthand for the string
+that is their @code{symbol-name}, converted to lower case.
+
+Violating these constraints may lead to systems or components being
+impossible to find, especially for users who have configured ASDF using
+logical pathnames.
 
 @subsection Component types
 @anchor{Component types}
@@ -1642,12 +1651,16 @@ If a symbol is given, it will be translated into a string,
 and downcased in the process.
 The downcasing of symbols is unconventional,
 but was selected after some consideration.
-Observations suggest that the type of systems we want to support
-either have lowercase as customary case (Unix, Mac, windows)
+The file systems we  support
+either have lowercase as customary case (Unix, Mac, Windows)
 or silently convert lowercase to uppercase (lpns),
 so this makes more sense than attempting to use @code{:case :common}
 as argument to @code{make-pathname},
 which is reported not to work on some implementations.
+
+Please avoid using underscores in system names, or component (module or
+file) names,  since underscores are not
+compatible with logical pathnames (@pxref{Using logical pathnames}).
 
 Pathname objects may be given to override the path for a component.
 Such objects are typically specified using reader macros such as @code{#p}
