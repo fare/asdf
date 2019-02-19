@@ -1,5 +1,9 @@
 ;;; -*- Lisp -*-
 (in-package :asdf-test)
+
+(when (member :clisp *features*)
+  (quit 0))
+
 (defparameter *lambda-string* nil)
 
 (defun string-char-codes (s)
