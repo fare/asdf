@@ -372,12 +372,18 @@ upgrade_tags () {
     # The 3.3 series provides the asdf3.3 feature, meaning users can rely on
     # all its new features (proper phase separation) as well as earlier features.
     #   3.3.0 (2017-10-06) first in 3.3 series
-    #   3.3.1 (2017-11-14) bug fixes, second and latest in 3.3 series
+    #   3.3.1 (2017-11-14) bug fixes, second
+    #   3.3.2 (2018-05-03) bug fixes, third and latest in 3.3 series
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
     # We picked the last and first in each relevant series, plus 2.26.
-    echo REQUIRE 3.3.1 3.3.0 3.2.1 3.2.0 3.1.7 3.1.2 3.0.3 2.26
+
+    if [ "$lisp" = cmucl ]; then
+        echo REQUIRE 3.3.2 3.3.1 3.3.0
+    else
+        echo REQUIRE 3.3.2 3.3.1 3.3.0 3.2.1 3.2.0 3.1.7 3.1.2 3.0.3 2.26
+    fi
 
     #echo 3.1.7 3.1.6 3.1.5 3.1.4 3.1.3 3.1.2
     #echo 3.0.3 3.0.2 3.0.1
