@@ -1421,7 +1421,15 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
 
 
 @example
-system-definition := ( defsystem system-designator @var{system-option}* )
+system-definition := ( defsystem system-designator @var{system-option}*)
+
+system-designator := simple-component-name | complex-component-name
+
+simple-component-name := lower-case string  | symbol
+           NOTE: Underscores are not permitted.  See below.
+
+complex-component-name := string | symbol
+            See below.
 
 system-option := :defsystem-depends-on system-list
                  | :weakly-depends-on @var{system-list}
@@ -1487,6 +1495,10 @@ simple-component-name := string
                       |  symbol
 
 pathname-specifier := pathname | string | symbol
+                   NOTE: pathnames should be all lower case, and have no
+                   underscores, although hyphens are permitted.
+
+
 
 version-specifier := string
                      | (:read-file-form <pathname-specifier> <form-specifier>?)
@@ -1504,18 +1516,50 @@ feature-expression := keyword
                       | (:not @var{feature-expression})
 @end example
 
+@subsection System designators
 
-@subsection Component names
+System designators are either simple component names, or
+complex (``slashy'') component names.
 
-Component names (@code{simple-component-name}) may be either strings or
-symbols.  It is safest to use lower case exclusively for component
-names, and avoid underscores.  Note that system names @emph{must} be
-lower case, and symbols will be interpreted as shorthand for the string
-that is their @code{symbol-name}, converted to lower case.
+@subsection Simple component names (@code{simple-component-name})
 
-Violating these constraints may lead to systems or components being
-impossible to find, especially for users who have configured ASDF using
-logical pathnames.
+Simple component names may be written as either strings or symbols.
+
+When using strings, use lower case exclusively.
+
+Symbols will be interpreted as convenient shorthand for the string
+that is their @code{symbol-name}, converted to lower case.  Put
+differently, a symbol may be a simple component name @emph{designator},
+but the simple component name itself is the string.
+
+@strong{Never}  use underscores in  component names, whether written as
+strings or symbols.
+
+@strong{Never} use slashes (``/'') in simple component names.  A slash
+indicates a @emph{complex} component name; see below.  Using a slash
+improperly will cause ASDF to issue a warning.
+
+Violating these constraints by mixing case, or including underscores in
+component names, may lead to systems or components being impossible to
+find, because component names are interpreted as file names.  These
+problems will @emph{definitely} occur for users who have configured ASDF
+using logical pathnames.
+
+@subsection Complex component names
+
+A complex component name is a master name followed by a slash, followed
+by a subsidiary name.  This allows programmers to put multiple system
+definitions in a single @code{.asd} file, while still allowing ASDF to
+find these systems.
+
+The master name of a complex system @strong{must} be the same as the
+name of the @code{.asd} file.
+
+The file @code{foo.asd} will contain the definition of the system
+@code{"foo"}.  However, it may @emph{also} contain definitions of
+subsidiary systems, such as @code{"foo/test"}, @code{"foo/docs"}, and so
+forth.  ASDF will ``know'' that if you ask it to load system
+@code{"foo/test"} it should look for that system's definition in @code{foo.asd}.
 
 @subsection Component types
 @anchor{Component types}
