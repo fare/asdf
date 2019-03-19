@@ -448,7 +448,6 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                             (shell-boolean-exit
                              (restore-image))))))))
                  (when forms `(progn ,@forms))))))
-      #+(or clasp ecl mkcl)
       (check-type kind (member :dll :shared-library :lib :static-library
                                :fasl :fasb :program))
       (apply #+clasp 'cmp:builder #+clasp kind
