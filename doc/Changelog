@@ -1,3 +1,29 @@
+cl-asdf (2:3.3.3-1) unstable; urgency=low
+
+  Bug fix release:
+  * Dependency tracking: fix bugs in handling misnamed secondary systems.
+    We now distinguish between "syntactic" and "semantic" primariness,
+    properly warn in case a secondary system is misnamed, yet properly
+    recompile or avoid spurious recompilation depending on whether
+    there or not is a conflict or redefinition.
+    Similarly handle package-inferred-system (thanks to Eric Timmons).
+    Better warning in a fishy case of compute-action-stamp.
+  * UIOP: Fix loading, allow the user to specify UIOP location from which
+	to load.
+  * SBCL compatibility: Fix issue with deferred warnings on SBCL.
+  * Allegro compatibility: Fix issue detecting "modern" lisp.
+  * Genera compatibility: Fix minor issues.  Not fully tested.
+  * ECL compatibility: Bundling fixes.
+  * Fiveam-ASDF: Added to contrib/ example system for integrating FiveAM
+    tests with ASDF's test-op.
+  * Miscellaneous fixes: Avoid an infinite loop parsing :perform options,
+	quash warnings for known bad system names that won't be fixed.
+  * Documentation: Multiple user-contributed documentation fixes.
+  * Tests: Miscellaneous improvements.
+
+ -- FIXME: Faré to sign and timestamp
+
+
 cl-asdf (2:3.3.2-1) unstable; urgency=low
 
   Bug fix release:
