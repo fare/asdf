@@ -1,8 +1,8 @@
-Today we release ASDF 3.3.3, the third bugfix release for the 3.3 release series.
+In honor of the 2019 European Lisp Symposium, today we release ASDF 3.3.3, the third bugfix release for the 3.3 release series.
 
 We urge implementations that are currently bundling previous versions of ASDF -- and especially those bundling 3.3.0 or 3.3.1 -- to upgrade to 3.3.3 at their earliest convenience.
 
-Immense thanks, as always, to Fare Rideau.  Also thanks to the many bug reporters and patch submitters including (alphabetically):
+Immense thanks, as always, to Faré Rideau.  Also thanks to the many bug reporters and patch submitters including (alphabetically):
 
 *  Marius Gerbershagen
 *  Hugo Ishimaru
