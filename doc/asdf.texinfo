@@ -36,11 +36,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{https://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2018 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2019 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2018 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2019 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2018 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2019 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

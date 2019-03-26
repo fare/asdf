@@ -21,8 +21,7 @@ cl-asdf (2:3.3.3-1) unstable; urgency=low
   * Documentation: Multiple user-contributed documentation fixes.
   * Tests: Miscellaneous improvements.
 
- -- FIXME: Faré to sign and timestamp
-
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 27 Mar 2019 17:33:42 -0400
 
 cl-asdf (2:3.3.2-1) unstable; urgency=low
 

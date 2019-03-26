@@ -37,15 +37,18 @@
           Your Lisp implementation probably contains a copy of ASDF,
           which you can load using <kbd>(require "asdf")</kbd>.
         </p><p>
-          ASDF 3 is the current successor to Daniel Barlow's ASDF.
+          ASDF 3 is the current successor to
+          Daniel Barlow's ASDF (created on August 1st 2001) and
+          Fran&ccedil;ois-Ren&eacute; Rideau's ASDF 2 (released May 31st 2010).
           It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
-          and the ability to deliver standalone executables.
+          and the ability to deliver standalone executables,
+          all while maintaining substantial backward compatibility.
           Its notable versions include pre-release 2.27 on February 1st 2013,
           first stable release 3.0.1 on May 16th 2013,
           major releases 3.1.2 on May 6th 2014,
           3.2.0 on January 10th 2017 and 3.3.0 on October 6th 2017.
-          The latest release is 3.3.1, published on November 4th 2017.
+          The latest release is 3.3.3, published on March 27th 2019.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -118,8 +121,9 @@
               <a href="https://gitlab.common-lisp.net/asdf/asdf/blob/master/uiop/README.md">README.md</a>
               for an overview,
               and the documentation as extracted from its docstrings by
+              <a href="https://quickref.common-lisp.net/uiop.html">Declt</a> or
               <a href="http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html">HEΛP</a>
-              (NB: you can, though it's not obvious,
+              (NB: in HEΛP, you can, though it's not obvious,
               scroll the list of packages with a scrollbar
               on the right of the top-left pane,
               and then click on the package you're interested in
@@ -651,6 +655,10 @@ Corman Common Lisp <admin@cormanlisp.com>
         <p>For a detailed description of changes see our <a href="Changelog">Changelog</a>
         </p>
         <dl>
+          <dt>March 2019</dt>
+          <dd>Release of 3.3.3: third bugfix release for the 3.3 release series.</dd>
+          <dt>May 2018</dt>
+          <dd>Release of 3.3.2: second bugfix release for the 3.3 release series.</dd>
           <dt>November 2017</dt>
           <dd>Release of 3.3.1: bugfix release for 3.3.0 addressing
             a backwards-incompatibility issue with timestamp computations,
@@ -772,9 +780,9 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2017 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2019 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2017-12-01</div>
+        <div id="timestamp">Last updated 2019-03-27</div>
     </div>
   </body>
 </html>
