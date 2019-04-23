@@ -167,7 +167,7 @@ Using ASDF internals
 --------------------
 
 If you have to use or extend internal functionality not currently exported by
-ASDF, please contact us and have us negociate a proper, stable, tested interface
+ASDF, please contact us and have us negotiate a proper, stable, tested interface
 that you can actually rely on. Also, please *DO NOT* refer to specific
 subpackages such as `asdf/find-system` from the outside of ASDF, because
 functions may occasionally be moved from one internal package to the other,
