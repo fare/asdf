@@ -10,10 +10,10 @@ webfiles = ${output}
 
 .PHONY: clean html pdf include clean-include clean-crap info doc texinfo website
 
+all: pdf html info clean-crap
+
 website: all
 	rsync -lt --no-g ${webfiles} ${website}
-
-all: pdf html info clean-crap
 
 clean-include:
 	rm -rf include
