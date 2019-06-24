@@ -209,7 +209,7 @@ Subdirectories should NOT be returned.
 override the default at your own risk.
   DIRECTORY-FILES tries NOT to resolve symlinks if the implementation permits this,
 but the behavior in presence of symlinks is not portable. Use IOlib to handle such situations."
-    (let ((dir (pathname directory)))
+    (let ((dir (ensure-directory-pathname directory)))
       (when (logical-pathname-p dir)
         ;; Because of the filtering we do below,
         ;; logical pathnames have restrictions on wild patterns.
