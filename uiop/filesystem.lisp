@@ -490,7 +490,10 @@ resolving them with respect to GETCWD if the DEFAULTS were relative"
     "call the THUNK in a context where the current directory was changed to DIR, if not NIL.
 Note that this operation is usually NOT thread-safe."
     (if dir
-        (let* ((dir (resolve-symlinks* (get-pathname-defaults (pathname-directory-pathname dir))))
+        (let* ((dir (resolve-symlinks*
+                     (get-pathname-defaults
+                      (ensure-directory-pathname
+                       dir))))
                (cwd (getcwd))
                (*default-pathname-defaults* dir))
           (chdir dir)

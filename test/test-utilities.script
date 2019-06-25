@@ -1,5 +1,8 @@
 ;;; -*- Lisp -*-
-
+(in-package :asdf-test)
+;; the following should not be necessary, because of `frob-packages`
+;; call, but somehow is. [2019/06/25:rpg]
+(use-package :uiop :asdf-test)
 (proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
 
 (defun getcwd-from-run-program ()
@@ -318,9 +321,7 @@
 (assert (probe-file* (subpathname *build-directory* "deleteme/a/b/2")))
 (DBG "check to make sure DIRECTORY-FILES doesn't list subdirectories")
 (let ((directory-a (directory-files (subpathname *build-directory* "deleteme/a/")))
-      (directory-a-no-slash (directory-files (subpathname *build-directory* "deleteme/a")))
-      (directory-b (directory-files (subpathname *build-directory* "deleteme/a/b/")))
-      (directory-b-no-slash (directory-files (subpathname *build-directory* "deleteme/a/b"))))
+      (directory-b (directory-files (subpathname *build-directory* "deleteme/a/b/"))))
   (assert-pathnames-equal directory-a (list (subpathname *build-directory* "deleteme/a/1.x")))
   (assert-pathnames-equal directory-b (list (subpathname *build-directory* "deleteme/a/b/2"))))
 (DBG "check to make sure DIRECTORY-FILES checks its parameter for directory pathname")
@@ -328,10 +329,31 @@
       (directory-b-no-slash (directory-files (subpathname *build-directory* "deleteme/a/b"))))
   (assert-pathnames-equal directory-a-no-slash (list (subpathname *build-directory* "deleteme/a/1.x")))
   (assert-pathnames-equal directory-b-no-slash (list (subpathname *build-directory* "deleteme/a/b/2"))))
+
+(DBG "check to make sure WITH-CURRENT-DIRECTORY checks its parameter for directory pathname")
+(let ((directory-a-no-slash (subpathname *build-directory* "deleteme/a"))
+      (directory-b-no-slash (subpathname *build-directory* "deleteme/a/b")))
+  (assert (eq 'with-current-directory 'uiop:with-current-directory))
+  (with-current-directory (directory-a-no-slash)
+   (assert-pathnames-equal (directory-files (getcwd))  (list (subpathname *build-directory* "deleteme/a/1.x"))))
+  (with-current-directory (directory-b-no-slash)
+   (assert-pathnames-equal (directory-files (getcwd)) (list (subpathname *build-directory* "deleteme/a/b/2")))
+    (assert-pathnames-equal
+   (sort (subdirectories (getcwd)) #'string< :key #'(lambda (x) (car (last (pathname-directory x)))))
+   (list (subpathname *build-directory* "deleteme/a/b/c/")
+         (subpathname *build-directory* "deleteme/a/b/d/")
+         (subpathname *build-directory* "deleteme/a/b/e/")))))
+
+
 (DBG "check to make sure SUBDIRECTORIES does list subdirectories")
 (let ((directory-a (subdirectories (subpathname *build-directory* "deleteme/a/")))
       (directory-b (subdirectories (subpathname *build-directory* "deleteme/a/b/"))))
   (assert-pathnames-equal directory-a (list (subpathname *build-directory* "deleteme/a/b/")))
+
+  ;; trailing slash should not be necessary...
+  (assert-pathnames-equal (subdirectories (subpathname *build-directory* "deleteme/a"))
+                          (list (subpathname *build-directory* "deleteme/a/b/")))
+
   (assert-pathnames-equal
    (sort directory-b #'string< :key #'(lambda (x) (car (last (pathname-directory x)))))
    (list (subpathname *build-directory* "deleteme/a/b/c/")
