@@ -16,3 +16,9 @@
 ;; Test that primary system name returns the correct value when called with a
 ;; package-inferred-system object.
 (assert-equal "package-inferred-system-test" (primary-system-name (find-system :package-inferred-system-test/a/x)))
+
+;; Test that SBCL's :local-nicknames are recognized
+#+sbcl
+(progn
+  (load-system :package-inferred-system-test/local-nicknames-1)
+  (assert-equal "g" (symbol-call :package-inferred-system-test/local-nicknames-1 :f)))
