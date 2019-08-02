@@ -1456,6 +1456,7 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
 @defrule{system-option} :defsystem-depends-on @refrule{system-list}
                | :weakly-depends-on @refrule{system-list}
                | :class @var{class-name} # @pxref{System class names}
+               | :build-pathname @refrule{pathname-specifier}
                | :build-operation @refrule{operation-name}
                | @refrule{system-option/asdf3}
                | @refrule{module-option}
@@ -1476,7 +1477,11 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
 @defrule{module-option} :components @refrule{component-list}
                | :serial [ t | nil ]
 
-@defrule{option} :pathname @refrule{pathname-specifier}
+@defrule{option} :description @var{string}
+        | :long-description @var{string}
+        | :author @refrule{person-or-persons}
+        | :maintainer @refrule{person-or-persons}
+        | :pathname @refrule{pathname-specifier}
         | :default-component-class @var{class-name}
         | :perform @refrule{method-form}
         | :explain @refrule{method-form}
@@ -1485,6 +1490,8 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
         | :if-feature @refrule{feature-expression}
         | :depends-on ( @refrule{dependency-def}* )
         | :in-order-to ( @refrule{dependency}+ )
+
+@defrule{person-or-persons} @var{string} | ( @var{string}+ )
 
 @defrule{system-list} ( @refrule{simple-component-name}* )
 
