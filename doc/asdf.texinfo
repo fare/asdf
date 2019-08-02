@@ -1416,104 +1416,126 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
 @findex defsystem
 @cindex DEFSYSTEM grammar
 
-@c FIXME: @var typesetting not consistently used here.  We should either expand
-@c its use to everywhere, or we should kill it everywhere.
+@macro defrule {NAME}
+@anchor{rule-\NAME\}\NAME\ :=
+@end macro
 
+@ifhtml
+@macro refrule {NAME}
+@ref{rule-\NAME\,\NAME\}
+@end macro
+@end ifhtml
+
+@ifinfo
+@macro refrule {NAME}
+@ref{rule-\NAME\,\NAME\,\NAME\,\NAME\}
+@end macro
+@end ifinfo
+
+@ifnothtml
+@ifnotinfo
+@macro refrule {NAME}
+\NAME\
+@end macro
+@end ifnotinfo
+@end ifnothtml
 
 @example
-system-definition := ( defsystem system-designator @var{system-option}*)
+@defrule{system-definition} ( defsystem @refrule{system-designator} @refrule{system-option}* )
 
-system-designator := simple-component-name | complex-component-name
+@defrule{system-designator} @refrule{simple-component-name}
+                   | @refrule{complex-component-name}
 
-simple-component-name := lower-case string  | symbol
-           NOTE: Underscores are not permitted.  See below.
+# NOTE: Underscores are not permitted.
+# @pxref{Simple component names,Simple component names,Simple component names}
+@defrule{simple-component-name} @var{lower-case string} | @var{symbol}
 
-complex-component-name := string | symbol
-            See below.
+# @pxref{Complex component names,Complex component names,Complex component names}
+@defrule{complex-component-name} @var{string} | @var{symbol}
 
-system-option := :defsystem-depends-on system-list
-                 | :weakly-depends-on @var{system-list}
-                 | :class class-name # @pxref{System class names}
-                 | :build-operation @var{operation-name}
-                 | system-option
-                 | module-option
-                 | option
+@defrule{system-option} :defsystem-depends-on @refrule{system-list}
+               | :weakly-depends-on @refrule{system-list}
+               | :class @var{class-name} # @pxref{System class names}
+               | :build-pathname @refrule{pathname-specifier}
+               | :build-operation @refrule{operation-name}
+               | @refrule{system-option/asdf3}
+               | @refrule{module-option}
+               | @refrule{option}
 
-# These are only available since ASDF 3 (actually its alpha release 2.27)
-system-option := :homepage string
-                 | :bug-tracker string
-                 | :mailto string
-                 | :long-name string
-                 | :source-control source-control
-                 | :version version-specifier
-                 | :entry-point object # @pxref{Entry point}
+# These are only available since ASDF 3 (actually its alpha release
+# 2.27)
+@defrule{system-option/asdf3} :homepage @var{string}
+                     | :bug-tracker @var{string}
+                     | :mailto @var{string}
+                     | :long-name @var{string}
+                     | :source-control @refrule{source-control}
+                     | :version @refrule{version-specifier}
+                     | :entry-point @var{object} # @pxref{Entry point}
 
-source-control := (keyword string)
+@defrule{source-control} ( @var{keyword} @var{string} )
 
-module-option := :components component-list
-                 | :serial [ t | nil ]
+@defrule{module-option} :components @refrule{component-list}
+               | :serial [ t | nil ]
 
-option :=
-        | :pathname pathname-specifier
-        | :default-component-class class-name
-        | :perform method-form
-        | :explain method-form
-        | :output-files method-form
-        | :operation-done-p method-form
-        | :if-feature feature-expression
-        | :depends-on ( @var{dependency-def}* )
-        | :in-order-to ( @var{dependency}+ )
+@defrule{option} :description @var{string}
+        | :long-description @var{string}
+        | :author @refrule{person-or-persons}
+        | :maintainer @refrule{person-or-persons}
+        | :pathname @refrule{pathname-specifier}
+        | :default-component-class @var{class-name}
+        | :perform @refrule{method-form}
+        | :explain @refrule{method-form}
+        | :output-files @refrule{method-form}
+        | :operation-done-p @refrule{method-form}
+        | :if-feature @refrule{feature-expression}
+        | :depends-on ( @refrule{dependency-def}* )
+        | :in-order-to ( @refrule{dependency}+ )
 
+@defrule{person-or-persons} @var{string} | ( @var{string}+ )
 
-system-list := ( @var{simple-component-name}* )
+@defrule{system-list} ( @refrule{simple-component-name}* )
 
-component-list := ( @var{component-def}* )
+@defrule{component-list} ( @refrule{component-def}* )
 
-component-def  := ( component-type simple-component-name @var{option}* )
+@defrule{component-def} ( @refrule{component-type} @refrule{simple-component-name} @refrule{option}* )
 
-component-type := :module | :file | :static-file | other-component-type
+@defrule{component-type} :module | :file | :static-file | @refrule{other-component-type}
 
-other-component-type := symbol-by-name
-                        # @pxref{Component types}
+@defrule{other-component-type} symbol-by-name # @pxref{Component types}
 
-# This is used in :depends-on, as opposed to ``dependency,''
-# which is used in :in-order-to
-dependency-def := simple-component-name
-               | ( :feature @var{feature-expression} dependency-def )
-                 # @pxref{Feature dependencies}
-               | ( :version simple-component-name version-specifier )
-               | ( :require module-name )
+# This is used in :depends-on, as opposed to "dependency", which is used
+# in :in-order-to
+@defrule{dependency-def} @refrule{simple-component-name}
+                | ( :feature @refrule{feature-expression} @refrule{dependency-def} ) # @pxref{Feature dependencies}
+                | ( :version @refrule{simple-component-name} @refrule{version-specifier} )
+                | ( :require @var{module-name} )
 
-# ``dependency'' is used in :in-order-to, as opposed to
-# ``dependency-def''
-dependency := (dependent-op @var{requirement}+)
-requirement := (required-op @var{required-component}+)
-dependent-op := operation-name
-required-op := operation-name
+# "dependency" is used in :in-order-to, as opposed to "dependency-def"
+@defrule{dependency} ( @refrule{dependent-op} @refrule{requirement}+ )
+@defrule{requirement} ( @refrule{required-op} @var{required-component}+ )
+@defrule{dependent-op} @refrule{operation-name}
+@defrule{required-op} @refrule{operation-name}
 
-simple-component-name := string
-                      |  symbol
+# NOTE: pathnames should be all lower case, and have no underscores,
+# although hyphens are permitted.
+@defrule{pathname-specifier} @var{pathname} | @var{string} | @var{symbol}
 
-pathname-specifier := pathname | string | symbol
-                   NOTE: pathnames should be all lower case, and have no
-                   underscores, although hyphens are permitted.
+@defrule{version-specifier} @var{string}
+                   | ( :read-file-form @refrule{pathname-specifier} @refrule{form-specifier}? )
+                   | ( :read-file-line @refrule{pathname-specifier} @refrule{line-specifier}? )
+@defrule{line-specifier} :at @var{integer} # base zero
+@defrule{form-specifier} :at [ @var{integer} | ( @var{integer}+ ) ]
 
+@defrule{method-form} ( @refrule{operation-name} @refrule{qual} @var{lambda-list} @Arest{} @var{body} )
+@defrule{qual} @refrule{method-qualifier}?
+@defrule{method-qualifier} :before | :after | :around
 
+@defrule{feature-expression} @var{keyword}
+                    | ( :and @refrule{feature-expression}* )
+                    | ( :or @refrule{feature-expression}* )
+                    | ( :not @refrule{feature-expression} )
 
-version-specifier := string
-                     | (:read-file-form <pathname-specifier> <form-specifier>?)
-                     | (:read-file-line <pathname-specifier> <line-specifier>?)
-line-specifier := :at integer # base zero
-form-specifier := :at [ integer | ( integer+ )]
-
-method-form := (operation-name qual lambda-list @Arest{} body)
-qual := method-qualifier?
-method-qualifier = :before | :after | :around
-
-feature-expression := keyword
-                      | (:and @var{feature-expression}*)
-                      | (:or @var{feature-expression}*)
-                      | (:not @var{feature-expression})
+@defrule{operation-name} @var{symbol}
 @end example
 
 @subsection System designators
@@ -1522,6 +1544,7 @@ System designators are either simple component names, or
 complex (``slashy'') component names.
 
 @subsection Simple component names (@code{simple-component-name})
+@anchor{Simple component names}
 
 Simple component names may be written as either strings or symbols.
 
@@ -1546,6 +1569,7 @@ problems will @emph{definitely} occur for users who have configured ASDF
 using logical pathnames.
 
 @subsection Complex component names
+@anchor{Complex component names}
 
 A complex component name is a master name followed by a slash, followed
 by a subsidiary name.  This allows programmers to put multiple system

@@ -4,7 +4,7 @@
   ((test-names
     :initarg :test-names
     :reader test-names
-    :documentation "A list whose elments are either
+    :documentation "A list whose elements are either
 cons cells of symbol and package designators or
 simply a symbol designator.
   In the latter case, the symbols will be interned
