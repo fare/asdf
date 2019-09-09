@@ -1003,8 +1003,6 @@ compiling, loading and testing.
 @c FIXME: the following is too complicated for here, especially since
 @c :force hasn't been defined yet.  Move it. [2014/02/27:rpg]
 
-@findex already-loaded-systems
-
 @defun load-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
 Apply @code{operate} with the operation @code{load-op}, the
 @var{system}, and any provided keyword arguments.  Calling
@@ -1079,6 +1077,13 @@ and transitively re-build the modified files and everything that depends on them
 ASDF itself never builds anything unless
 it's an explicitly requested system or the dependencies thereof).
 @end defun
+
+@defun already-loaded-systems
+Returns a list of names of the systems that have been successfully
+loaded so far.
+@end defun
+
+
 
 
 @node Moving on,  , Convenience Functions, Using ASDF
