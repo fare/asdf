@@ -685,20 +685,22 @@ it will filter them appropriately."
                       `(:output-file :compile-check :warnings-file
                                      #+clisp :lib-file #+(or clasp ecl mkcl) :object-file) keys))
            (output-file
-             (or output-file
-                 (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
+            (or output-file
+                (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
            (physical-output-file (physicalize-pathname output-file))
+           (tmp-file (tmpize-pathname physical-output-file))
            #+(or clasp ecl)
            (object-file
-             (unless (use-ecl-byte-compiler-p)
-               (or object-file
-                   #+ecl (compile-file-pathname output-file :type :object)
-                   #+clasp (compile-file-pathname output-file :output-type :object))))
+            (unless (use-ecl-byte-compiler-p)
+              (or object-file
+                  #+ecl (compile-file-pathname output-file :type :object)
+                  #+clasp (compile-file-pathname output-file :output-type :object))))
+           #+clasp
+           (tmp-object-file (compile-file-pathname tmp-file :output-type :object))
            #+mkcl
            (object-file
-             (or object-file
-                 (compile-file-pathname output-file :fasl-p nil)))
-           (tmp-file (tmpize-pathname physical-output-file))
+            (or object-file
+                (compile-file-pathname output-file :fasl-p nil)))
            #+sbcl
            (cfasl-file (etypecase emit-cfasl
                          (null nil)
@@ -714,18 +716,17 @@ it will filter them appropriately."
             (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
               (with-muffled-compiler-conditions ()
                 (or #-(or clasp ecl mkcl)
-                    (let (#+genera (si:*common-lisp-syntax-is-ansi-common-lisp* t))
-                      (apply 'compile-file input-file :output-file tmp-file
-                             #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
-                             #-sbcl keywords))
+                    (apply 'compile-file input-file :output-file tmp-file
+                           #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                           #-sbcl keywords)
                     #+ecl (apply 'compile-file input-file :output-file
-                                (if object-file
-                                    (list* object-file :system-p t keywords)
-                                    (list* tmp-file keywords)))
+                                 (if object-file
+                                     (list* object-file :system-p t keywords)
+                                     (list* tmp-file keywords)))
                     #+clasp (apply 'compile-file input-file :output-file
-                                  (if object-file
-                                      (list* object-file :output-type :object #|:system-p t|# keywords)
-                                      (list* tmp-file keywords)))
+                                   (if object-file
+                                       (list* tmp-object-file :output-type :object #|:system-p t|# keywords)
+                                       (list* tmp-file keywords)))
                     #+mkcl (apply 'compile-file input-file
                                   :output-file object-file :fasl-p nil keywords)))))
         (cond
@@ -738,15 +739,15 @@ it will filter them appropriately."
                   #+(or clasp ecl mkcl)
                   (when (and #+(or clasp ecl) object-file)
                     (setf output-truename
-                          (compiler::build-fasl tmp-file
-                           #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (list object-file))))
+                          (compiler::build-fasl
+                           tmp-file
+                           #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (list #+clasp tmp-object-file #-clasp object-file))))
                   (or (not compile-check)
                       (apply compile-check input-file
                              :output-file output-truename
                              keywords))))
            (delete-file-if-exists physical-output-file)
            (when output-truename
-             #+clasp (when output-truename (rename-file-overwriting-target tmp-file output-truename))
              ;; see CLISP bug 677
              #+clisp
              (progn
@@ -754,6 +755,15 @@ it will filter them appropriately."
                (unless lib-file (setf lib-file (make-pathname :type "lib" :defaults physical-output-file)))
                (rename-file-overwriting-target tmp-lib lib-file))
              #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
+             #+clasp
+             (progn
+               ;;; the following 3 rename-file-overwriting-target better be atomic, but we can't implement this right now
+               #+:target-os-darwin
+               (let ((temp-dwarf (pathname (concatenate 'string (namestring output-truename) ".dwarf")))
+                     (target-dwarf (pathname (concatenate 'string (namestring physical-output-file) ".dwarf"))))
+                 (when (probe-file temp-dwarf)
+                   (rename-file-overwriting-target temp-dwarf target-dwarf)))
+               (rename-file-overwriting-target tmp-object-file object-file))
              (rename-file-overwriting-target output-truename physical-output-file)
              (setf output-truename (truename physical-output-file)))
            #+clasp (delete-file-if-exists tmp-file)
