@@ -716,9 +716,10 @@ it will filter them appropriately."
             (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
               (with-muffled-compiler-conditions ()
                 (or #-(or clasp ecl mkcl)
-                    (apply 'compile-file input-file :output-file tmp-file
-                           #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
-                           #-sbcl keywords)
+                    (let (#+genera (si:*common-lisp-syntax-is-ansi-common-lisp* t))
+                      (apply 'compile-file input-file :output-file tmp-file
+                             #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                             #-sbcl keywords))
                     #+ecl (apply 'compile-file input-file :output-file
                                  (if object-file
                                      (list* object-file :system-p t keywords)
@@ -757,12 +758,16 @@ it will filter them appropriately."
              #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
              #+clasp
              (progn
-               ;;; the following 3 rename-file-overwriting-target better be atomic, but we can't implement this right now
+               ;;; the following 4 rename-file-overwriting-target better be atomic, but we can't implement this right now
                #+:target-os-darwin
                (let ((temp-dwarf (pathname (concatenate 'string (namestring output-truename) ".dwarf")))
                      (target-dwarf (pathname (concatenate 'string (namestring physical-output-file) ".dwarf"))))
                  (when (probe-file temp-dwarf)
                    (rename-file-overwriting-target temp-dwarf target-dwarf)))
+               ;;; need to rename the bc or ll file as well or test-bundle.script fails
+               (rename-file-overwriting-target
+                (compile-file-pathname tmp-file :output-type :bitcode)
+                (compile-file-pathname physical-output-file :output-type :bitcode))
                (rename-file-overwriting-target tmp-object-file object-file))
              (rename-file-overwriting-target output-truename physical-output-file)
              (setf output-truename (truename physical-output-file)))
