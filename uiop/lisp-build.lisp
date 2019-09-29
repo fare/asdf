@@ -685,22 +685,22 @@ it will filter them appropriately."
                       `(:output-file :compile-check :warnings-file
                                      #+clisp :lib-file #+(or clasp ecl mkcl) :object-file) keys))
            (output-file
-            (or output-file
-                (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
+             (or output-file
+                 (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
            (physical-output-file (physicalize-pathname output-file))
-           (tmp-file (tmpize-pathname physical-output-file))
            #+(or clasp ecl)
            (object-file
-            (unless (use-ecl-byte-compiler-p)
-              (or object-file
-                  #+ecl (compile-file-pathname output-file :type :object)
-                  #+clasp (compile-file-pathname output-file :output-type :object))))
-           #+clasp
-           (tmp-object-file (compile-file-pathname tmp-file :output-type :object))
+             (unless (use-ecl-byte-compiler-p)
+               (or object-file
+                   #+ecl (compile-file-pathname output-file :type :object)
+                   #+clasp (compile-file-pathname output-file :output-type :object))))
            #+mkcl
            (object-file
-            (or object-file
-                (compile-file-pathname output-file :fasl-p nil)))
+             (or object-file
+                 (compile-file-pathname output-file :fasl-p nil)))
+           (tmp-file (tmpize-pathname physical-output-file))
+           #+clasp
+           (tmp-object-file (compile-file-pathname tmp-file :output-type :object))
            #+sbcl
            (cfasl-file (etypecase emit-cfasl
                          (null nil)
@@ -721,13 +721,13 @@ it will filter them appropriately."
                              #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
                              #-sbcl keywords))
                     #+ecl (apply 'compile-file input-file :output-file
-                                 (if object-file
-                                     (list* object-file :system-p t keywords)
-                                     (list* tmp-file keywords)))
+                                (if object-file
+                                    (list* object-file :system-p t keywords)
+                                    (list* tmp-file keywords)))
                     #+clasp (apply 'compile-file input-file :output-file
-                                   (if object-file
-                                       (list* tmp-object-file :output-type :object #|:system-p t|# keywords)
-                                       (list* tmp-file keywords)))
+                                  (if object-file
+                                      (list* tmp-object-file :output-type :object #|:system-p t|# keywords)
+                                      (list* tmp-file keywords)))
                     #+mkcl (apply 'compile-file input-file
                                   :output-file object-file :fasl-p nil keywords)))))
         (cond
@@ -740,8 +740,7 @@ it will filter them appropriately."
                   #+(or clasp ecl mkcl)
                   (when (and #+(or clasp ecl) object-file)
                     (setf output-truename
-                          (compiler::build-fasl
-                           tmp-file
+                          (compiler::build-fasl tmp-file
                            #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (list #+clasp tmp-object-file #-clasp object-file))))
                   (or (not compile-check)
                       (apply compile-check input-file
@@ -760,8 +759,8 @@ it will filter them appropriately."
              (progn
                ;;; the following 4 rename-file-overwriting-target better be atomic, but we can't implement this right now
                #+:target-os-darwin
-               (let ((temp-dwarf (pathname (concatenate 'string (namestring output-truename) ".dwarf")))
-                     (target-dwarf (pathname (concatenate 'string (namestring physical-output-file) ".dwarf"))))
+               (let ((temp-dwarf (pathname (strcat (namestring output-truename) ".dwarf")))
+                     (target-dwarf (pathname (strcat (namestring physical-output-file) ".dwarf"))))
                  (when (probe-file temp-dwarf)
                    (rename-file-overwriting-target temp-dwarf target-dwarf)))
                ;;; need to rename the bc or ll file as well or test-bundle.script fails
