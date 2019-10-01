@@ -420,9 +420,9 @@
     (clear-system "test-system")))
 
 (defun test-pathname-parsing ()
-  #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
+  #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl clasp)
   (DBG "Can't test pathname parsing: this lisp lacks SETENV support.")
-  #+(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
+  #+(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl clasp)
   (let ((old-config (uiop:getenvp "XDG_CONFIG_DIRS"))
         (old-home-config (uiop:getenvp "XDG_CONFIG_HOME")))
     (unwind-protect
