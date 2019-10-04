@@ -91,7 +91,7 @@
     (def-test-system :test-encoding-implicit-autodetect
       :components ((:file "lambda")))))
 
-#+sbcl
+#+(or sbcl clasp)
 (with-encoding-test (:koi8-r)
   (def-test-system :test-encoding-explicit-koi8-r
     :components ((:file "lambda" :encoding :koi8-r))))
