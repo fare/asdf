@@ -2,10 +2,10 @@
   ())
 
 (defmethod operation-done-p ((op load-op) (c never-done))
-  NIL)
+  nil)
 
 (defmethod operation-done-p ((op compile-op) (c never-done))
-  NIL)
+  nil)
 
 
 (defsystem "test-operation-done-p"
