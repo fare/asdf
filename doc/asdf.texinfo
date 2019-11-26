@@ -246,6 +246,7 @@ Issues with configuring ASDF
 
 * How can I customize where fasl files are stored?::
 * How can I wholly disable the compiler output cache?::
+* How can I debug problems finding ASDF systems::
 
 Issues with using and extending ASDF to define systems
 
@@ -5999,6 +6000,7 @@ please complain to Zach Beane about it.
 @menu
 * How can I customize where fasl files are stored?::
 * How can I wholly disable the compiler output cache?::
+* How can I debug problems finding ASDF systems::
 @end menu
 
 @node How can I customize where fasl files are stored?, How can I wholly disable the compiler output cache?, Issues with configuring ASDF, Issues with configuring ASDF
@@ -6022,7 +6024,7 @@ in the source directory of some system, and
 use @code{asdf:apply-output-translations} to locate a file
 whose pathname has been translated by the facility.
 
-@node How can I wholly disable the compiler output cache?,  , How can I customize where fasl files are stored?, Issues with configuring ASDF
+@node How can I wholly disable the compiler output cache?, How can I debug problems finding ASDF systems, How can I customize where fasl files are stored?, Issues with configuring ASDF
 @subsection ``How can I wholly disable the compiler output cache?''
 
 To permanently disable the compiler output cache
@@ -6058,6 +6060,47 @@ use (after loading ASDF but before using it):
 Note that this does @emph{NOT} belong in a @file{.asd} file.
 Please do not tamper with ASDF configuration from a @file{.asd} file,
 and only do this from your personal configuration or build scripts.
+
+@node How can I debug problems finding ASDF systems,  , How can I wholly disable the compiler output cache?, Issues with configuring ASDF
+@comment  node-name,  next,  previous,  up
+@subsection How can I debug problems finding ASDF systems?
+
+Sometimes ASDF will be unable to find and load your systems, although
+you believe that it should be able to.  There are a number of things you
+can do to debug such issues.
+
+@vindex *central-registry*
+If you are using @code{asdf:*central-registry*} (@pxref{Configuring ASDF to find your systems --- old style}),
+you can
+simply look at the pathnames and namestrings in this variable, and use
+conventional tools such as @code{cl:probe-file} and @code{cl:directory}
+to poke around and see why your systems are not being found.
+
+If you are using one of the newer methods for configuring ASDF's system
+finding (@pxref{Controlling where ASDF searches for systems}), you can try:
+
+@vindex *source-registry*
+@example
+(alexandria:hash-table-alist asdf/source-registry::*source-registry*)
+@end example
+
+(alphabetizing the results here may be helpful). Or for a higher-level
+view:
+
+@findex flatten-source-registry
+@example
+(asdf/source-registry:flatten-source-registry)
+@end example
+
+Finally, if you use the source registry cache (@pxref{Caching Results}), you can:
+@example
+find ~/common-lisp -name .cl-source-registry.cache
+@end example
+at the shell.
+
+It is still, unfortunately, an open question how to monitor ASDF's
+interpretation of its source configuration as it happens.
+
 
 @node Issues with using and extending ASDF to define systems, ASDF development FAQs, Issues with configuring ASDF, FAQ
 @section Issues with using and extending ASDF to define systems
