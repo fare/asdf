@@ -6450,9 +6450,10 @@ Also, bugs are currently tracked on launchpad:
 
 @itemize
 @item Andrey Mokhov, Neil Mitchell and Simon Peyton Jones:
-``Build Systems à la Carte'', 2018.
+  ``Build Systems à la Carte'',
+  International Conference on Functional Programming, 2018.
   @url{https://www.microsoft.com/en-us/research/uploads/prod/2018/03/build-systems-final.pdf}
-  This article provides axes along which to describe build systems in general;
+  This influential article provides axes along which to describe build systems in general;
   ASDF, in addition to being in-image (an axis not considered by these authors),
   has the following characteristics:
   ASDF's persistent build information is file modification times
@@ -6468,20 +6469,28 @@ Also, bugs are currently tracked on launchpad:
   in ``dynamic'' dependencies with a ``suspending'' scheduler.
   The rebuilder essentially uses a ``dirty bit'', except that the in-image model
   and the multiple phase support mean that's actually more than a bit:
-  instead three bits, the timestamp and a phase depth level.
+  instead it's three bits plus the timestamp plus a phase depth level.
   The build is guaranteed ``minimal'' in number of steps computed.
-  It is local; it assumes but does not enforce determinism;
-  it does not assume early cutoff of the build when rebuild dependencies didn't change.
+  It is local. It assumes but does not enforce determinism.
+  It does not assume early cutoff of the build when rebuild dependencies didn't change.
+@item Robert Goldman, Elias Pipping, and François-René Rideau:
+  ``Delivering Common Lisp Applications with ASDF 3.3'',
+  European Lisp Symposium, 2017.
+  @url{https://github.com/fare/asdf2017}
+  This short article gives an overview of the changes in ASDF 3.2 and 3.3, including
+  improved application delivery, asynchronous subprocess management,
+  correct support for multi-phase builds, and enhanced source location configuration.
 @item Francois-Rene Rideau:
-  ``ASDF 3, or Why Lisp is Now an Acceptable Scripting Language'', 2014.
+  ``ASDF 3, or Why Lisp is Now an Acceptable Scripting Language'',
+  European Lisp Symposium, 2014.
+  @url{https://github.com/fare/asdf3-2013}
   This article describes the innovations in ASDF 3 and 3.1,
   as well as historical information on previous versions.
-  @url{https://github.com/fare/asdf3-2013}
 @item Alastair Bridgewater:
   ``Quick-build'' (private communication), 2012.
   @code{quick-build} is a simple and robust one file, one package build system,
   similar to @code{faslpath}, in 182 lines of code
-  (117 of which are not blank, not comments, not docstrings).
+  (117 of which are neither blank nor comments nor docstrings).
   Unhappily, it remains unpublished and its IP status is unclear as of April 2014.
   @code{asdf/package-system} is mostly compatible with it,
   modulo a different setup for toplevel hierarchies.
@@ -6492,13 +6501,15 @@ Also, bugs are currently tracked on launchpad:
   @url{http://lispblog.xach.com/} (new)
   @url{http://xach.livejournal.com/} (old)
 @item Francois-Rene Rideau and Robert Goldman:
-  ``Evolving ASDF: More Cooperation, Less Coordination'', 2010.
+  ``Evolving ASDF: More Cooperation, Less Coordination'',
+  International Lisp Conference, 2010.
   This article describes the main issues solved by ASDF 2,
   and exposes its design principles.
   @url{https://common-lisp.net/project/asdf/ilc2010draft.pdf}
   @url{http://rpgoldman.goldman-tribe.org/papers/ilc2010-asdf.pdf}
 @item Francois-Rene Rideau and Spencer Brody:
-  ``XCVB: an eXtensible Component Verifier and Builder for Common Lisp'', 2009.
+  ``XCVB: an eXtensible Component Verifier and Builder for Common Lisp'',
+  International Lisp Conference, 2009.
   This article describes XCVB, a proposed competitor for ASDF;
   many of its ideas have been incorporated into ASDF 2 and 3,
   though many other ideas still haven't.
@@ -6511,7 +6522,7 @@ Also, bugs are currently tracked on launchpad:
   @url{https://code.google.com/p/faslpath/}
 @item Drew McDermott:
   ``A Framework for Maintaining the Coherence of a Running Lisp,''
-  International Lisp Conference, 2005, available in pre-print form at
+  International Lisp Conference, 2005.
   @url{http://www.cs.yale.edu/homes/dvm/papers/lisp05.pdf}
 @item Dan Barlow: ``ASDF Manual'', 2004.
   Older versions of this document from the days of ASDF 1;
@@ -6521,7 +6532,8 @@ Also, bugs are currently tracked on launchpad:
 @item Marco Antoniotti and Peter Van Eynde:
  ``@code{DEFSYSTEM}: A @code{make} for Common Lisp, A Thoughtful Re-Implementation of an Old Idea'', 2002.
   The @file{defsystem-4} proposal available in the CLOCC repository.
-@item Mark Kantrovitz: ``Defsystem: A Portable Make Facility for Common Lisp'', 1990.
+@item Mark Kantrovitz:
+  ``Defsystem: A Portable Make Facility for Common Lisp'', 1990.
   The classic @file{mk-defsystem}, later variants of which
   are available in the CLOCC repository as @code{defsystem-3.x}.
 @item Richard Elliot Robbins:
