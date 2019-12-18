@@ -2,6 +2,7 @@
 
 (in-package :asdf)
 (use-package :asdf-test)
+(import '(asdf-test::DBG))
 
 (defparameter *tmp-directory* (subpathname *asdf-directory* "build/"))
 (setf *central-registry* nil)
@@ -93,8 +94,15 @@
                     (:include ,(under-tmp-directory "dir9/dira/"))
                     :ignore-inherited-configuration))
 
-(format t "~&Source Registry: ~S~%"
-        asdf::*source-registry*)
+(defun dump-source-registry ()
+  (format t "~&Source Registry:~%")
+  (loop :for k :being :each hash-key :of *source-registry*
+     :using (hash-value v)
+        :do (format t "~a --> ~a~%" k v)))
+
+(dump-source-registry)
+
+
 (assert (find-system :foo0 nil))
 (assert (find-system :foo1 nil))
 (assert (find-system :foo2 nil))
@@ -111,3 +119,41 @@
         (under-tmp-directory "dir2/bar/baz.lisp"))
 (assert-equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
               (under-tmp-directory "dir2/bar/baz.lisp"))
+
+
+(DBG "Testing link farm found through source registry.")
+(defparameter *link-farm-directory* (under-tmp-directory "link-farm/"))
+
+
+
+(defun link-asd-files ()
+  (loop
+    :for d :in *tmp-asd-directories*
+    :for i :from 0
+    :as asd-file = (merge-pathnames* (format nil "foo~D.asd" i) d)
+    :do (assert (probe-file asd-file))
+        (run-program (format nil "ln -s ~a ~a" (namestring asd-file) (namestring *link-farm-directory*)))))
+
+;;; prepare for link farm test
+;; clean up first
+(describe *link-farm-directory*)
+(uiop:delete-directory-tree *link-farm-directory* :validate (lambda (x) (subpathp x *tmp-directory*)))
+;; create the link farm
+(ensure-directories-exist *link-farm-directory*)
+(link-asd-files)
+;;; test following symlinks
+(initialize-source-registry
+ `(:source-registry (:include ,(namestring *link-farm-directory*))
+   :ignore-inherited-configuration))
+(dump-source-registry)
+
+(assert (find-system :foo0 nil))
+(assert (find-system :foo1 nil))
+(assert (find-system :foo2 nil))
+(assert (find-system :foo3 nil))
+(assert (find-system :foo4 nil))
+(assert (not (find-system :foo5 nil)))
+(assert (find-system :foo6 nil))
+(assert (find-system :foo7 nil))
+(assert (find-system :foo8 nil))
+(assert (not (find-system :foo9 nil)))
