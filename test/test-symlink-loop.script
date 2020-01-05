@@ -55,7 +55,7 @@
          (assert (asdf:find-system :loop)))
     ;; clean up
     (DBG "Cleaning up")
-    (uiop:run-program (format nil "rm -r ~a" scratch-dir))))
+    (uiop:delete-directory-tree scratch-dir :validate (lambda (x) (subpathp x *test-directory*)))))
 
 (DBG "Exiting")
 (exit-lisp 0)
