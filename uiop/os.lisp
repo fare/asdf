@@ -127,7 +127,7 @@ use getenvp to return NIL in such a case."
     #+clozure `(ccl:setenv ,x ,val)
     #+cmucl `(unix:unix-setenv ,x ,val 1)
     #+ecl `(ext:setenv ,x ,val)
-    #+lispworks `(hcl:setenv ,x ,val)
+    #+lispworks `(setf (lispworks:environment-variable ,x) ,val)
     #+mkcl `(mkcl:setenv ,x ,val)
     #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
     #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
