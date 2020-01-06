@@ -346,8 +346,10 @@ system names contained using COERCE-NAME. Return the result."
            (coerce-name (component-system component))))
         component)))
 
+  ;; the following are all systems that Stas Boukarev maintains and refuses to fix,
+  ;; hoping instead to make my life miserable. Instead, I just make ASDF ignore them.
   (defparameter* *known-systems-with-bad-secondary-system-names*
-    (list-to-hash-set '("cl-ppcre")))
+    (list-to-hash-set '("cl-ppcre" "cl-interpol")))
   (defun known-system-with-bad-secondary-system-names-p (asd-name)
     ;; Does .asd file with name ASD-NAME contain known exceptions
     ;; that should be screened out of checking for BAD-SYSTEM-NAME?
