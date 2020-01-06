@@ -137,7 +137,9 @@
 ;;; prepare for link farm test
 ;; clean up first
 (describe *link-farm-directory*)
-(uiop:delete-directory-tree *link-farm-directory* :validate (lambda (x) (subpathp x *tmp-directory*)))
+(when (uiop:directory-exists-p *link-farm-directory*)
+  (uiop:delete-directory-tree *link-farm-directory*
+                              :validate (lambda (x) (subpathp x *tmp-directory*))))
 ;; create the link farm
 (ensure-directories-exist *link-farm-directory*)
 (link-asd-files)
