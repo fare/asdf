@@ -1,5 +1,4 @@
 ;;-*- Lisp -*-
-
 (setf asdf::*asdf-version* "6.7.8")
 
 (DBG "Check still-valid code")
@@ -12,12 +11,22 @@
   `(let ((c (signals ,condition (eval ',body))))
      (assert-equal (deprecated-function-name c) ',name)))
 
-(defmacro check-deprecation-warning (condition name body)
+(defmacro check-deprecation-style-warning (condition name body)
   `(progn
      (check-deprecation ,condition ,name ,body)
      (nest #+(or abcl (and ecl ecl-bytecmp) mkcl) (does-not-signal condition)
            #+ccl (signals ccl::compiler-warning)
            #+clasp (signals CLEAVIR-CST-TO-AST:COMPILER-MACRO-EXPANSION-STYLE-WARNING)
+           #-(or abcl clasp ccl (and ecl ecl-bytecmp) mkcl)
+           (check-deprecation ,condition ,name)
+           (compile () '(lambda () ,body)))))
+
+(defmacro check-deprecation-warning (condition name body)
+  `(progn
+     (check-deprecation ,condition ,name ,body)
+     (nest #+(or abcl (and ecl ecl-bytecmp) mkcl) (does-not-signal condition)
+           #+ccl (signals ccl::compiler-warning)
+           #+clasp (signals CLEAVIR-CST-TO-AST:COMPILER-MACRO-EXPANSION-WARNING)
            #-(or abcl clasp ccl (and ecl ecl-bytecmp) mkcl)
            (check-deprecation ,condition ,name)
            (compile () '(lambda () ,body)))))
@@ -48,14 +57,14 @@
 (DBG "Check style-warning")
 (asdf::with-asdf-deprecation (:style-warning "6")
   (defun should-style-warn () t))
-(check-deprecation-warning deprecated-function-style-warning should-style-warn (should-style-warn))
+(check-deprecation-style-warning deprecated-function-style-warning should-style-warn (should-style-warn))
 
 (DBG "Check warning")
 (asdf::with-asdf-deprecation (:style-warning "5") ;; next-version 6 is warning...
   (defun should-warn () t))
 (check-deprecation-warning deprecated-function-warning should-warn (should-warn))
 
-(DBG "Check warning")
+(DBG "Check error")
 (asdf::with-asdf-deprecation (:style-warning "6.5") ;; next- next-version 6.7 is error!
   (defun should-error () t))
 (check-deprecation-error deprecated-function-error should-error (should-error))
