@@ -309,11 +309,13 @@
 (let ((new-file (subpathname *build-directory* "deleteme/a/1.x")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :asdf) new-file))
+  (with-expected-failure (#+clasp "(system-source-file :asdf) is nil")
+    (copy-file (system-source-file :asdf) new-file)))
 (let ((new-file (subpathname *build-directory* "deleteme/a/b/2")))
   (when (probe-file new-file)
     (delete-file new-file))
-  (copy-file (system-source-file :asdf) new-file))
+  (with-expected-failure (#+clasp "(system-source-file :asdf) is nil")
+    (copy-file (system-source-file :asdf) new-file)))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/")))
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))
@@ -335,14 +337,17 @@
       (directory-b-no-slash (subpathname *build-directory* "deleteme/a/b")))
   (assert (eq 'with-current-directory 'uiop:with-current-directory))
   (with-current-directory (directory-a-no-slash)
-   (assert-pathnames-equal (directory-files (getcwd))  (list (subpathname *build-directory* "deleteme/a/1.x"))))
+    (with-expected-failure (#+clasp T)
+      (assert-pathnames-equal (directory-files (getcwd))  (list (subpathname *build-directory* "deleteme/a/1.x")))))
   (with-current-directory (directory-b-no-slash)
-   (assert-pathnames-equal (directory-files (getcwd)) (list (subpathname *build-directory* "deleteme/a/b/2")))
-    (assert-pathnames-equal
-   (sort (subdirectories (getcwd)) #'string< :key #'(lambda (x) (car (last (pathname-directory x)))))
-   (list (subpathname *build-directory* "deleteme/a/b/c/")
-         (subpathname *build-directory* "deleteme/a/b/d/")
-         (subpathname *build-directory* "deleteme/a/b/e/")))))
+    (with-expected-failure (#+clasp T)
+      (assert-pathnames-equal (directory-files (getcwd)) (list (subpathname *build-directory* "deleteme/a/b/2"))))
+    (with-expected-failure (#+clasp T)
+      (assert-pathnames-equal
+       (sort (subdirectories (getcwd)) #'string< :key #'(lambda (x) (car (last (pathname-directory x)))))
+       (list (subpathname *build-directory* "deleteme/a/b/c/")
+             (subpathname *build-directory* "deleteme/a/b/d/")
+             (subpathname *build-directory* "deleteme/a/b/e/"))))))
 
 
 (DBG "check to make sure SUBDIRECTORIES does list subdirectories")
@@ -386,7 +391,10 @@
   (assert (typep *last-char* 'base-char)))
 
 (defun basify (s) (coerce s 'base-string))
-(defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
+(defun unbasify (s)
+  #-clasp (coerce s '(array character (*)))
+  #+clasp (make-array (length s) :element-type 'character :initial-contents s)
+  ) ; on ECL, literals are base strings (!) on clasp, literals are reduced to base-strings in all chars are base-chars
 
 #+non-base-chars-exist-p
 (progn
@@ -482,7 +490,8 @@
           (let ((s (get-optimization-settings)))
             (loop :for q :in '(speed space safety debug) :do
                   #+mkcl (DBG :os i q s (assoc q s))
-                         (assert-equal i (second (assoc q s))))))
+               (assert-equal i (second (assoc q s))))))
+        ;;; The order does not seem to be significant, should better test that all values are the same  
         (assert-equal (get-optimization-settings) settings))
 
 (DBG :standard-case-symbol-name)

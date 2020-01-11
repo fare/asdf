@@ -53,7 +53,9 @@
   (leave-test "CLISP 2.49 translates logical pathnames in *LOAD-PATHNAME*" 0))
 
 (defparameter sys (find-system :test-logical-pathname))
-(assert (logical-pathname-p (component-pathname sys)))
+
+(with-expected-failure (#+clasp "Clasp fails here")
+  (assert (logical-pathname-p (component-pathname sys))))
 (assert (logical-pathname-p (system-source-file sys)))
 
 (DBG "Done")

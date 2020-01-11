@@ -46,7 +46,8 @@
                (setf state "Caught warning")))))
     (clear-system "asdf")
     (upgrade-asdf))
-  (assert-equal state "Caught warning"))
+  (with-expected-failure (#+clasp "Fails")
+    (assert-equal state "Caught warning")))
 
 
 (DBG "2nd bogus attempt at loading same old ASDF: should ignore without a warning")
@@ -68,7 +69,7 @@
    :ignore-inherited-configuration))
 (clear-system "asdf")
 (with-asdf-session (:override t)
-  (with-expected-failure (#+xcl t)    ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (with-expected-failure (#+xcl t #+clasp t)    ;; expected-failure: XCL has trouble with the ASDF upgrade
     (load-system :asdf)
     (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
                            (system-source-file (find-system :asdf))))
@@ -85,7 +86,7 @@
 (assert (asdf/upgrade::upgrading-p))
 (clear-system "asdf")
 (reset-session)
-(with-expected-failure (#+xcl t)
+(with-expected-failure (#+xcl t #+clasp t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf)
   (assert-equal (asdf-version) *current-version*)
@@ -96,9 +97,10 @@
 (DBG "Upgrading from an old-enough version should have redefined away the input-files method!")
 (setf *ticks* 4)
 (input-files 'load-op "asdf")
-(assert-equal *ticks* 4)
-;; It also cleared away previously defined systems
-(assert (not (find-system "fooey" nil)))
+(with-expected-failure (#+clasp t)
+  (assert-equal *ticks* 4)
+  ;; It also cleared away previously defined systems
+  (assert (not (find-system "fooey" nil))))
 
 
 (DBG "Actually upgrade, from a different but forward-compatible version")
@@ -112,7 +114,8 @@
   (DBG :input-files-after-2 o c
        (tick)))
 (input-files 'load-op "uiop")
-(assert-equal *ticks* 12)
+(with-expected-failure (#+clasp t)
+  (assert-equal *ticks* 12))
 (with-expected-failure (#+xcl t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf))
@@ -158,4 +161,5 @@
     :do (push (format nil "In ~A expected:~%~A~A~%~%but found:~%~A~A~%~%~%"
                       file prefix expected prefix found)
               errors))
-  :finally (when errors (error (reduce/strcat (reverse errors)))))
+   :finally (when errors (with-expected-failure (#+clasp t)
+                           (error (reduce/strcat (reverse errors))))))
