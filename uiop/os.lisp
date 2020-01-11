@@ -121,8 +121,9 @@ use getenvp to return NIL in such a case."
 
   (defsetf getenv (x) (val)
     "Set an environment variable."
-      (declare (ignorable x val))
+    (declare (ignorable x val))
     #+allegro `(setf (sys:getenv ,x) ,val)
+    #+clasp `(ext:setenv ,x ,val)
     #+clisp `(system::setenv ,x ,val)
     #+clozure `(ccl:setenv ,x ,val)
     #+cmucl `(unix:unix-setenv ,x ,val 1)
@@ -130,7 +131,7 @@ use getenvp to return NIL in such a case."
     #+lispworks `(setf (lispworks:environment-variable ,x) ,val)
     #+mkcl `(mkcl:setenv ,x ,val)
     #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
-    #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl clasp)
+    #-(or allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl)
     '(not-implemented-error '(setf getenv)))
 
   (defun getenvp (x)
@@ -309,7 +310,8 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
       #+(or cmucl scl) (unix:unix-chdir (ext:unix-namestring x))
       #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
                      (error "Could not set current directory to ~A" x))
-      #+(or clasp ecl) (ext:chdir x)
+      #+ecl (ext:chdir x)
+      #+clasp (ext:chdir x t)
       #+gcl (system:chdir x)
       #+lispworks (hcl:change-directory x)
       #+mkcl (mk-ext:chdir x)
