@@ -767,9 +767,11 @@ it will filter them appropriately."
                  (when (probe-file temp-dwarf)
                    (rename-file-overwriting-target temp-dwarf target-dwarf)))
                ;;; need to rename the bc or ll file as well or test-bundle.script fails
-               (rename-file-overwriting-target
-                (compile-file-pathname tmp-file :output-type :bitcode)
-                (compile-file-pathname physical-output-file :output-type :bitcode))
+               ;;; They might not exist with parallel compilation
+               (let ((bitcode-src (compile-file-pathname tmp-file :output-type :bitcode))
+                     (bitcode-target (compile-file-pathname physical-output-file :output-type :bitcode)))
+                 (when (probe-file bitcode-src)
+                   (rename-file-overwriting-target bitcode-src bitcode-target)))
                (rename-file-overwriting-target tmp-object-file object-file))
              (rename-file-overwriting-target output-truename physical-output-file)
              (setf output-truename (truename physical-output-file)))
