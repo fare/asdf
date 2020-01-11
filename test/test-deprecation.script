@@ -17,7 +17,8 @@
      (check-deprecation ,condition ,name ,body)
      (nest #+(or abcl (and ecl ecl-bytecmp) mkcl) (does-not-signal condition)
            #+ccl (signals ccl::compiler-warning)
-           #-(or abcl ccl (and ecl ecl-bytecmp) mkcl)
+           #+clasp (signals CLEAVIR-CST-TO-AST:COMPILER-MACRO-EXPANSION-STYLE-WARNING)
+           #-(or abcl clasp ccl (and ecl ecl-bytecmp) mkcl)
            (check-deprecation ,condition ,name)
            (compile () '(lambda () ,body)))))
 
@@ -26,9 +27,10 @@
      (check-deprecation ,condition ,name ,body)
      (nest #+allegro (signals style-warning)
            #+(or cmucl (and ecl (not ecl-bytecmp))) (signals c::compiler-error)
+           #+clasp (signals COMPILER:COMPILER-MACRO-EXPANSION-ERROR-WARNING)
            #+(or (and ecl ecl-bytecmp) mkcl) (does-not-signal condition)
            #+sbcl (signals simple-warning)
-           #-(or allegro cmucl ecl mkcl sbcl)
+           #-(or allegro clasp cmucl ecl mkcl sbcl)
            (check-deprecation ,condition ,name)
            (compile () '(lambda () ,body)))))
 
@@ -36,9 +38,10 @@
   `(progn
      (check-deprecation ,condition ,name ,body)
      (nest #+(or cmucl (and ecl (not ecl-bytecmp))) (signals c::compiler-error)
+           #+clasp (signals CLEAVIR-CST-TO-AST:MACROEXPANSION-ERROR)
            #+mkcl (errors compiler:compiler-error)
            #+sbcl (signals sb-c:compiler-error)
-           #-(or cmucl (and ecl (not ecl-bytecmp)) mkcl sbcl)
+           #-(or clasp cmucl (and ecl (not ecl-bytecmp)) mkcl sbcl)
            (check-deprecation ,condition ,name)
            (compile () '(lambda () ,body)))))
 
