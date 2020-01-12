@@ -726,6 +726,9 @@ is bound, write a message and exit on an error.  If
   `(do-test-load-systems ',x))
 
 (defun do-test-load-systems (systems)
+  #+clasp
+  (with-compilation-unit () (load-asdf-lisp))
+  #-clasp
   (load-asdf-lisp)
   (dolist (sys systems)
     (format t "~&Trying to load ~A~%" sys)
