@@ -528,9 +528,12 @@ test_clean_load () {
     $bcmd $eval \
       "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:exit-lisp'0))" \
       > $nop 2>&1
-    $bcmd $eval \
-      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(uiop/image:quit'0))" \
-      > $load 2>&1
+    if [ $lisp = clasp ] ; then
+       eval_string="(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(with-compilation-unit()(load(string'|build/asdf.lisp|):verbose()))#.(uiop/image:quit'0))"
+    else
+       eval_string="(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(uiop/image:quit'0))"
+    fi
+    $bcmd $eval $eval_string > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
     else
