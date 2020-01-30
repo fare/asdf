@@ -138,7 +138,6 @@ This can help you produce more deterministic output for FASLs."))
      #+sbcl
      '(sb-c::simple-compiler-note
        "&OPTIONAL and &KEY found in the same lambda list: ~S"
-       #+sb-eval sb-kernel:lexical-environment-too-complex
        sb-kernel:undefined-alien-style-warning
        sb-grovel-unknown-constant-condition ; defined above.
        sb-ext:implicit-generic-function-warning ;; Controversial.
@@ -149,6 +148,10 @@ This can help you produce more deterministic output for FASLs."))
        sb-kernel:redefinition-with-defgeneric
        sb-kernel:redefinition-with-defmethod
        sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
+     #+sbcl
+     (let ((condition (find-symbol* '#:lexical-environment-too-complex :sb-kernel nil)))
+       (when condition
+         (list condition)))
      '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
     "A suggested value to which to set or bind *uninteresting-conditions*.")
 
