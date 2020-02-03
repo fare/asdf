@@ -626,7 +626,8 @@ possibly in a different process. Otherwise just call THUNK."
     (or *compile-file-pathname* *load-pathname*))
 
   (defun load-pathname ()
-    "Portably return the LOAD-PATHNAME of the current source file or fasl"
+    "Portably return the LOAD-PATHNAME of the current source file or fasl.
+    May return a relative pathname."
     *load-pathname*) ;; magic no longer needed for GCL.
 
   (defun lispize-pathname (input-file)

@@ -462,6 +462,8 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (defun read-file-forms (file &rest keys &key count &allow-other-keys)
     "Open input FILE with option KEYS (except COUNT),
 and read its contents as per SLURP-STREAM-FORMS with given COUNT.
+If COUNT is null, read to the end of the stream;
+if COUNT is an integer, stop after COUNT forms were read.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
     (apply 'call-with-input-file file
            #'(lambda (input) (slurp-stream-forms input :count count))

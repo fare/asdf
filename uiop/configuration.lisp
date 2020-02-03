@@ -203,7 +203,7 @@ directive.")
             (if wilden (wilden p) p))))
        ((eql :home) (user-homedir-pathname))
        ((eql :here) (resolve-absolute-location
-                     (or *here-directory* (pathname-directory-pathname (load-pathname)))
+                     (or *here-directory* (pathname-directory-pathname (truename (load-pathname))))
                      :ensure-directory t :wilden nil))
        ((eql :user-cache) (resolve-absolute-location
                            *user-cache* :ensure-directory t :wilden nil)))
