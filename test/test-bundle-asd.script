@@ -1,0 +1,76 @@
+;;; -*- Lisp -*-
+(in-package :asdf-test)
+(use-package :asdf)
+
+;;;---------------------------------------------------------------------------
+;;; Test for GitLab issue 23
+;;;---------------------------------------------------------------------------
+
+(defparameter *test-system-name* "deliver-bundle")
+
+(asdf:initialize-source-registry '(:source-registry
+                                   (:directory :here)
+                                   :ignore-inherited-configuration))
+(asdf:clear-system *test-system-name*)
+
+
+(defparameter *constructed-asdf-file*
+  (output-file (make-operation 'deliver-asd-op)
+                    (find-system *test-system-name*)))
+
+(ignore-errors (delete-file *constructed-asdf-file*))
+
+(DBG "Writing ASD system definition file:" *constructed-asdf-file*)
+
+(operate 'deliver-asd-op *test-system-name*)
+
+(defun load-constructed-asd-file (&optional (constructed-file *constructed-asdf-file*))
+  (with-open-file (str constructed-file)
+    (let* ((sexps
+            (uiop:with-safe-io-syntax (:package :asdf-user)
+              (uiop:read-file-forms str))))
+      (or (find-if #'(lambda (x) (and (listp x) (eq (car x) 'defsystem))) sexps)
+          (error "Unable to find generated defsystem.")))))
+
+(defparameter *defsystem-sexpr*
+  (load-constructed-asd-file))
+
+(DBG "ASDF-created system definition is:")
+(DBG (format nil "~s" *defsystem-sexpr*))
+
+(assert (equalp (second *defsystem-sexpr*) *test-system-name*))
+(assert (eq (getf *defsystem-sexpr* :class) 'asdf/bundle:prebuilt-system))
+(assert (equalp (getf *defsystem-sexpr* :components)
+                #-(or clasp ecl mkcl)
+                `((:compiled-file ,(format nil "~a--system" *test-system-name*)))
+                #+(or clasp ecl mkcl)
+                '((:COMPILED-FILE "deliver-bundle"))))
+#+(and (or clasp ecl mkcl) linux)
+(assert (equalp (getf *defsystem-sexpr* :lib)
+                "deliver-bundle.a"))
+(assert (not (getf *defsystem-sexpr* :defsystem-depends-on)))
+(assert (equalp (getf *defsystem-sexpr* :depends-on) (list "test-asdf/bundle-2"))
+        nil "Dependencies for bundled system are incorrect.")
+
+(ignore-errors (delete-file *constructed-asdf-file*))
+
+(operate 'monolithic-deliver-asd-op *test-system-name*)
+
+(setf *defsystem-sexpr*
+      (load-constructed-asd-file))
+
+(DBG "ASDF-created MONOLITHIC system definition is:")
+(DBG (format nil "~s" *defsystem-sexpr*))
+
+(assert (equalp (second *defsystem-sexpr*) *test-system-name*))
+(assert (eq (getf *defsystem-sexpr* :class) 'asdf/bundle:prebuilt-system))
+(assert (equalp (getf *defsystem-sexpr* :components)
+                #-(or clasp ecl mkcl)
+                `((:compiled-file ,(format nil "~a--all-systems" *test-system-name*)))
+                #+ (or clasp ecl mkcl)
+                '((:COMPILED-FILE "deliver-bundle--all-systems"))))
+#+(and (or clasp ecl mkcl) linux)
+(assert (equalp (getf *defsystem-sexpr* :lib)
+                "deliver-bundle--all-systems.a"))
+(assert (not (getf *defsystem-sexpr* :defsystem-depends-on)))
+(assert (not (getf *defsystem-sexpr* :depends-on)))

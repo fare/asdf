@@ -108,4 +108,3 @@
   :version "0"
   :depends-on (:test-asdf/all)
   :components ((:file "properly-upgraded")))
-

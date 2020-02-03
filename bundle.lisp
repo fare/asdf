@@ -249,7 +249,7 @@ for all the linkable object files associated with the system or its dependencies
                                      "--all-systems"
                                      ;; These use a different type .fasb or .a instead of .fasl
                                      #-(or clasp ecl mkcl) "--system"))))
-                          (format nil "~A~@[~A~]" (component-name c) suffix))))
+                          (format nil "~A~@[~A~]" (coerce-filename (component-name c)) suffix))))
               (type (bundle-pathname-type bundle-type)))
           (values (list (subpathname (component-pathname c) name :type type))
                   (eq (class-of o) (coerce-class (component-build-operation c)
@@ -420,14 +420,23 @@ or of opaque libraries shipped along the source code."))
 ;;;
 (with-upgradability ()
   (defmethod output-files ((o deliver-asd-op) (s system))
-    (list (make-pathname :name (component-name s) :type "asd"
+    (list (make-pathname :name (coerce-filename (component-name s)) :type "asd"
                          :defaults (component-pathname s))))
 
+  ;; because of name collisions between the output files of different
+  ;; subclasses of DELIVER-ASD-OP, we cannot trust the file system to
+  ;; tell us if the output file is up-to-date, so just treat the
+  ;; operation as never being done.
+  (defmethod operation-done-p ((o deliver-asd-op) (s system))
+    (declare (ignorable o s))
+    nil)
+
   (defmethod perform ((o deliver-asd-op) (s system))
+    "Write an ASDF system definition for loading S as a delivered system."
     (let* ((inputs (input-files o s))
            (fasl (first inputs))
            (library (second inputs))
-           (asd (first (output-files o s)))
+           (asd (output-file o s))
            (name (if (and fasl asd) (pathname-name asd) (return-from perform)))
            (version (component-version s))
            (dependencies
@@ -439,7 +448,7 @@ or of opaque libraries shipped along the source code."))
                                                        :keep-operation 'basic-load-op))
                  (while-collecting (x) ;; resolve the sideway-dependencies of s
                    (map-direct-dependencies
-                    'load-op s
+                    'prepare-op s
                     #'(lambda (o c)
                         (when (and (typep o 'load-op) (typep c 'system))
                           (x c)))))))
@@ -474,7 +483,7 @@ which is probably not what you want; you probably need to tweak your output tran
     (let* ((input-files (input-files o c))
            (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
            (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
-           (output-files (output-files o c))
+           (output-files (output-files o c)) ; can't use OUTPUT-FILE fn because possibility it's NIL
            (output-file (first output-files)))
       (assert (eq (not input-files) (not output-files)))
       (when input-files
