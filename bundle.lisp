@@ -462,12 +462,17 @@ which is probably not what you want; you probably need to tweak your output tran
                              :if-does-not-exist :create)
         (format s ";;; Prebuilt~:[~; monolithic~] ASDF definition for system ~A~%"
                 (operation-monolithic-p o) name)
-        (format s ";;; Built for ~A ~A on a ~A/~A ~A~%"
-                (lisp-implementation-type)
-                (lisp-implementation-version)
-                (software-type)
-                (machine-type)
-                (software-version))
+        ;; this can cause bugs in cases where one of the functions returns a multi-line
+        ;; string
+        (let ((description-string (format nil ";;; Built for ~A ~A on a ~A/~A ~A"
+                    (lisp-implementation-type)
+                    (lisp-implementation-version)
+                    (software-type)
+                    (machine-type)
+                    (software-version))))
+          ;; ensure the whole thing is on one line
+          (print (remove-if #'(lambda (x) (member x (list #\newline #\return))) description-string) s)
+          (terpri s))
         (let ((*package* (find-package :asdf-user)))
           (pprint `(defsystem ,name
                      :class prebuilt-system

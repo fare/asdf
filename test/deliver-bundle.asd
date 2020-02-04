@@ -6,5 +6,5 @@
 
 (defsystem :deliver-bundle
     :defsystem-depends-on ("file3-only")
-  :depends-on ("test-asdf/bundle-2")
+  :depends-on ("test1")          ; brings in "file1" and "file2"
   :components ((:file "file4")))

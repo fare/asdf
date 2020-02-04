@@ -6,6 +6,9 @@
 ;;; Test for GitLab issue 23
 ;;;---------------------------------------------------------------------------
 
+#+(or (and ecl ecl-bytecmp) gcl)
+(leave-test "bundles not on implemented this implementation" 0)
+
 (defparameter *test-system-name* "deliver-bundle")
 
 (asdf:initialize-source-registry '(:source-registry
@@ -49,7 +52,7 @@
 (assert (equalp (getf *defsystem-sexpr* :lib)
                 "deliver-bundle.a"))
 (assert (not (getf *defsystem-sexpr* :defsystem-depends-on)))
-(assert (equalp (getf *defsystem-sexpr* :depends-on) (list "test-asdf/bundle-2"))
+(assert (equalp (getf *defsystem-sexpr* :depends-on) (list "test1"))
         nil "Dependencies for bundled system are incorrect.")
 
 (ignore-errors (delete-file *constructed-asdf-file*))
