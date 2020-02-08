@@ -506,7 +506,7 @@ should match file names for regular code files,
 so that the file that tests `bar.lisp` will be called `bar-test.lisp` or `bar-tests.lisp`
 (pick singular or plural, but have a story for it and be consistent about it).
 To keep things tidy as the test system grows,
-you may even put all test files in a subdirectory `t/`, `test` or `tests/`.
+you may even put all test files in a subdirectory `t/`, `test/` or `tests/`.
 Your test system definition may then look like:
 
     (defsystem "foobar/tests"
