@@ -1,0 +1,13 @@
+In honor of Valentine's Day, and more honestly, just because it's overdue, today we release ASDF 3.3.4, the fourth bugfix release for the 3.3 release series.
+
+We urge implementations that are currently bundling previous versions of ASDF -- and especially those bundling 3.3.0 or 3.3.1 -- to upgrade to 3.3.4 at their earliest convenience.  This is especially true for SBCL, for which 3.3.4 fixes a bug preventing ASDF upgrade from working smoothly.
+
+Immense thanks, as always, to Faré Rideau.  Also thanks to the many bug reporters and patch submitters including (alphabetically):
+
+*  Rommel Martinez
+*  Jan Moringen
+*  Karsten Poeck
+*  François-René Rideau
+*  Martin Simmons
+*  Eric Timmons
+*  Guillaume Le Vaillant
