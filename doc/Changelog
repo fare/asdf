@@ -1,3 +1,17 @@
+cl-asdf (2:3.3.4-1) unstable; urgency=low
+Bug fix release:
+* SBCL compatibility: support local nicknames in package-inferred-system,
+	address upgrade issues in SBCL 2.x (thanks to Eric Timmons).
+* Clasp compatibility: fixes from Karsten Poeck.
+* Lispworks compatibility: fixes from Martin Simmons.
+* Documentation: multiple user-contributed fixes: Jan Moringen and
+	Rommel Martinez.
+* Bundle bug fixes: thanks to Guillaume Le Vaillant and François-René Rideau.
+* Miscellaneous bug fixes.
+* Tests: miscellaneous fixes and improvements.
+
+-- Robert P. Goldman <rpgoldman@sift.net> Thu, 13 Feb 2020 17:09:39 -0600
+
 cl-asdf (2:3.3.3-1) unstable; urgency=low
 
   Bug fix release:
