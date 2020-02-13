@@ -1604,7 +1604,7 @@ the current package @code{my-system-asd} can be specified as
 allowed as component types for such children components.
 
 @subsection System class names
-@anchor {System class names}
+@anchor{System class names}
 
 A system class name will be looked up
 in the same way as a Component type (see above),
@@ -5262,8 +5262,11 @@ mailing list (@pxref{Mailing list}).
 @node Where do I report a bug?, Mailing list, FAQ, FAQ
 @section  ``Where do I report a bug?''
 @cindex bug tracker
+@cindex gitlab
 @cindex launchpad
-ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
+ASDF bugs are tracked on common-lisp.net's gitlab:: @url{https://gitlab.common-lisp.net/asdf/asdf/issues}.
+Previously, we had done bug-tracking on @code{launchpad.net}, but we are
+now consolidating project management on @code{common-lisp.net}.
 
 If you're unsure about whether something is a bug, or for general discussion,
 use the asdf-devel mailing list (@pxref{Mailing list}).
