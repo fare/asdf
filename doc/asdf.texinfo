@@ -5265,8 +5265,8 @@ mailing list (@pxref{Mailing list}).
 @cindex gitlab
 @cindex launchpad
 ASDF bugs are tracked on common-lisp.net's gitlab:: @url{https://gitlab.common-lisp.net/asdf/asdf/issues}.
-Previously, we had done bug-tracking on @code{launchpad.net}, but we are
-now consolidating project management on @code{common-lisp.net}.
+Previously, we had done bug-tracking on @url{https://launchpad.net/asdf},
+but we are now consolidating project management on @code{common-lisp.net}.
 
 If you're unsure about whether something is a bug, or for general discussion,
 use the asdf-devel mailing list (@pxref{Mailing list}).
@@ -5424,7 +5424,9 @@ On the other hand, there are places where systems used to accept namestrings
 where you must now use an explicit pathname object:
 @code{(defsystem ... :pathname "LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}
 must now be written with the @code{#p} syntax:
-@code{(defsystem ... :pathname #p"LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}
+@code{(defsystem ... :pathname #p"LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}.
+We recommend against using pathname objects in general and logical pathnames in particular.
+Your code will be much more portable using ASDF's pathname specifiers.
 
 @xref{Pathname specifiers}.
 
@@ -5494,7 +5496,7 @@ In ASDF 1, you had to use the awkward syntax
 to load a system,
 and similarly for @code{compile-op}, @code{test-op}.
 
-In ASDF 2, you can use shortcuts for the usual operations:
+In ASDF 2 and later, you can use shortcuts for the usual operations:
 @code{(asdf:load-system :foo)}, and
 similarly for @code{compile-system}, @code{test-system}.
 
@@ -5516,8 +5518,11 @@ with fundamental issues in the original model being fixed.
 Timestamps were not propagated at all, and now are.
 The internal model of how actions depend on each other
 is now both consistent and complete.
+As of ASDF 3.3, multiple phases of loading are well supported,
+wherein correctly interpreting `defsystem` statements in some `.asd` files
+itself depends on loading other systems, e.g. via `:defsystem-depends-on`.
 The @code{:version} and
-the @code{:force (system1 .. systemN)} feature have been fixed.
+the @code{:force (system1 .. systemN)} features have been fixed.
 
 @item
 Performance has been notably improved for large systems
@@ -5558,9 +5563,10 @@ People using or writing systems had to either make worst-case assumptions
 as to what features were available and worked,
 or take great pains to have the correct version of ASDF installed.
 
-With ASDF 2, we provide a new stable set of working features
+With ASDF 2 and later, we provide a new stable set of working features
 that everyone can rely on from now on.
-Use @code{#+asdf2} to detect presence of ASDF 2,
+Use @code{#+asdf2}, @code{#+asdf3}, @code{#+asdf3.1} or @code{#+asdf3.3}
+to detect presence of relevant versions of ASDF and their features, or
 @code{(asdf:version-satisfies (asdf:asdf-version) "2.345.67")}
 to check the availability of a version no earlier than required.
 
