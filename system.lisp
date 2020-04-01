@@ -137,16 +137,18 @@ primary system, after which the .asd file in which it is defined is named.
 If given a string or symbol (to downcase), do it syntactically
  by stripping anything from the first slash on.
 If given a component, do it semantically by extracting
-the system-primary-system-name of its system."
+the system-primary-system-name of its system from its source-file if any,
+falling back to the syntactic criterion if none."
     (etypecase system-designator
       (string (if-let (p (position #\/ system-designator))
                 (subseq system-designator 0 p) system-designator))
       (symbol (primary-system-name (coerce-name system-designator)))
       (component (let* ((system (component-system system-designator))
                         (source-file (physicalize-pathname (system-source-file system))))
-                   (and source-file
-                        (equal (pathname-type source-file) "asd")
-                        (pathname-name source-file))))))
+                   (if source-file
+                       (and (equal (pathname-type source-file) "asd")
+                            (pathname-name source-file))
+                       (primary-system-name (component-name system)))))))
 
   (defun primary-system-p (system)
     "Given a system designator SYSTEM, return T if it designates a primary system, or else NIL.
