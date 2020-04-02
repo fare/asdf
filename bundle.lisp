@@ -431,6 +431,9 @@ or of opaque libraries shipped along the source code."))
     (declare (ignorable o s))
     nil)
 
+  (defun space-for-crlf (s)
+    (substitute-if #\space #'(lambda (x) (find x +crlf+)) s))
+
   (defmethod perform ((o deliver-asd-op) (s system))
     "Write an ASDF system definition for loading S as a delivered system."
     (let* ((inputs (input-files o s))
@@ -471,8 +474,7 @@ which is probably not what you want; you probably need to tweak your output tran
                     (machine-type)
                     (software-version))))
           ;; ensure the whole thing is on one line
-          (print (remove-if #'(lambda (x) (member x (list #\newline #\return))) description-string) s)
-          (terpri s))
+          (println (space-for-crlf description-string) s))
         (let ((*package* (find-package :asdf-user)))
           (pprint `(defsystem ,name
                      :class prebuilt-system

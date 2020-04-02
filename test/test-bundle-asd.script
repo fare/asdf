@@ -7,7 +7,7 @@
 ;;;---------------------------------------------------------------------------
 
 #+(or (and ecl ecl-bytecmp) gcl)
-(leave-test "bundles not on implemented this implementation" 0)
+(leave-test "bundles not implemented on this implementation" 0)
 
 (defparameter *test-system-name* "deliver-bundle")
 
