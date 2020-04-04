@@ -2,6 +2,9 @@
 
 (in-package :asdf-test)
 
+(unless (uiop:featurep :package-local-nicknames)
+  (leave-test "This lisp implementation does not support package local nicknames" 0))
+
 ;;; these tests for DEFINE-PACKAGE support of package-local-nicknames were adapted from
 ;;; the trivial-package-local-nicknames system, to test UIOP's support for package local
 ;;; nicknames
