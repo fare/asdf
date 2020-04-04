@@ -1,3 +1,8 @@
+cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
+
+* Add support for package local nicknames to UIOP:DEFINE-PACKAGE and
+	ASDF's package-inferred systems.
+
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
 * SBCL compatibility: support local nicknames in package-inferred-system,
