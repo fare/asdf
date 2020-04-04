@@ -140,6 +140,7 @@
       (unless (member :lispworks6 *features*)
         (pushnew :lispworks7+ *features*)))))
 
+
 #.(or #+mcl ;; the #$ doesn't work on other lisps, even protected by #+mcl, so we use this trick
       (read-from-string
        "(eval-when (:load-toplevel :compile-toplevel :execute)

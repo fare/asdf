@@ -17,8 +17,11 @@
 ;; package-inferred-system object.
 (assert-equal "package-inferred-system-test" (primary-system-name (find-system :package-inferred-system-test/a/x)))
 
-;; Test that SBCL's :local-nicknames are recognized
-#+sbcl
+;; Test that :local-nicknames are recognized on relevant implementations
+;; NB: requires ABCL >= ? (old 1.5.0 works), CCL >= 1.12 (unreleased as of Dec 2019),
+;; CLASP >= ??? (no less released than anything else?), ECL >= 1.6.4 (unreleased as of Dec 2019),
+;; SBCL >= ? (old 1.5.0 works)
+#+package-local-nicknames
 (progn
   (load-system :package-inferred-system-test/local-nicknames-1)
   (assert-equal "g" (symbol-call :package-inferred-system-test/local-nicknames-1 :f)))
