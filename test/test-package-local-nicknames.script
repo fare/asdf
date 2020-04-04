@@ -1,0 +1,114 @@
+;;; -*- mode:common-lisp; -*-
+
+(in-package :asdf-test)
+
+;;; these tests for DEFINE-PACKAGE support of package-local-nicknames were adapted from
+;;; the trivial-package-local-nicknames system, to test UIOP's support for package local
+;;; nicknames
+
+(progn
+  (defparameter +test-data+
+    #+sbcl      '(:sb-ext    :sb :exit)
+    #+ccl       '(:ccl       :cc :quit)
+    #+ecl       '(:ext       :ex :exit)
+    #+abcl      '(:ext       :ex :quit)
+    #+clasp     '(:core      :ex :quit)
+    #+lispworks '(:lispworks :ex :quit)
+    #+allegro   '(:excl      :ex :exit))
+
+  (defparameter +pkg-name+ (first +test-data+))
+  (defparameter +nn-name+ (second +test-data+))
+  (defparameter +sym-name+ (third +test-data+))
+
+  (defparameter +pkg-sname+ (string +pkg-name+))
+  (defparameter +nn-sname+ (string +nn-name+))
+  (defparameter +sym-sname+ (string +sym-name+))
+  (defparameter +sym-fullname+ (concatenate 'string +pkg-sname+ ":" +sym-sname+))
+  (defparameter +sym-fullnickname+ (concatenate 'string +nn-sname+ ":" +sym-sname+))
+  (defparameter +sym+ (or (find-symbol +sym-sname+ +pkg-name+)
+                          (error "Symbol not found while loading tests: check +SYM+ binding."))))
+
+(defun reset-test-packages ()
+  (#+sbcl sb-ext:without-package-locks
+   #-sbcl progn
+   (when (find-package :package-local-nicknames-test-1)
+     (delete-package :package-local-nicknames-test-1))
+   (when (find-package :package-local-nicknames-test-2)
+     (delete-package :package-local-nicknames-test-2)))
+  (let ((form1 `(uiop/package:define-package :package-local-nicknames-test-1 (:use)
+                  (:local-nicknames (:l :cl) (,+nn-name+ ,+pkg-name+)))))
+    (eval form1))
+  (let ((form2 `(uiop/package:define-package :package-local-nicknames-test-2 (:use)
+                     (:export "CONS"))))
+    (eval form2)))
+
+(defmacro define-test (name &rest body)
+  `(progn
+     (DBG ,(symbol-name name))
+     ,@body))
+
+(define-test test-package-local-nicknames-introspection
+  (reset-test-packages)
+  (dolist (p '("KEYWORD" "COMMON-LISP" "COMMON-LISP-USER"
+               :package-local-nicknames-test-1
+               :package-local-nicknames-test-2))
+    (let ((*package* (find-package p)))
+      (let ((alist (uiop/package:package-local-nicknames :package-local-nicknames-test-1)))
+        (assert (equal (cons "L" (find-package "CL")) (assoc "L" alist :test 'string=)))
+        (assert (equal (cons +nn-sname+ (find-package +pkg-sname+))
+                       (assoc +nn-sname+ alist :test 'string=)))
+        (assert (eql 2 (length alist)))))))
+
+(define-test test-package-local-nicknames-symbol-equality
+  (reset-test-packages)
+  (let ((*package* (find-package :package-local-nicknames-test-1)))
+    (let ((cons0 (read-from-string "L:CONS"))
+          (cons1 (find-symbol "CONS" :l))
+          (cons1s (find-symbol "CONS" #\L))
+          (exit0 (read-from-string +sym-fullname+))
+          (exit1 (find-symbol +sym-sname+ +nn-name+)))
+      (assert (eq 'cons cons0))
+      (assert (eq 'cons cons1))
+      (assert (eq 'cons cons1s))
+      (assert (eq +sym+ exit0))
+      (assert (eq +sym+ exit1)))))
+
+(define-test test-package-local-nicknames-package-equality
+  (reset-test-packages)
+  (let ((*package* (find-package :package-local-nicknames-test-1)))
+    (let ((cl (find-package :l))
+          (cls (find-package #\L))
+          (sb (find-package +nn-name+)))
+      (assert (eq cl (find-package :common-lisp)))
+      (assert (eq cls (find-package :common-lisp)))
+      (assert (eq sb (find-package +pkg-name+))))))
+
+(define-test test-package-local-nicknames-nickname-removal
+  (reset-test-packages)
+  (assert (= 2 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (uiop/package:remove-package-local-nickname :l :package-local-nicknames-test-1))
+  (assert (= 1 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (let ((*package* (find-package :package-local-nicknames-test-1)))
+    (assert (not (find-package :l)))))
+
+(define-test test-package-local-nicknames-nickname-removal-char
+  #+ignore (declare (optimize (debug 3) (speed 0)))
+  (reset-test-packages)
+  (assert (= 2 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (uiop/package:remove-package-local-nickname #\L :package-local-nicknames-test-1))
+  (assert (= 1 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (let ((*package* (find-package :package-local-nicknames-test-1)))
+    (assert (not (find-package :l)))))
+
+
+(define-test test-package-local-nicknames-nickname-removal-readd-another-package-equality
+  (reset-test-packages)
+  (assert (uiop/package:remove-package-local-nickname :l :package-local-nicknames-test-1))
+  (assert (eq (find-package :package-local-nicknames-test-1)
+              (uiop/package:add-package-local-nickname :l :package-local-nicknames-test-2
+                                          :package-local-nicknames-test-1)))
+  (let ((*package* (find-package :package-local-nicknames-test-1)))
+    (let ((cl (find-package :l))
+          (sb (find-package +nn-name+)))
+      (assert (eq cl (find-package :package-local-nicknames-test-2)))
+      (assert (eq sb (find-package +pkg-name+))))))

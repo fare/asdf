@@ -4,6 +4,22 @@
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
 
+
+;;; package local nicknames feature. Can't be deferred until common-lisp.lisp,
+;;; where most such features are set.
+;;; ABCL and CCL already define this feature appropriately.
+;;; Seems to be unconditionally present for SBCL, ACL, and clasp
+;;; Don't know about ecl, or others
+ (eval-when (:load-toplevel :compile-toplevel :execute)
+   ;; abcl pushes :package-local-nicknames without UIOP interfering,
+   ;; and Lispworks will do so
+    #+(or sbcl clasp)
+    (pushnew :package-local-nicknames *features*)
+    #+allegro
+    (let ((fname (find-symbol (symbol-name '#:add-package-local-nickname) '#:excl)))
+      (when (and fname (fboundp fname))
+            (pushnew :package-local-nicknames *features*))))
+
 (defpackage :uiop/package
   ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
   ;; This package definition MUST NOT change unless its name too changes;
@@ -12,6 +28,15 @@
   ;; import and export the same exact symbols as for ASDF 2.27.
   ;; Any other symbol must be import-from'ed and re-export'ed in a different package.
   (:use :common-lisp)
+  #+package-local-nicknames
+  (:import-from #+allegro #:excl
+                #+sbcl #:sb-ext
+                #+(or clasp abcl) #:ext
+                #+ccl #:ccl
+                #+lispworks #:hcl
+                #-(or allegro sbcl clasp abcl ccl lispworks)
+                (error "Don't know from which package this lisp supplies the local-package-nicknames API.")
+                #:remove-package-local-nickname #:package-local-nicknames #:add-package-local-nickname)
   (:export
    #:find-package* #:find-symbol* #:symbol-call
    #:intern* #:export* #:import* #:shadowing-import* #:shadow* #:make-symbol* #:unintern*
@@ -22,7 +47,11 @@
    #:ensure-package-unused #:delete-package*
    #:package-names #:packages-from-names #:fresh-package-name #:rename-package-away
    #:package-definition-form #:parse-define-package-form
-   #:ensure-package #:define-package))
+   #:ensure-package #:define-package
+   #+package-local-nicknames #:add-package-local-nickname
+   #+package-local-nicknames #:remove-package-local-nickname
+   #+package-local-nicknames #:package-local-nicknames
+   ))
 
 (in-package :uiop/package)
 
@@ -572,12 +601,13 @@ or when loading the package is optional."
     (multiple-value-bind (symbol status) (find-symbol* name from-package)
       (unless (eq status :external)
         (ensure-exported name symbol from-package recycle))))
+
   (defun ensure-package (name &key
                                 nicknames documentation use
                                 shadow shadowing-import-from
                                 import-from export intern
                                 recycle mix reexport
-                                unintern)
+                                unintern local-nicknames)
     #+genera (declare (ignore documentation))
     (let* ((package-name (string name))
            (nicknames (mapcar #'string nicknames))
@@ -594,11 +624,13 @@ or when loading the package is optional."
            (export (mapcar 'string export))
            (intern (mapcar 'string intern))
            (unintern (mapcar 'string unintern))
+           (local-nicknames (mapcar #'(lambda (pair) (mapcar 'string pair)) local-nicknames))
            (shadowed (make-hash-table :test 'equal)) ; string to bool
            (imported (make-hash-table :test 'equal)) ; string to bool
            (exported (make-hash-table :test 'equal)) ; string to bool
            ;; string to list home package and use package:
            (inherited (make-hash-table :test 'equal)))
+      (declare (ignorable local-nicknames)) ; if not supported
       (when-package-fishiness (record-fishy package-name))
       #-genera
       (when documentation (setf (documentation package t) documentation))
@@ -613,6 +645,15 @@ or when loading the package is optional."
                       (t (rename-package-away p)
                          (push p to-delete))))
       (rename-package package package-name nicknames)
+      ;; Handle local nicknames
+      #+package-local-nicknames
+      (let* ((existing-nicknames (mapcar #'(lambda (x) (string (car x))) (package-local-nicknames package)))
+             (new-nicknames (mapcar #'(lambda (x) (string (first x))) local-nicknames))
+             (to-remove (set-difference existing-nicknames new-nicknames :test 'equal)))
+        (mapc #'(lambda (x) (remove-package-local-nickname x package)) to-remove))
+      #+package-local-nicknames
+      (loop :for (nick-str package-str) :in local-nicknames
+            :do (add-package-local-nickname nick-str package-str package))
       (dolist (name unintern)
         (multiple-value-bind (existing status) (find-symbol name package)
           (when status
@@ -673,6 +714,7 @@ or when loading the package is optional."
       (map () 'delete-package* to-delete)
       package)))
 
+
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun parse-define-package-form (package clauses)
     (loop
@@ -699,6 +741,13 @@ or when loading the package is optional."
       :when (eq kw :mix-reexport) :append args :into mix :and :append args :into reexport
         :and :do (setf use-p t) :else
       :when (eq kw :unintern) :append args :into unintern :else
+      :when (eq kw :local-nicknames)
+        :if (symbol-call '#:uiop '#:featurep :package-local-nicknames)
+          :append args :into local-nicknames
+        :else
+          :do (error ":LOCAL-NICKAMES option is not supported on this lisp implementation.")
+        :end
+      :else
         :do (error "unrecognized define-package keyword ~S" kw)
       :finally (return `(',package
                          :nicknames ',nicknames :documentation ',documentation
@@ -706,7 +755,8 @@ or when loading the package is optional."
                          :shadow ',shadow :shadowing-import-from ',shadowing-import-from
                          :import-from ',import-from :export ',export :intern ',intern
                          :recycle ',(if recycle-p recycle (cons package nicknames))
-                         :mix ',mix :reexport ',reexport :unintern ',unintern)))))
+                         :mix ',mix :reexport ',reexport :unintern ',unintern
+                         :local-nicknames ',local-nicknames)))))
 
 (defmacro define-package (package &rest clauses)
   "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form
@@ -730,7 +780,11 @@ an error if there is a conflict with an explicitly :IMPORT-FROM symbol.
 REEXPORT -- Takes a list of package designators.  For each package, p, in the list,
 export symbols with the same name as those exported from p.  Note that in the case
 of shadowing, etc. the symbols with the same name may not be the same symbols.
-UNINTERN -- Remove symbols here from PACKAGE."
+UNINTERN -- Remove symbols here from PACKAGE.
+LOCAL-NICKNAMES -- If the host implementation supports package local nicknames
+\(check for the :PACKAGE-LOCAL-NICKNAMES feature\), then this should be a list of
+nickname and package name pairs.  Using this option will cause an error if the
+host CL implementation does not support it."
   (let ((ensure-form
          `(prog1
               (funcall 'ensure-package ,@(parse-define-package-form package clauses))
