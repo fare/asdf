@@ -28,7 +28,7 @@
   (defparameter +sym-sname+ (string +sym-name+))
   (defparameter +sym-fullname+ (concatenate 'string +pkg-sname+ ":" +sym-sname+))
   (defparameter +sym-fullnickname+ (concatenate 'string +nn-sname+ ":" +sym-sname+))
-  (defparameter +sym+ (or (find-symbol +sym-sname+ +pkg-name+)
+  (defparameter +sym+ (or (uiop:find-symbol* +sym-sname+ +pkg-name+)
                           (error "Symbol not found while loading tests: check +SYM+ binding."))))
 
 (defun reset-test-packages ()
@@ -50,14 +50,21 @@
      (DBG ,(symbol-name name))
      ,@body))
 
+(defun case-lisp-string (str)
+  "Downcase string, if necessary for Allegro modern mode."
+  (if (eq (readtable-case *readtable*) :preserve)
+      (string-downcase str)
+      str))
+
 (define-test test-package-local-nicknames-introspection
   (reset-test-packages)
-  (dolist (p '("KEYWORD" "COMMON-LISP" "COMMON-LISP-USER"
+  (dolist (p '(:keyword :common-lisp :common-lisp-user
                :package-local-nicknames-test-1
                :package-local-nicknames-test-2))
     (let ((*package* (find-package p)))
       (let ((alist (uiop/package:package-local-nicknames :package-local-nicknames-test-1)))
-        (assert (equal (cons "L" (find-package "CL")) (assoc "L" alist :test 'string=)))
+        (assert (equal (cons (case-lisp-string "L") (find-package :cl))
+                       (assoc (case-lisp-string "L") alist :test 'string=)))
         (assert (equal (cons +nn-sname+ (find-package +pkg-sname+))
                        (assoc +nn-sname+ alist :test 'string=)))
         (assert (eql 2 (length alist)))))))
@@ -65,11 +72,11 @@
 (define-test test-package-local-nicknames-symbol-equality
   (reset-test-packages)
   (let ((*package* (find-package :package-local-nicknames-test-1)))
-    (let ((cons0 (read-from-string "L:CONS"))
-          (cons1 (find-symbol "CONS" :l))
-          (cons1s (find-symbol "CONS" #\L))
+    (let ((cons0 (read-from-string (case-lisp-string "L:CONS")))
+          (cons1 (uiop:find-symbol* '#:cons :l))
+          (cons1s (uiop:find-symbol* '#:cons (if (eq (readtable-case *readtable*) :preserve) #\l #\L)))
           (exit0 (read-from-string +sym-fullname+))
-          (exit1 (find-symbol +sym-sname+ +nn-name+)))
+          (exit1 (uiop:find-symbol* +sym-sname+ +nn-name+)))
       (assert (eq 'cons cons0))
       (assert (eq 'cons cons1))
       (assert (eq 'cons cons1s))
@@ -80,7 +87,7 @@
   (reset-test-packages)
   (let ((*package* (find-package :package-local-nicknames-test-1)))
     (let ((cl (find-package :l))
-          (cls (find-package #\L))
+          (cls (find-package (if (eq (readtable-case *readtable*) :preserve) #\l #\L)))
           (sb (find-package +nn-name+)))
       (assert (eq cl (find-package :common-lisp)))
       (assert (eq cls (find-package :common-lisp)))
@@ -98,7 +105,8 @@
   #+ignore (declare (optimize (debug 3) (speed 0)))
   (reset-test-packages)
   (assert (= 2 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
-  (assert (uiop/package:remove-package-local-nickname #\L :package-local-nicknames-test-1))
+  (assert (uiop/package:remove-package-local-nickname (if (eq (readtable-case *readtable*) :preserve) #\l #\L)
+                                                      :package-local-nicknames-test-1))
   (assert (= 1 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
   (let ((*package* (find-package :package-local-nicknames-test-1)))
     (assert (not (find-package :l)))))
