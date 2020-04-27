@@ -31,10 +31,10 @@
   #+package-local-nicknames
   (:import-from #+allegro #:excl
                 #+sbcl #:sb-ext
-                #+(or clasp abcl) #:ext
+                #+(or clasp abcl ecl) #:ext
                 #+ccl #:ccl
                 #+lispworks #:hcl
-                #-(or allegro sbcl clasp abcl ccl lispworks)
+                #-(or allegro sbcl clasp abcl ccl lispworks ecl)
                 (error "Don't know from which package this lisp supplies the local-package-nicknames API.")
                 #:remove-package-local-nickname #:package-local-nicknames #:add-package-local-nickname)
   (:export
