@@ -185,33 +185,37 @@ Other keys are accepted but discarded."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys))
 
-  (defun call-with-output (output function &key keys)
+  (defun call-with-output (output function &key (element-type 'character))
     "Calls FUNCTION with an actual stream argument,
 behaving like FORMAT with respect to how stream designators are interpreted:
 If OUTPUT is a STREAM, use it as the stream.
-If OUTPUT is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
+If OUTPUT is NIL, use a STRING-OUTPUT-STREAM of given ELEMENT-TYPE as the stream, and
+return the resulting string.
 If OUTPUT is T, use *STANDARD-OUTPUT* as the stream.
-If OUTPUT is a STRING with a fill-pointer, use it as a string-output-stream.
-If OUTPUT is a PATHNAME, open the file and write to it, passing KEYS to WITH-OUTPUT-FILE
+If OUTPUT is a STRING with a fill-pointer, use it as a STRING-OUTPUT-STREAM of given ELEMENT-TYPE.
+If OUTPUT is a PATHNAME, open the file and write to it, passing ELEMENT-TYPE to WITH-OUTPUT-FILE
 -- this latter as an extension since ASDF 3.1.
+(Proper ELEMENT-TYPE treatment since ASDF 3.3.4 only.)
 Otherwise, signal an error."
     (etypecase output
       (null
-       (with-output-to-string (stream) (funcall function stream)))
+       (with-output-to-string (stream nil :element-type element-type) (funcall function stream)))
       ((eql t)
        (funcall function *standard-output*))
       (stream
        (funcall function output))
       (string
        (assert (fill-pointer output))
-       (with-output-to-string (stream output) (funcall function stream)))
+       (with-output-to-string (stream output :element-type element-type) (funcall function stream)))
       (pathname
-       (apply 'call-with-output-file output function keys))))
+       (call-with-output-file output function :element-type element-type))))
 
-  (defmacro with-output ((output-var &optional (value output-var)) &body body)
-    "Bind OUTPUT-VAR to an output stream, coercing VALUE (default: previous binding of OUTPUT-VAR)
-as per FORMAT, and evaluate BODY within the scope of this binding."
-    `(call-with-output ,value #'(lambda (,output-var) ,@body)))
+  (defmacro with-output ((output-var &optional (value output-var) &key element-type) &body body)
+    "Bind OUTPUT-VAR to an output stream obtained from VALUE (default: previous binding
+of OUTPUT-VAR) treated as a stream designator per CALL-WITH-OUTPUT. Evaluate BODY in
+the scope of this binding."
+    `(call-with-output ,value #'(lambda (,output-var) ,@body)
+                       ,@(when element-type `(:element-type ,element-type))))
 
   (defun output-string (string &optional output)
     "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
@@ -381,7 +385,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
     "Read the contents of the INPUT stream as a string"
     (let ((string
             (with-open-stream (input input)
-              (with-output-to-string (output)
+              (with-output-to-string (output nil :element-type element-type)
                 (copy-stream-to-stream input output :element-type element-type)))))
       (if stripped (stripln string) string)))
 
