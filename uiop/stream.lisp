@@ -163,7 +163,7 @@ It must never be modified, though only good implementations will even enforce th
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
 
 ;;; Output helpers
-(with-upgradability ()
+ (with-upgradability ()
   (defun call-with-output-file (pathname thunk
                                 &key
                                   (element-type *default-stream-element-type*)
@@ -195,7 +195,7 @@ If OUTPUT is T, use *STANDARD-OUTPUT* as the stream.
 If OUTPUT is a STRING with a fill-pointer, use it as a STRING-OUTPUT-STREAM of given ELEMENT-TYPE.
 If OUTPUT is a PATHNAME, open the file and write to it, passing ELEMENT-TYPE to WITH-OUTPUT-FILE
 -- this latter as an extension since ASDF 3.1.
-(Proper ELEMENT-TYPE treatment since ASDF 3.3.4 only.)
+\(Proper ELEMENT-TYPE treatment since ASDF 3.3.4 only.\)
 Otherwise, signal an error."
     (etypecase output
       (null
@@ -208,20 +208,23 @@ Otherwise, signal an error."
        (assert (fill-pointer output))
        (with-output-to-string (stream output :element-type element-type) (funcall function stream)))
       (pathname
-       (call-with-output-file output function :element-type element-type))))
+       (call-with-output-file output function :element-type element-type)))))
 
-  (defmacro with-output ((output-var &optional (value output-var) &key element-type) &body body)
-    "Bind OUTPUT-VAR to an output stream obtained from VALUE (default: previous binding
+(with-upgradability ()
+  (locally (declare #+sbcl (sb-ext:muffle-conditions style-warning))
+    (handler-bind (#+sbcl (style-warning #'muffle-warning))
+      (defmacro with-output ((output-var &optional (value output-var) &key element-type) &body body)
+        "Bind OUTPUT-VAR to an output stream obtained from VALUE (default: previous binding
 of OUTPUT-VAR) treated as a stream designator per CALL-WITH-OUTPUT. Evaluate BODY in
 the scope of this binding."
-    `(call-with-output ,value #'(lambda (,output-var) ,@body)
-                       ,@(when element-type `(:element-type ,element-type))))
+        `(call-with-output ,value #'(lambda (,output-var) ,@body)
+                           ,@(when element-type `(:element-type ,element-type)))))))
 
-  (defun output-string (string &optional output)
-    "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
-    (if output
-        (with-output (output) (princ string output))
-        string)))
+(defun output-string (string &optional output)
+  "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
+  (if output
+      (with-output (output) (princ string output))
+      string))
 
 
 ;;; Input helpers
