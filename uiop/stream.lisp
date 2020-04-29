@@ -287,32 +287,34 @@ and always returns EOF when read from"
       ((os-unix-p) #p"/dev/null")
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
       (t (error "No /dev/null on your OS"))))
-  (defun call-with-null-input (fun &rest keys &key element-type external-format if-does-not-exist)
-    "Call FUN with an input stream from the null device; pass keyword arguments to OPEN."
+  (defun call-with-null-input (fun &key element-type external-format if-does-not-exist)
+    "Call FUN with an input stream that always returns end of file.
+The keyword arguments are allowed for backward compatibility, but are ignored."
     (declare (ignore element-type external-format if-does-not-exist))
-    (apply 'call-with-input-file (null-device-pathname) fun keys))
+    (with-open-stream (input (make-concatenated-stream))
+      (funcall fun input)))
   (defmacro with-null-input ((var &rest keys
                               &key element-type external-format if-does-not-exist)
                              &body body)
     (declare (ignore element-type external-format if-does-not-exist))
-    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device.
-Pass keyword arguments to OPEN."
+    "Evaluate BODY in a context when VAR is bound to an input stream that always returns end of file.
+The keyword arguments are allowed for backward compatibility, but are ignored."
     `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
   (defun call-with-null-output (fun
                                 &key (element-type *default-stream-element-type*)
                                   (external-format *utf-8-external-format*)
                                   (if-exists :overwrite)
                                   (if-does-not-exist :error))
-    "Call FUN with an output stream to the null device; pass keyword arguments to OPEN."
-    (call-with-output-file
-     (null-device-pathname) fun
-     :element-type element-type :external-format external-format
-     :if-exists if-exists :if-does-not-exist if-does-not-exist))
+    (declare (ignore element-type external-format if-exists if-does-not-exist))
+    "Call FUN with an output stream that discards all output.
+The keyword arguments are allowed for backward compatibility, but are ignored."
+    (with-open-stream (output (make-broadcast-stream))
+      (funcall fun output)))
   (defmacro with-null-output ((var &rest keys
                               &key element-type external-format if-does-not-exist if-exists)
                               &body body)
-    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device.
-Pass keyword arguments to OPEN."
+    "Evaluate BODY in a context when VAR is bound to an output stream that discards all output.
+The keyword arguments are allowed for backward compatibility, but are ignored."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
 
