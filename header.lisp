@@ -1,5 +1,5 @@
 ;;; -*- mode: Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; buffer-read-only: t; -*-
-;;; This is ASDF 3.3.4.2: Another System Definition Facility.
+;;; This is ASDF 3.3.4.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
