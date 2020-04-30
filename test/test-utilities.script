@@ -519,3 +519,12 @@
 
 (assert-equal #-modern-syntax '|THIS_SYMBOL| #+modern-syntax '|This_Symbol|
               (find-standard-case-symbol "This_Symbol" "asdf-test"))
+
+#+sbcl
+(DBG :test-sbcl-grovel-fail)
+#+sbcl
+;;; this yields an error before patching
+(let ((uiop:*uninteresting-conditions* uiop:*usual-uninteresting-conditions*))
+  (unwind-protect
+       (uiop:compile-file* "sb-grovel-fail.lisp")
+    (uiop:delete-file-if-exists "sb-grovel-fail.fasl")))

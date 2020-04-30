@@ -121,11 +121,12 @@ This can help you produce more deterministic output for FASLs."))
   (progn
     (defun sb-grovel-unknown-constant-condition-p (c)
       "Detect SB-GROVEL unknown-constant conditions on older versions of SBCL"
-      (and (typep c 'sb-int:simple-style-warning)
-           (string-enclosed-p
-            "Couldn't grovel for "
-            (simple-condition-format-control c)
-            " (unknown to the C compiler).")))
+      (ignore-errors
+       (and (typep c 'sb-int:simple-style-warning)
+            (string-enclosed-p
+             "Couldn't grovel for "
+             (simple-condition-format-control c)
+             " (unknown to the C compiler)."))))
     (deftype sb-grovel-unknown-constant-condition ()
       '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
 
