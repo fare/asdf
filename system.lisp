@@ -144,9 +144,11 @@ the system-primary-system-name of its system."
       (symbol (primary-system-name (coerce-name system-designator)))
       (component (let* ((system (component-system system-designator))
                         (source-file (physicalize-pathname (system-source-file system))))
-                   (and source-file
-                        (equal (pathname-type source-file) "asd")
-                        (pathname-name source-file))))))
+                   (or
+                    (and source-file
+                         (equal (pathname-type source-file) "asd")
+                         (pathname-name source-file))
+                    (component-name system))))))
 
   (defun primary-system-p (system)
     "Given a system designator SYSTEM, return T if it designates a primary system, or else NIL.
