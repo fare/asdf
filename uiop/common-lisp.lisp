@@ -7,7 +7,7 @@
 ;;; from this package only common-lisp symbols are exported.
 
 (uiop/package:define-package :uiop/common-lisp
-  (:nicknames :uoip/cl)
+  (:nicknames :uiop/cl)
   (:use :uiop/package)
   (:use-reexport #-genera :common-lisp #+genera :future-common-lisp)
   #+allegro (:intern #:*acl-warn-save*)
