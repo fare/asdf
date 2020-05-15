@@ -338,7 +338,7 @@ of the function will be returned rather than interpreted as a boolean designatin
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options.
 
 First, finalize the image, by evaluating the POSTLUDE as per EVAL-INPUT, then calling each of
- the functions in DUMP-HOOK, in reverse order of registration by REGISTER-DUMP-HOOK.
+ the functions in DUMP-HOOK, in reverse order of registration by REGISTER-IMAGE-DUMP-HOOK.
 
 If EXECUTABLE is true, create an standalone executable program that calls RESTORE-IMAGE on startup.
 
