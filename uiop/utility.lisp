@@ -46,24 +46,22 @@
 ;; even if the signature and/or generic-ness of the function has changed.
 ;; For a generic function, this invalidates any previous DEFMETHOD.
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (macrolet
-      ((defdef (def* def)
-         `(defmacro ,def* (name formals &rest rest)
-            (destructuring-bind (name &key (supersede t))
-                (if (or (atom name) (eq (car name) 'setf))
-                    (list name :supersede nil)
-                    name)
-              (declare (ignorable supersede))
-              `(progn
-                 ;; We usually try to do it only for the functions that need it,
-                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-                 ,@(when supersede
-                     `((fmakunbound ',name)))
-                 ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
-                     `((declaim (notinline ,name))))
-                 (,',def ,name ,formals ,@rest))))))
-    (defdef defgeneric* defgeneric)
-    (defdef defun* defun))
+  (defun frob-defun/defgeneric (form)
+    (assert (member (first form) '(defun defgeneric)))
+    (let ((name (second form)))
+      (destructuring-bind (name &key (supersede t))
+          (if (or (atom name) (eq (car name) 'setf))
+              (list name :supersede nil)
+              name)
+        (declare (ignorable supersede))
+        `(progn
+           ;; We usually try to do it only for the functions that need it,
+           ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
+           ,@(when supersede
+               `((fmakunbound ',name)))
+           ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
+               `((declaim (notinline ,name))))
+           ,form))))
   (defmacro with-upgradability ((&optional) &body body)
     "Evaluate BODY at compile- load- and run- times, with DEFUN and DEFGENERIC modified
 to also declare the functions NOTINLINE and to accept a wrapping the function name
@@ -73,11 +71,9 @@ to supersede any previous definition."
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        ,@(loop :for form :in body :collect
                (if (consp form)
-                   (destructuring-bind (car . cdr) form
-                     (case car
-                       ((defun) `(defun* ,@cdr))
-                       ((defgeneric) `(defgeneric* ,@cdr))
-                       (otherwise form)))
+                   (case (first form)
+                     ((defun defgeneric) (frob-defun/defgeneric form))
+                     (otherwise form))
                    form)))))
 
 ;;; Magic debugging help. See contrib/debug.lisp
