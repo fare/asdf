@@ -215,7 +215,7 @@ directive.")
   (declaim (ftype (function (t &key (:directory boolean) (:wilden boolean)
                                (:ensure-directory boolean)) t) resolve-location))
 
-  (defun* (resolve-location) (x &key ensure-directory wilden directory)
+  (defun resolve-location (x &key ensure-directory wilden directory)
     "Resolve location designator X into a PATHNAME"
     ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
     (loop :with dirp = (or directory ensure-directory)

@@ -194,7 +194,7 @@ and the order is by decreasing length of namestring of the source pathname.")
     (when inherit
       (process-output-translations (first inherit) :collect collect :inherit (rest inherit))))
 
-  (defun* (process-output-translations-directive) (directive &key inherit collect)
+  (defun process-output-translations-directive (directive &key inherit collect)
     (if (atom directive)
         (ecase directive
           ((:enable-user-cache)
@@ -287,7 +287,7 @@ effectively disabling the output translation facility."
 
 
   ;; Top-level entry-point to _use_ output-translations
-  (defun* (apply-output-translations) (path)
+  (defun apply-output-translations (path)
     (etypecase path
       (logical-pathname
        path)

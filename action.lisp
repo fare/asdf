@@ -132,7 +132,7 @@ Use it in FORMAT control strings as ~/asdf-action:format-action/"
 
 ;;;; Detection of circular dependencies
 (with-upgradability ()
-  (defun (action-valid-p) (operation component)
+  (defun action-valid-p (operation component)
     "Is this action valid to include amongst dependencies?"
     ;; If either the operation or component was resolved to nil, the action is invalid.
     ;; :if-feature will invalidate actions on components for which the features don't apply.

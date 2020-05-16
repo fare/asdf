@@ -12,7 +12,6 @@
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
-   #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
    #:parse-body ;; macro definition helper
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
@@ -41,27 +40,33 @@
 (in-package :uiop/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
-;; DEFUN* and DEFGENERIC* use FMAKUNBOUND to delete any previous fdefinition,
-;; thus replacing the function without warning or error
-;; even if the signature and/or generic-ness of the function has changed.
-;; For a generic function, this invalidates any previous DEFMETHOD.
+;; - The WTIH-UPGRADABILITY infrastructure below ensures that functions are declared NOTINLINE,
+;;   so that new definitions are always seen by all callers, even those up the stack.
+;; - WITH-UPGRADABILITY also uses EVAL-WHEN so that definitions used by ASDF are in a limbo state
+;;   (especially for gf's) in between the COMPILE-OP and LOAD-OP operations on the defining file.
+;; - THOU SHALT NOT redefine a function with a backward-incompatible semantics without renaming it.
+;; - THOU SHALT change the name of a function whenever thou makest an incompatible change.
+;; - For instance, when the meanings of NIL and T for timestamps was inverted,
+;;   functions in the STAMP<, STAMP<=, etc. family had to be renamed to TIMESTAMP<, TIMESTAMP<=, etc.,
+;;   because the change other caused a huge incompatibility during upgrade.
+;; - Whenever a function goes from a DEFUN to a DEFGENERIC, or the DEFGENERIC signature changes, etc.,
+;;   even in a backward-compatible way, you MUST precede the definition by FMAKUNBOUND.
+;; - Since FMAKUNBOUND will remove all the methods on the generic function, make sure that
+;;   all the methods required for ASDF to successfully continue compiling itself
+;;   shall be defined in the same file as the one with the FMAKUNBOUND.
+;; - When a function goes from DEFGENERIC to DEFUN, you MAY have to use FMAKUNBOUND, too.
+;;   Please try the upgrade tests on all supported implementations and update this comment afterwards.
+;; - For safety, you shall put the FMAKUNBOUND just before the DEFUN or DEFGENERIC,
+;;   in the same WITH-UPGRADABILITY form (and its implicit EVAL-WHEN).
+;; - Any time you change a signature, please keep a comment specifying the first release after the change;
+;;   put that comment on the same line as FMAKUNBOUND, it you use FMAKUNBOUND.
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun frob-defun/defgeneric (form)
-    (assert (member (first form) '(defun defgeneric)))
-    (let ((name (second form)))
-      (destructuring-bind (name &key (supersede t))
-          (if (or (atom name) (eq (car name) 'setf))
-              (list name :supersede nil)
-              name)
-        (declare (ignorable supersede))
-        `(progn
-           ;; We usually try to do it only for the functions that need it,
-           ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-           ,@(when supersede
-               `((fmakunbound ',name)))
-           ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
-               `((declaim (notinline ,name))))
-           ,form))))
+  (defun ensure-function-notinline (definition &aux (name (second definition)))
+    (assert (member (first definition) '(defun defgeneric)))
+    `(progn
+       ,(when (and #+(or clasp ecl) (symbolp name)) ; NB: fails for (SETF functions) on ECL
+          `(declaim (notinline ,name)))
+       ,definition))
   (defmacro with-upgradability ((&optional) &body body)
     "Evaluate BODY at compile- load- and run- times, with DEFUN and DEFGENERIC modified
 to also declare the functions NOTINLINE and to accept a wrapping the function name
@@ -72,7 +77,7 @@ to supersede any previous definition."
        ,@(loop :for form :in body :collect
                (if (consp form)
                    (case (first form)
-                     ((defun defgeneric) (frob-defun/defgeneric form))
+                     ((defun defgeneric) (ensure-function-notinline form))
                      (otherwise form))
                    form)))))
 

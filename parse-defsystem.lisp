@@ -148,7 +148,8 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
   ;; Given a form used as :version specification, in the context of a system definition
   ;; in a file at PATHNAME, for given COMPONENT with given PARENT, normalize the form
   ;; to an acceptable ASDF-format version.
-  (defun* (normalize-version) (form &key pathname component parent)
+  (fmakunbound 'normalize-version) ;; signature changed between 2.27 and 2.31
+  (defun normalize-version (form &key pathname component parent)
     (labels ((invalid (&optional (continuation "using NIL instead"))
                (warn (compatfmt "~@<Invalid :version specifier ~S~@[ for component ~S~]~@[ in ~S~]~@[ from file ~S~]~@[, ~A~]~@:>")
                      form component parent pathname continuation))
@@ -293,11 +294,11 @@ COMPONENTS is a list of the explicitly defined children descriptions.
 SERIAL-P is non-NIL if each child in COMPONENTS should depend on the previous
 children."))
 
-  (defun* stable-union (s1 s2 &key (test #'eql) (key 'identity))
+  (defun stable-union (s1 s2 &key (test #'eql) (key 'identity))
    (append s1
      (remove-if #'(lambda (e2) (member (funcall key e2) (funcall key s1) :test test)) s2)))
 
-  (defun* (parse-component-form) (parent options &key previous-serial-components)
+  (defun (parse-component-form) (parent options &key previous-serial-components)
     (destructuring-bind
         (type name &rest rest &key
                                 (builtin-system-p () bspp)
