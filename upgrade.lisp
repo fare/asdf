@@ -108,28 +108,21 @@ previously-loaded version of ASDF."
 (when-upgrading ()
   (let* ((previous-version (first *previous-asdf-versions*))
          (redefined-functions ;; List of functions that changed incompatibly since 2.27:
-          ;; gf signature changed (should NOT happen), defun that became a generic function or
-          ;; the other way around, method removed that will mess up with new ones
+          ;; gf signature changed, defun that became a generic function (but not way around),
+          ;; method removed that will mess up with new ones
           ;; (especially :around :before :after, more specific or call-next-method'ed method)
           ;; and/or semantics otherwise modified. Oops.
           ;; NB: it's too late to do anything about functions in UIOP!
           ;; If you introduce some critical incompatibility there, you MUST change the function name.
           ;; Note that we don't need do anything about functions that changed incompatibly
           ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
+          ;; Also, the strong constraints apply most importantly for functions called from
+          ;; the continuation of compiling or loading some of the code in ASDF or UIOP.
           ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
           ;; and at https://gitlab.common-lisp.net/asdf/asdf/-/merge_requests/141
           `(,@(when (version< previous-version "2.31") '(#:normalize-version)) ;; pathname became &key
             ,@(when (version< previous-version "3.1.2") '(#:component-depends-on #:input-files)) ;; crucial methods *removed* before 3.1.2
-            ,@(when (version< previous-version "3.1.7.20") '(#:find-component))
-            ,@(when (version< previous-version "3.2.0") '(#:required-components)) ; was a gf
-            ,@(when (version< previous-version "3.3.0")
-                '(#:action-valid-p #:map-direct-dependencies ;; were gfs with plan first
-                  #:reduce-direct-dependencies #:direct-dependencies))
-            ,@(when (version< previous-version "3.3.2.11") ;; were gfs
-                '(#:system-long-name #:system-description #:system-long-description
-                  #:system-author #:system-maintainer #:system-mailto
-                  #:system-homepage #:system-source-control
-                  #:system-licence #:system-license #:system-version #:system-bug-tracker))))
+            ,@(when (version< previous-version "3.1.7.20") '(#:find-component)))) ;; added &key registered
          (redefined-classes
           ;; redefining the classes causes interim circularities
           ;; with the old ASDF during upgrade, and many implementations bork
