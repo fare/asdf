@@ -16,7 +16,10 @@
 
     ;; The 3.3 series provides the asdf3.3 feature, meaning users can rely on
     ;; all its new features (proper phase separation) as well as earlier features.
-    "3.3.1" ;; (2017-11-14) bug fixes, second and latest in 3.3 series
+    "3.3.4" ;; (2020-02-14) bug fixes, fifth and latest in 3.3 series
+    "3.3.3" ;; (2019-03-27) bug fixes, fourth in 3.3 series
+    "3.3.2" ;; (2018-05-04) bug fixes, third in 3.3 series
+    "3.3.1" ;; (2017-11-14) bug fixes, second in 3.3 series, SBCL has been stuck there for years
     "3.3.0" ;; (2017-10-06) first in 3.3 series
 
     ;; The 3.2 series provides the asdf3.2 feature, meaning users can rely on
@@ -133,9 +136,10 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
        :allegro_64_s :allegromodern_64_s :allegro8_64_s :allegromodern8_64_s)
       (version<= "2.27" tag))
 
-     ;; CCL fasl numbering broke loading of old asdf 2.0, and the punting for 2.26 fails,
-     ;; but who cares since CCL has always been shipping recent versions of ASDF.
-     ((:ccl) (version<= "2.27" tag))
+     ;; CCL fasl numbering broke loading of old asdf 2.0, the punting for 2.26 fails, and
+     ;; 2.27 enables deferred-warnings then the new UIOP causes confusion with its changed format.
+     ;; But who cares since CCL has always been shipping recent versions of ASDF.
+     ((:ccl) (version<= "2.32" tag))
 
      ;; CLASP is only supported as of 3.1.4.3
      ((:clasp) (version<= "3.1.4.3" tag))
@@ -149,9 +153,9 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; However, whether we punt or don't punt, these should all work.
      ((:clisp) t)
 
-     ;; CMUCL has problems with 2.32 and earlier because of
-     ;; the redefinition of system's superclass component.
-     ((:cmucl) (version<= "2.33" tag))
+     ;; CMUCL has problems with 3.2.1 and earlier because of the redefinition of
+     ;; some classes that causes its subtype to answer NIL when it shouldn't.
+     ((:cmucl) (version<= "3.3.0" tag))
 
      ;; Skip many ECL tests, for various ASDF issues
      ((:ecl :ecl_bytecodes) (version<= "2.21" tag))
@@ -161,14 +165,20 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; against anything but the latest release.
      ((:gcl) (version<= "3.1.4" tag))
 
-     ;; LispWorks is fine, but ASDF 3.0.3 has a bug and can't be loaded.
-     ((:lispworks) (not (equal "3.0.3" tag)))
+     ;; LispWorks is fine, but ASDF 3.0.3 can't be loaded due to a bug it has a bug,
+     ;; while 2.27 to 2.32 use system:pid-exit-status that doesn't exist anymore in LispWorks 7.
+     ((:lispworks) (and (version<= "2.33" tag) (not (equal "3.0.3" tag))))
 
      ;; MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
-     ((:mkcl) (version<= "3.1.2" tag))
+     ;; The bundle support also changed a lot in 3.2.0 and this breaks upgrading from 3.1.
+     ((:mkcl) (version<= "3.2.0" tag))
 
-     ;; all clear on these implementations
-     ((:sbcl :scl) t)
+     ;; SBCL fails to load ASDF as a system 1.369 because ASDF 1.369's builtin
+     ;; asdf-binary-locations gets confused when SBCL_HOME is not set by SBCL anymore.
+     ((:sbcl) (version<= "2.000" tag))
+
+     ;; SCL is all good.
+     ((:scl) (version<= "2.000" tag))
 
      ;; XCL support starts with ASDF 2.014.2
      ;; — It also dies during upgrade trying to show the backtrace.
@@ -196,6 +206,7 @@ Use the preferred lisp implementation"
                           (extract-tagged-asdf tag)
                           (run-test-lisp description
                            `((load "test/script-support.lisp")
+                             (asdf-test::debug-asdf)
                              (asdf-test::test-upgrade ,@method ,tag))
                            :lisp lisp :log log))
                          description))

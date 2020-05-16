@@ -434,33 +434,36 @@ extract_all_tagged_asdf () {
 }
 valid_upgrade_test_p () {
     case "${1}:${2}:${3}" in
-        # It's damn slow. Also, for some reason, we punt on anything earlier than 2.25,
-        # and only need to test it once, below for 2.24.
-        abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
-        # ccl fasl numbering broke loading of old asdf 2.0
-        ccl:2.0[01]*|ccl:2.2[0-6]*) : ;;
+        # It's damn slow. Also, we punt on anything 2.26 or earlier.
+        abcl:1.*|abcl:2.[01]*|abcl:2.2[0-5]:*) : ;;
         # Allegro ships with versions 3*, so give up testing 2
         # Also, unpatched Allegro 10 has bug updating from 2.26 and before
         allegro*:[12].*) : ;;
-        # My old ubuntu 10.04LTS clisp 2.44.1 came wired in
+        # ccl fasl numbering broke loading of old asdf 2.0. 2.27 has trouble with deferred-warnings.
+        ccl:2.[01]*|ccl:2.2[0-7]*) : ;;
+        # clasp only since 3.1.4.3
+        clasp:2.*|clasp:3.0*|clasp:3.1.[0-4]*) : ;;
+        # CLISP: My old ubuntu 10.04LTS clisp 2.44.1 came wired in
         # with an antique ASDF 1.374 from CLC that can't be downgraded.
         # More recent CLISPs work.
         # 2.00[0-7] use UID, which fails on some old CLISPs.
-        # Note that for the longest time, CLISP has included 2.011 in its distribution.
-        # Now its hg repository includes 3.0.2.29, but clisp hasn't released in many years(!)
+        # Note that for the longest time, CLISP has included 2.011 in its source repository.
+        # Now its hg repository includes 3.x, but clisp hasn't released in many years(!)
         # We don't punt on upgrade anymore, so we can go at it!
         #clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
-        # CMUCL has problems with 2.32 and earlier because of
+        # CMUCL has problems with 3.2.1 and earlier because of
         # the redefinition of system's superclass component.
-        cmucl:1.*|cmucl:2.[012]*|cmucl:2.3[012]*) : ;;
+        cmucl:1.*|cmucl:2.*|cmucl:3.[012]*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
         # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
-        gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
+        gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*|gcl:3.1.[0-3]*) : ;;
         # LispWorks is broken at ASDF 3.0.3, but can upgrade from earlier and later ASDFs.
-        lispworks:3.0.3:*) : ;;
+        lispworks:1*|lispworks:2.[0-2]*|lispworks:2.3[0-2]*|lispworks:3.0.3:*) : ;;
         # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
         mkcl:[12]*|mkcl:3.0*) : ;;
+        # SBCL won't run ASDF 1 anymore
+        sbcl:1*) : ;;
         # XCL support starts with ASDF 2.014.2
         # — It also dies during upgrade trying to show the backtrace.
         xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) : ;;
