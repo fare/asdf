@@ -62,7 +62,7 @@
                :package-local-nicknames-test-1
                :package-local-nicknames-test-2))
     (let ((*package* (find-package p)))
-      (let ((alist (uiop/package:package-local-nicknames :package-local-nicknames-test-1)))
+      (let ((alist (uiop/package*:package-local-nicknames :package-local-nicknames-test-1)))
         (assert (equal (cons (case-lisp-string "L") (find-package :cl))
                        (assoc (case-lisp-string "L") alist :test 'string=)))
         (assert (equal (cons +nn-sname+ (find-package +pkg-sname+))
@@ -95,28 +95,28 @@
 
 (define-test test-package-local-nicknames-nickname-removal
   (reset-test-packages)
-  (assert (= 2 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
-  (assert (uiop/package:remove-package-local-nickname :l :package-local-nicknames-test-1))
-  (assert (= 1 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (= 2 (length (uiop/package*:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (uiop/package*:remove-package-local-nickname :l :package-local-nicknames-test-1))
+  (assert (= 1 (length (uiop/package*:package-local-nicknames :package-local-nicknames-test-1))))
   (let ((*package* (find-package :package-local-nicknames-test-1)))
     (assert (not (find-package :l)))))
 
 (define-test test-package-local-nicknames-nickname-removal-char
   #+ignore (declare (optimize (debug 3) (speed 0)))
   (reset-test-packages)
-  (assert (= 2 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
-  (assert (uiop/package:remove-package-local-nickname (if (eq (readtable-case *readtable*) :preserve) #\l #\L)
+  (assert (= 2 (length (uiop/package*:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (uiop/package*:remove-package-local-nickname (if (eq (readtable-case *readtable*) :preserve) #\l #\L)
                                                       :package-local-nicknames-test-1))
-  (assert (= 1 (length (uiop/package:package-local-nicknames :package-local-nicknames-test-1))))
+  (assert (= 1 (length (uiop/package*:package-local-nicknames :package-local-nicknames-test-1))))
   (let ((*package* (find-package :package-local-nicknames-test-1)))
     (assert (not (find-package :l)))))
 
 
 (define-test test-package-local-nicknames-nickname-removal-readd-another-package-equality
   (reset-test-packages)
-  (assert (uiop/package:remove-package-local-nickname :l :package-local-nicknames-test-1))
+  (assert (uiop/package*:remove-package-local-nickname :l :package-local-nicknames-test-1))
   (assert (eq (find-package :package-local-nicknames-test-1)
-              (uiop/package:add-package-local-nickname :l :package-local-nicknames-test-2
+              (uiop/package*:add-package-local-nickname :l :package-local-nicknames-test-2
                                           :package-local-nicknames-test-1)))
   (let ((*package* (find-package :package-local-nicknames-test-1)))
     (let ((cl (find-package :l))

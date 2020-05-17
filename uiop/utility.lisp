@@ -44,7 +44,8 @@
 ;;   so that new definitions are always seen by all callers, even those up the stack.
 ;; - WITH-UPGRADABILITY also uses EVAL-WHEN so that definitions used by ASDF are in a limbo state
 ;;   (especially for gf's) in between the COMPILE-OP and LOAD-OP operations on the defining file.
-;; - THOU SHALT NOT redefine a function with a backward-incompatible semantics without renaming it.
+;; - THOU SHALT NOT redefine a function with a backward-incompatible semantics without renaming it,
+;;   at least if that function is used by ASDF while performing the plan to load ASDF.
 ;; - THOU SHALT change the name of a function whenever thou makest an incompatible change.
 ;; - For instance, when the meanings of NIL and T for timestamps was inverted,
 ;;   functions in the STAMP<, STAMP<=, etc. family had to be renamed to TIMESTAMP<, TIMESTAMP<=, etc.,
@@ -53,9 +54,8 @@
 ;;   even in a backward-compatible way, you MUST precede the definition by FMAKUNBOUND.
 ;; - Since FMAKUNBOUND will remove all the methods on the generic function, make sure that
 ;;   all the methods required for ASDF to successfully continue compiling itself
-;;   shall be defined in the same file as the one with the FMAKUNBOUND.
-;; - When a function goes from DEFGENERIC to DEFUN, you MAY have to use FMAKUNBOUND, too.
-;;   Please try the upgrade tests on all supported implementations and update this comment afterwards.
+;;   shall be defined in the same file as the one with the FMAKUNBOUND, *after* the DEFGENERIC.
+;; - When a function goes from DEFGENERIC to DEFUN, you may omit to use FMAKUNBOUND.
 ;; - For safety, you shall put the FMAKUNBOUND just before the DEFUN or DEFGENERIC,
 ;;   in the same WITH-UPGRADABILITY form (and its implicit EVAL-WHEN).
 ;; - Any time you change a signature, please keep a comment specifying the first release after the change;
