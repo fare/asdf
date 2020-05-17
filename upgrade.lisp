@@ -124,17 +124,15 @@ previously-loaded version of ASDF."
             ,@(when (version< previous-version "3.1.2") '(#:component-depends-on #:input-files)) ;; crucial methods *removed* before 3.1.2
             ,@(when (version< previous-version "3.1.7.20") '(#:find-component)))) ;; added &key registered
          (redefined-classes
-          ;; redefining the classes causes interim circularities
           ;; with the old ASDF during upgrade, and many implementations bork
-          #-clozure ()
-          #+clozure
-          '((#:compile-concatenated-source-op (#:operation) ())
-            (#:compile-bundle-op (#:operation) ())
-            (#:concatenate-source-op (#:operation) ())
-            (#:dll-op (#:operation) ())
-            (#:lib-op (#:operation) ())
-            (#:monolithic-compile-bundle-op (#:operation) ())
-            (#:monolithic-concatenate-source-op (#:operation) ()))))
+          (when (or #+(or clozure mkcl) t)
+            '((#:compile-concatenated-source-op (#:operation) ())
+              (#:compile-bundle-op (#:operation) ())
+              (#:concatenate-source-op (#:operation) ())
+              (#:dll-op (#:operation) ())
+              (#:lib-op (#:operation) ())
+              (#:monolithic-compile-bundle-op (#:operation) ())
+              (#:monolithic-concatenate-source-op (#:operation) ())))))
     (loop :for name :in redefined-functions
       :for sym = (find-symbol* name :asdf nil)
       :do (when sym (fmakunbound sym)))
@@ -142,11 +140,11 @@ previously-loaded version of ASDF."
                            (if (consp x) (values (car x) (cadr x)) (values x :asdf))
                          (find-symbol* s p nil)))
              (asyms (l) (mapcar #'asym l)))
-      (loop :for (name superclasses slots) :in redefined-classes
-            :for sym = (find-symbol* name :asdf nil)
-            :when (and sym (find-class sym))
-              :do (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))))))
-
+      (loop* :for (name superclasses slots) :in redefined-classes
+             :for sym = (find-symbol* name :asdf nil)
+             :when (and sym (find-class sym))
+             :do #+ccl (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))
+             #-ccl (setf (find-class sym) nil))))) ;; mkcl
 
 ;;; Self-upgrade functions
 (with-upgradability ()
