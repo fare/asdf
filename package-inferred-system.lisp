@@ -125,28 +125,40 @@ otherwise return a default system name computed from PACKAGE-NAME."
                             (equal (slot-value child 'relative-pathname) subpath))))))))
 
   ;; sysdef search function to push into *system-definition-search-functions*
-  (defun sysdef-package-inferred-system-search (system)
-    (let ((primary (primary-system-name system)))
-      (unless (equal primary system)
+  (defun sysdef-package-inferred-system-search (system-name)
+  "Takes SYSTEM-NAME and returns an initialized SYSTEM object, or NIL.  Made to be added to
+*SYSTEM-DEFINITION-SEARCH-FUNCTIONS*."
+    (let ((primary (primary-system-name system-name)))
+      ;; this function ONLY does something if the primary system name is NOT the same as
+      ;; SYSTEM-NAME.  It is used to find the systems with names that are relative to
+      ;; the primary system's name, and that are not explicitly specified in the system
+      ;; definition
+      (unless (equal primary system-name)
         (let ((top (find-system primary nil)))
           (when (typep top 'package-inferred-system)
             (if-let (dir (component-pathname top))
-              (let* ((sub (subseq system (1+ (length primary))))
-                     (f (probe-file* (subpathname dir sub :type "lisp")
+              (let* ((sub (subseq system-name (1+ (length primary))))
+                     (component-type (class-for-type
+                                      nil
+                                      (or (module-default-component-class top)
+                                          *default-component-class*)))
+                     (file-type (file-type (make-instance component-type)))
+                     (f (probe-file* (subpathname dir sub :type file-type)
                                      :truename *resolve-symlinks*)))
                 (when (file-pathname-p f)
-                  (let ((dependencies (package-inferred-system-file-dependencies f system))
-                        (previous (registered-system system))
+                  (let ((dependencies (package-inferred-system-file-dependencies f system-name))
+                        (previous (registered-system system-name))
                         (around-compile (around-compile-hook top)))
-                    (if (same-package-inferred-system-p previous system dir sub around-compile dependencies)
+                    (if (same-package-inferred-system-p previous system-name dir sub around-compile dependencies)
                         previous
-                        (eval `(defsystem ,system
+                        (eval `(defsystem ,system-name
                                  :class package-inferred-system
+                                 :default-component-class ,component-type
                                  :source-file ,(system-source-file top)
                                  :pathname ,dir
                                  :depends-on ,dependencies
                                  :around-compile ,around-compile
-                                 :components ((cl-source-file "lisp" :pathname ,sub)))))))))))))))
+                                 :components ((,component-type file-type :pathname ,sub)))))))))))))))
 
 (with-upgradability ()
   (pushnew 'sysdef-package-inferred-system-search *system-definition-search-functions*)

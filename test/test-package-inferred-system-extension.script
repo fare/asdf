@@ -1,0 +1,7 @@
+;; -*- mode: common-lisp -*-
+
+(register-directory (subpathname *test-directory* "package-inferred-extension-test/"))
+
+(assert (load-system "package-inferred-system-test-2"))
+
+(assert (find-package* '#:package-inferred-system-test-2/utilities))

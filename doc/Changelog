@@ -6,6 +6,9 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 * A number of fixes for Lispworks compatibility (thanks to Martin
 	Simmons).
 * Fixes for SBCL from Eric Timmons.
+* Add support for source files with different file extensions to
+	package-inferred-systems.  Thanks to Jingtao Xu for identifying
+	the bug and providing a fix.
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
