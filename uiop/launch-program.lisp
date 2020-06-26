@@ -525,10 +525,11 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
       (parameter-error "~S: The only admissible value for ~S is ~S on this lisp"
                        'launch-program :error-output :interactive))
     #+ecl
-    (when (some #'(lambda (stream)
-                    (and (streamp stream)
-                         (not (file-or-synonym-stream-p stream))))
-                (list input output error-output))
+    (when (and (version< (lisp-implementation-version) "20.4.24")
+               (some #'(lambda (stream)
+                         (and (streamp stream)
+                              (not (file-or-synonym-stream-p stream))))
+                     (list input output error-output)))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
