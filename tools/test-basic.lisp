@@ -71,7 +71,7 @@ Use your preferred lisp implementation and check that asdf is loaded without any
   "basic test: doc, clean-load, load-systems"
   (without-stopping ()
     (show-version)
-    (doc)
+    ;; (doc) ;; Let's test doc separately
     (test-ascii)
     (test-clean-load lisp)
     (test-load-systems lisp systems)))

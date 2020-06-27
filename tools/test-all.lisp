@@ -14,10 +14,10 @@
   `(call-with-all-lisps (lambda (,lisp-var) ,@body) :lisps ,lisps :muffle-failures ,muffle-failures))
 
 (deftestcmd test-all-basic (lisps systems)
-  "basic test: doc, clean-load, load-systems"
+  "basic test: clean-load, load-systems"
   (without-stopping ()
     (show-version)
-    (doc)
+    ;; (doc) ;; Let's test doc separately
     (test-ascii)
     (test-all-clean-load lisps)
     (test-all-load-systems lisps systems)))
