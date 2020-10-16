@@ -476,6 +476,7 @@ run_upgrade_tests () {
     su=test/script-support.lisp
     tags="`upgrade_tags`"
     methods="`upgrade_methods`"
+    echo success > build/results/${lisp}-upgrade.status
     {
     for tag in $tags ; do
         for method in $methods ; do
@@ -491,10 +492,21 @@ run_upgrade_tests () {
                   echo "$icmd"
                   echo "then copy/paste:"
                   echo "(load \"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
-                  exit 1 ;}
-    fi ; done ; done
-    echo "Upgrade test succeeded for ${lisp}"
+                  echo "failure" > "build/results/${lisp}-upgrade.status" ;}
+    fi ; done ; done ;
+    read status < "build/results/${lisp}-upgrade.status"
+    if [ "$status" = "success" ]; then
+        echo "Upgrade test succeeded for ${lisp}"
+    else
+        echo "Upgrade test failed for ${lisp}"
+    fi ;
     } 2>&1 | tee build/results/${lisp}-upgrade.text
+    # We need to reread the status because the piping to tee causes everything
+    # in the block above to be run in a subshell.
+    read status < "build/results/${lisp}-upgrade.status"
+    if [ "$status" = "failure" ]; then
+        exit 1
+    fi
 }
 run_tests () {
   create_config

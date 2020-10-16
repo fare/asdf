@@ -1,0 +1,208 @@
+###############################################################################
+# Global configuration
+###############################################################################
+
+variables:
+  # Just let the runner fetch and update the submodules for us.
+  GIT_SUBMODULE_STRATEGY: normal
+
+
+# This causes pipelines to be created only on the default branch, tags, merge
+# requests, and when triggered via the web interface.
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+# Split regression testing into a separate stage than upgrade tests. The
+# upgrade tests tend to run slower and are generally less important than
+# regression tests for most changes.
+stages:
+  - build
+  - regression
+  - upgrade
+
+###############################################################################
+# Build jobs
+###############################################################################
+
+Build ASDF:
+  stage: build
+  image: debian:latest
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git make
+    - make
+  artifacts:
+    paths:
+      - build/asdf.lisp
+
+Build docs:
+  stage: build
+  image: debian:latest
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git make texinfo texlive
+    - make -C doc
+  artifacts:
+    paths:
+      - doc/asdf.html
+      - doc/asdf.info
+      - doc/asdf.pdf
+
+Build asdf-tools:
+  stage: build
+  image: mitmers/sbcl:latest
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git make
+    - make -f Makefile-lisp-scripting build-asdf-tools
+  artifacts:
+    paths:
+      - build/asdf-tools
+  rules:
+    - if: $ENABLE_ASDF_TOOLS
+
+###############################################################################
+# Testing Templates
+###############################################################################
+
+.Regression tests:
+  stage: regression
+  image: mitmers/$l:$TAG
+  variables:
+    TAG: latest
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git make
+    - make
+    - make test
+  artifacts:
+    paths:
+      - build/results/$l-test.text
+  needs: []
+
+.Upgrade tests:
+  stage: upgrade
+  image: mitmers/$l:$TAG
+  variables:
+    TAG: latest
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git make
+    - make
+    - make test-upgrade
+  artifacts:
+    paths:
+      - build/results/$l-upgrade.text
+  needs: []
+  allow_failure: true
+
+.Scripting regression tests:
+  extends: .Regression tests
+  before_script:
+    - ln -s Makefile-lisp-scripting GNUmakefile
+  needs:
+    - Build asdf-tools
+  rules:
+    - if: $ENABLE_ASDF_TOOLS
+
+.Scripting upgrade tests:
+  extends: .Upgrade tests
+  before_script:
+    - ln -s Makefile-lisp-scripting GNUmakefile
+  needs:
+    - Build asdf-tools
+  rules:
+    - if: $ENABLE_ASDF_TOOLS
+
+###############################################################################
+# Actual test jobs - Makefile based harness
+###############################################################################
+
+ABCL regression tests:
+  extends: .Regression tests
+  variables:
+    l: abcl
+
+ABCL upgrade tests:
+  extends: .Upgrade tests
+  variables:
+    l: abcl
+
+CCL regression tests:
+  extends: .Regression tests
+  variables:
+    l: ccl
+
+CCL upgrade tests:
+  extends: .Upgrade tests
+  variables:
+    l: ccl
+
+ECL regression tests:
+  extends: .Regression tests
+  variables:
+    l: ecl
+
+ECL upgrade tests:
+  extends: .Upgrade tests
+  variables:
+    l: ecl
+
+SBCL regression tests:
+  extends: .Regression tests
+  variables:
+    l: sbcl
+
+SBCL upgrade tests:
+  extends: .Upgrade tests
+  variables:
+    l: sbcl
+
+
+###############################################################################
+# Actual test jobs - lisp scripting based harness
+###############################################################################
+
+ABCL scripting regression tests:
+  extends: .Scripting regression tests
+  variables:
+    l: abcl
+
+ABCL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  variables:
+    l: abcl
+
+CCL scripting regression tests:
+  extends: .Scripting regression tests
+  variables:
+    l: ccl
+
+CCL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  variables:
+    l: ccl
+
+ECL scripting regression tests:
+  extends: .Scripting regression tests
+  variables:
+    l: ecl
+
+ECL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  variables:
+    l: ecl
+
+SBCL scripting regression tests:
+  extends: .Scripting regression tests
+  variables:
+    l: sbcl
+
+SBCL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  variables:
+    l: sbcl

@@ -480,7 +480,7 @@
     (let ((process-info (launch-program "./sleeper.sh 12 1")))
       (handle-result "alive?"
                      (process-alive-p process-info))
-      (sleep 2)
+      (sleep 5)
       (handle-result "dead?"
                      (not (process-alive-p process-info)))
       (wait-process process-info)))
@@ -552,7 +552,7 @@
     (let* ((process-info (launch-program "./sleeper.sh 12 1"))
            (status (process-status process-info)))
       (handle-result "running?" (equal :running status))
-      (sleep 2)
+      (sleep 5)
       (multiple-value-bind (status exit-code)
           (process-status process-info)
         (handle-result "exited?" (equal :exited status))
@@ -568,7 +568,7 @@
     #+(and lispworks (not lispworks7+))
     (skip-test "Known to fail")
     (let* ((process-info (launch-program "./killer.sh")))
-      (sleep 1)
+      (sleep 5)
       (multiple-value-bind (status code)
           (process-status process-info)
         (handle-result "exited or signaled?"
@@ -588,7 +588,7 @@
 (define-test
     ":exited (it exited >128; repeated query)"
     (let* ((process-info (launch-program "./killercontainer.sh")))
-      (sleep 1)
+      (sleep 5)
       (multiple-value-bind (status code)
           (process-status process-info)
         (handle-result "exited?" (eq status :exited))
