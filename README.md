@@ -144,6 +144,34 @@ indeed, a developer may not only make mistakes, but may deliberately
 introduce or re-introduce bugs at some place to test code in another place.
 
 
+Contributing to ASDF
+--------------------
+
+Bugs can be filled on ASDF by reporting them on the [Gitlab issue
+tracker](https://gitlab.common-lisp.net/asdf/asdf/-/issues) or sending them to
+the [asdf-devel mailing list](https://mailman.common-lisp.net/listinfo/asdf-devel).
+
+You can contribute code to ASDF development by forking the
+[repository](https://gitlab.common-lisp.net/asdf/asdf) and sending a merge
+request or sending a patch to the asdf-devel mailing list.
+
+If you fork the repository on Gitlab, note that Gitlab CI is enabled to help in
+automated testing. While not exhaustive, this can help make sure you don't
+inadvertantly break anything with your patch! The tests will be run any time
+you submit a merge request or manually trigger a run using Gitlab's UI. In
+order for the tests to run properly (namely the ASDF upgrade tests), you must
+ensure your fork contains the tags for every released version of ASDF. If your
+fork is freshly created, this will happen automatically. However, if there has
+been a release since you forked, you need to update your tags. Assuming that
+your fork is the `origin` remote and upstream is the `upstream` remote, you can
+do this by running:
+
+    git fetch upstream --tags
+    git push origin --tags
+
+If you would like to enable test jobs that use the Lisp scripting test harness,
+set the variable `ENABLE_ASDF_TOOLS` on a pipeline.
+
 Debugging ASDF
 --------------
 
@@ -297,3 +325,6 @@ How do I navigate this source tree?
 *   [TODO](TODO)
     * Plenty of ideas for how to further improve ASDF
       (not all of them guaranteed good ideas.)
+
+*   [gitlab-ci.yml](gitlab-ci.yml)
+    * A YAML file describing jobs for Gitlab CI to run.
