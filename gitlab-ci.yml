@@ -99,6 +99,8 @@ Build asdf-tools:
       - build/results/$l-upgrade.text
   needs: []
   allow_failure: true
+  rules:
+    - if: $RUN_UPGRADE_TESTS
 
 .Scripting regression tests:
   extends: .Regression tests
@@ -116,7 +118,7 @@ Build asdf-tools:
   needs:
     - Build asdf-tools
   rules:
-    - if: $ENABLE_ASDF_TOOLS
+    - if: $ENABLE_ASDF_TOOLS && $RUN_UPGRADE_TESTS
 
 ###############################################################################
 # Actual test jobs - Makefile based harness
