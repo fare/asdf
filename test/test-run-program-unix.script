@@ -205,6 +205,8 @@
     (run-program (format nil "./exiter.sh 0 ~a" output-string)
                  :error-output :output))
 
+
+
 (define-test
     ":output <file> (file e.)"
     (progn
@@ -379,6 +381,19 @@
         (read-sequence out-string output)
         (check-strings in-string out-string)
         (close-streams process))))
+
+(define-test
+    ":error-output :stream"
+  (let* ((error-output-string "Output to stream.")
+         (process
+           (launch-program (format nil "./exiter.sh 0 \"~a\" \"~a\"" output-string error-output-string)
+                           :error-output :stream))
+         (error-output-stream (process-info-error-output process))
+         error-output-line)
+    (wait-process process)
+    (setf error-output-line (read-line error-output-stream))
+    (handle-result "Expected error output to with error output stream?"
+                   (equal error-output-string error-output-line))))
 
 (defvar *dynamic-input*)
 
