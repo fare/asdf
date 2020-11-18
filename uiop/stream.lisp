@@ -681,8 +681,8 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
           ,@(when element-type `(:element-type ,element-type))
           ,@(when external-format `(:external-format ,external-format))))))
 
-  (defun get-temporary-file (&key directory prefix suffix type)
-    (with-temporary-file (:pathname pn :keep t
+  (defun get-temporary-file (&key directory prefix suffix type (keep t))
+    (with-temporary-file (:pathname pn :keep keep
                           :directory directory :prefix prefix :suffix suffix :type type)
       pn))
 
@@ -700,7 +700,14 @@ clash with any concurrent process attempting the same thing."
     (let* ((px (ensure-pathname x :ensure-physical t))
            (prefix (if-let (n (pathname-name px)) (strcat n "-tmp") "tmp"))
            (directory (pathname-directory-pathname px)))
-      (get-temporary-file :directory directory :prefix prefix :type (pathname-type px))))
+      ;; Genera uses versioned pathnames -- If we leave the empty file in place,
+      ;; the system will create a new version of the file when the caller opens
+      ;; it for output. That empty file will remain after the operation is completed.
+      ;; As Genera is a single core processor, the possibility of a name conflict is
+      ;; minimal if not nil. (And, in the event of a collision, the two processes
+      ;; would be writing to different versions of the file.)
+      (get-temporary-file :directory directory :prefix prefix :type (pathname-type px)
+                          #+genera :keep #+genera nil)))
 
   (defun call-with-staging-pathname (pathname fun)
     "Calls FUN with a staging pathname, and atomically
