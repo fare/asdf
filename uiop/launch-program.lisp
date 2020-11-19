@@ -3,7 +3,8 @@
 
 (uiop/package:define-package :uiop/launch-program
   (:use :uiop/common-lisp :uiop/package :uiop/utility
-   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
+   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream
+   :uiop/version)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
@@ -663,6 +664,11 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
          code ;; ignore
          (unless (zerop mode)
            (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))
+         (when (eq error-output :stream)
+           (prop 'error-output-stream
+                 (if (version< (lisp-implementation-version) "16.0.0")
+                     (symbol-call :ext :external-process-error process)
+                     (symbol-call :ext :external-process-error-stream process))))
          (prop 'process process))
        #+lispworks
        ;; See also the comments on the process-info class
