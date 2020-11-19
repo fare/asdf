@@ -3,7 +3,8 @@
 
 (uiop/package:define-package :uiop/launch-program
   (:use :uiop/common-lisp :uiop/package :uiop/utility
-   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
+   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream
+   :uiop/version)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
@@ -621,7 +622,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
           (prop 'process pid-or-nil)
           (when (eq input :stream) (prop 'input-stream in-or-io))
           (when (eq output :stream) (prop 'output-stream out-or-err))
-          (when (eq error-output :stream) (prop 'error-stream err-or-pid)))
+          (when (eq error-output :stream) (prop 'error-output-stream err-or-pid)))
          (t
           (prop 'process err-or-pid)
           (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
@@ -630,7 +631,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
             (2 (prop 'output-stream in-or-io))
             (3 (prop 'bidir-stream in-or-io)))
           (when (eq error-output :stream)
-            (prop 'error-stream out-or-err))))
+            (prop 'error-output-stream out-or-err))))
        #+(or abcl clozure cmucl sbcl scl)
        (progn
          (prop 'process process)
@@ -663,6 +664,11 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
          code ;; ignore
          (unless (zerop mode)
            (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))
+         (when (eq error-output :stream)
+           (prop 'error-output-stream
+                 (if (version< (lisp-implementation-version) "16.0.0")
+                     (symbol-call :ext :external-process-error process)
+                     (symbol-call :ext :external-process-error-stream process))))
          (prop 'process process))
        #+lispworks
        ;; See also the comments on the process-info class
@@ -674,7 +680,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
               (prop (ecase mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream))
                     io-or-pid))
             (when (eq error-output :stream)
-              (prop 'error-stream err-or-nil)))
+              (prop 'error-output-stream err-or-nil)))
            ;; Prior to Lispworks 7, this returned (pid); now it
            ;; returns (io err pid) of which we keep io.
            (t (prop 'process io-or-pid)))))
