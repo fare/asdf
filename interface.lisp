@@ -17,7 +17,8 @@
   ;; Note: (1) we are NOT automatically reexporting everything from previous packages.
   ;; (2) we only reexport UIOP functionality when backward-compatibility requires it.
   (:export
-   #:defsystem #:find-system #:load-asd #:locate-system #:coerce-name #:primary-system-name
+   #:defsystem #:find-system #:load-asd #:locate-system #:coerce-name
+   #:primary-system-name #:primary-system-p
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname
    #:search-for-system-definition #:find-component #:component-find-path
