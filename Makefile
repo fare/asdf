@@ -214,7 +214,7 @@ test-all-clean-load:
 	@for lisp in ${lisps} ; do ${MAKE} test-clean-load l=$$lisp || exit 1 ; done
 
 test-all-lisp:
-	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp || exit 1 ; done
+	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp t=${t}|| exit 1 ; done
 
 test-all-upgrade:
 	@for lisp in ${ulisps} ; do ${MAKE} test-upgrade l=$$lisp || exit 1 ; done
