@@ -5,10 +5,12 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 	nicknames to more lisp implementations.
 * A number of fixes for Lispworks compatibility (thanks to Martin
 	Simmons).
-* Fixes for SBCL from Eric Timmons.
+* Fixes for SBCL and ECL from Eric Timmons.
 * Add support for source files with different file extensions to
 	package-inferred-systems.  Thanks to Jingtao Xu for identifying
 	the bug and providing a fix.
+* Fixes for UIOP:WITH-TEMPORARY-FILE
+* Miscellaneous bug fixes from Luís Oliveira.
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
