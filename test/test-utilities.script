@@ -528,3 +528,96 @@
   (unwind-protect
        (uiop:compile-file* "sb-grovel-fail.lisp")
     (uiop:delete-file-if-exists "sb-grovel-fail.fasl")))
+
+;;; Call with temporary file had an ill-formed COND, causing malfunction.
+(DBG "Testing UIOP:CALL-WITH-TEMPORARY-FILE")
+
+(DBG "WANT-PATHNAME T WANT-STREAM NIL")
+(call-with-temporary-file
+ #'(lambda (pathname)
+     (DBG :call-with-temporary-file-thunk
+          (format nil "Pathname is ~a" pathname))
+     (assert (probe-file pathname))
+     (with-open-file (str pathname :direction :output
+                                   :if-exists :append
+                                   :if-does-not-exist :error)
+       (assert (probe-file pathname))
+       (format str "Have successfully written in thunk."))
+     (DBG :call-with-temporary-file-thunk
+          "Thunk ran successfully."))
+ :want-pathname-p t :want-stream-p nil
+ :after #'(lambda (pathname)
+            (let ((line-read
+                    (with-open-file (str pathname :direction :input)
+                      (read-line str))))
+              (assert-equal line-read "Have successfully written in thunk."))))
+(let ((pathname
+        (call-with-temporary-file
+         #'(lambda (pathname)
+             (DBG :call-with-temporary-file-thunk
+                  (format nil "Pathname is ~a" pathname))
+             (assert (probe-file pathname))
+             (with-open-file (str pathname :direction :output
+                                           :if-exists :append
+                                           :if-does-not-exist :error)
+               (assert (probe-file pathname))
+               (format str "Have successfully written in thunk."))
+             (DBG :call-with-temporary-file-thunk
+                  "Thunk ran successfully.")
+             pathname)
+         :want-pathname-p t :want-stream-p nil
+         :keep t)))
+  (unwind-protect
+       (let ((line-read
+               (with-open-file (str pathname :direction :input)
+                 (read-line str))))
+         (assert-equal line-read "Have successfully written in thunk."))
+    (ignore-errors (uiop:delete-file-if-exists pathname))))
+
+
+
+(DBG "WANT-PATHNAME NIL WANT-STREAM T")
+(call-with-temporary-file
+ #'(lambda (str)
+     (format str "Have successfully written in thunk.")
+     (DBG :call-with-temporary-file-thunk
+          "Thunk ran successfully."))
+ :want-pathname-p nil :want-stream-p t
+ :keep t
+ :after #'(lambda (pathname)
+            (let ((line-read
+                    (with-open-file (str pathname :direction :input)
+                      (read-line str))))
+              (assert-equal line-read "Have successfully written in thunk."))))
+
+
+(DBG "WANT-PATHNAME t WANT-STREAM T")
+(call-with-temporary-file
+ #'(lambda (str pathname)
+     (format str "Have successfully written in thunk.")
+     (assert (pathnamep (parse-namestring pathname)))
+     (DBG :call-with-temporary-file-thunk
+          "Thunk ran successfully."))
+ :want-pathname-p t :want-stream-p t
+ :keep t
+ :after #'(lambda (pathname)
+            (let ((line-read
+                    (with-open-file (str pathname :direction :input)
+                      (read-line str))))
+              (assert-equal line-read "Have successfully written in thunk."))))
+
+(let ((pathname (call-with-temporary-file
+                 #'(lambda (str pathname)
+                     (format str "Have successfully written in thunk.")
+                     (assert (pathnamep (parse-namestring pathname)))
+                     (DBG :call-with-temporary-file-thunk
+                          "Thunk ran successfully.")
+                     pathname)
+                 :want-pathname-p t :want-stream-p t
+                 :keep t)))
+  (unwind-protect
+       (let ((line-read
+               (with-open-file (str pathname :direction :input)
+                 (read-line str))))
+         (assert-equal line-read "Have successfully written in thunk."))
+    (ignore-errors (uiop:delete-file-if-exists pathname))))
