@@ -629,11 +629,16 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
                                     (if want-pathname-p
                                         (funcall thunk stream pathname)
                                         (funcall thunk stream)))))))
-               (cond
-                 ((not okp) nil)
-                 (after (return (call-function after okp)))
-                 ((and want-pathname-p (not want-stream-p)) (return (call-function thunk okp)))
-                 (t (return (values-list results)))))
+               ;; if we don't want a stream, then we must call the thunk *after*
+               ;; the stream is closed, but only if it was successfully opened.
+               (when okp
+                 (when (and want-pathname-p (not want-stream-p))
+                   (setf results (multiple-value-list (funcall thunk okp))))
+                 ;; if the stream was successfully opened, then return a value,
+                 ;; either one computed already, or one from AFTER, if that exists.
+                 (if after
+                     (return (call-function after pathname))
+                     (return (values-list results)))))
           (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 
