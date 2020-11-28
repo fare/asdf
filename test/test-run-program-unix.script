@@ -541,8 +541,8 @@
 
 (define-test
     "multiple processes: proper exit sequence"
-    (let ((process-info1 (launch-program "./sleeper.sh 12 1"))
-          (process-info2 (launch-program "./sleeper.sh 12 2")))
+    (let ((process-info1 (launch-program "./sleeper.sh 12 3"))
+          (process-info2 (launch-program "./sleeper.sh 12 6")))
       (handle-result "#1 alive?"
                      (process-alive-p process-info1))
       (handle-result "#2 alive?"
