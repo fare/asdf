@@ -6,7 +6,7 @@ variables:
   # Just let the runner fetch and update the submodules for us.
   GIT_SUBMODULE_STRATEGY: normal
   ABCL_IMAGE: clfoundation/abcl
-  ABCL_TAG: 1.7.1-jdk8
+  ABCL_TAG: latest
   CCL_IMAGE: clfoundation/ccl
   CCL_TAG: latest
   ECL_IMAGE: clfoundation/ecl
@@ -123,6 +123,15 @@ Build asdf-tools:
 ABCL regression tests:
   extends: .Regression tests
   image: $ABCL_IMAGE:$ABCL_TAG
+  variables:
+    l: abcl
+  allow_failure: true
+
+# ABCL 1.8.0 has some issues that cause ASDF tests to fail. Remove this job
+# when the above job starts to pass again.
+ABCL 1.7.1 regression tests:
+  extends: .Regression tests
+  image: $ABCL_IMAGE:1.7.1-jdk8
   variables:
     l: abcl
 
