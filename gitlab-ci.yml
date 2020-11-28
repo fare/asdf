@@ -5,6 +5,14 @@
 variables:
   # Just let the runner fetch and update the submodules for us.
   GIT_SUBMODULE_STRATEGY: normal
+  ABCL_IMAGE: clfoundation/abcl
+  ABCL_TAG: 1.7.1-jdk8
+  CCL_IMAGE: clfoundation/ccl
+  CCL_TAG: latest
+  ECL_IMAGE: clfoundation/ecl
+  ECL_TAG: latest
+  SBCL_IMAGE: clfoundation/sbcl
+  SBCL_TAG: latest
 
 
 # This causes pipelines to be created only on the default branch, tags, merge
@@ -52,7 +60,7 @@ Build docs:
 
 Build asdf-tools:
   stage: build
-  image: clfoundation/sbcl:latest
+  image: $SBCL_IMAGE:$SBCL_TAG
   script:
     - make -f Makefile-lisp-scripting build-asdf-tools
   artifacts:
@@ -67,9 +75,6 @@ Build asdf-tools:
 
 .Regression tests:
   stage: regression
-  image: clfoundation/$l:$TAG
-  variables:
-    TAG: latest
   script:
     - make
     - make test
@@ -80,7 +85,6 @@ Build asdf-tools:
 
 .Upgrade tests:
   stage: upgrade
-  image: clfoundation/$l:$TAG
   variables:
     TAG: latest
   script:
@@ -118,42 +122,49 @@ Build asdf-tools:
 
 ABCL regression tests:
   extends: .Regression tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
-    TAG: 1.7.1-jdk8
 
 ABCL upgrade tests:
   extends: .Upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 CCL regression tests:
   extends: .Regression tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 CCL upgrade tests:
   extends: .Upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 ECL regression tests:
   extends: .Regression tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 ECL upgrade tests:
   extends: .Upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 SBCL regression tests:
   extends: .Regression tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
 SBCL upgrade tests:
   extends: .Upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
@@ -164,40 +175,48 @@ SBCL upgrade tests:
 
 ABCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 ABCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 CCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 CCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 ECL scripting regression tests:
   extends: .Scripting regression tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 ECL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 SBCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
 SBCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
