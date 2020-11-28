@@ -30,10 +30,8 @@ stages:
 
 Build ASDF:
   stage: build
-  image: debian:latest
+  image: buildpack-deps:latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
   artifacts:
     paths:
@@ -41,10 +39,10 @@ Build ASDF:
 
 Build docs:
   stage: build
-  image: debian:latest
+  image: buildpack-deps:buster
   script:
     - apt-get update
-    - apt-get install -y --no-install-recommends git make texinfo texlive
+    - apt-get install -y --no-install-recommends texinfo texlive
     - make -C doc
   artifacts:
     paths:
@@ -54,10 +52,8 @@ Build docs:
 
 Build asdf-tools:
   stage: build
-  image: mitmers/sbcl:latest
+  image: clfoundation/sbcl:latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make -f Makefile-lisp-scripting build-asdf-tools
   artifacts:
     paths:
@@ -71,12 +67,10 @@ Build asdf-tools:
 
 .Regression tests:
   stage: regression
-  image: mitmers/$l:$TAG
+  image: clfoundation/$l:$TAG
   variables:
     TAG: latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
     - make test
   artifacts:
@@ -86,12 +80,10 @@ Build asdf-tools:
 
 .Upgrade tests:
   stage: upgrade
-  image: mitmers/$l:$TAG
+  image: clfoundation/$l:$TAG
   variables:
     TAG: latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
     - make test-upgrade
   artifacts:
