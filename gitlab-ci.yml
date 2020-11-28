@@ -120,6 +120,7 @@ ABCL regression tests:
   extends: .Regression tests
   variables:
     l: abcl
+    TAG: 1.7.1-jdk8
 
 ABCL upgrade tests:
   extends: .Upgrade tests
