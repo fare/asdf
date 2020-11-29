@@ -5,6 +5,14 @@
 variables:
   # Just let the runner fetch and update the submodules for us.
   GIT_SUBMODULE_STRATEGY: normal
+  ABCL_IMAGE: clfoundation/abcl
+  ABCL_TAG: latest
+  CCL_IMAGE: clfoundation/ccl
+  CCL_TAG: latest
+  ECL_IMAGE: clfoundation/ecl
+  ECL_TAG: latest
+  SBCL_IMAGE: clfoundation/sbcl
+  SBCL_TAG: latest
 
 
 # This causes pipelines to be created only on the default branch, tags, merge
@@ -30,10 +38,8 @@ stages:
 
 Build ASDF:
   stage: build
-  image: debian:latest
+  image: buildpack-deps:latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
   artifacts:
     paths:
@@ -41,10 +47,10 @@ Build ASDF:
 
 Build docs:
   stage: build
-  image: debian:latest
+  image: buildpack-deps:buster
   script:
     - apt-get update
-    - apt-get install -y --no-install-recommends git make texinfo texlive
+    - apt-get install -y --no-install-recommends texinfo texlive
     - make -C doc
   artifacts:
     paths:
@@ -54,10 +60,8 @@ Build docs:
 
 Build asdf-tools:
   stage: build
-  image: mitmers/sbcl:latest
+  image: $SBCL_IMAGE:$SBCL_TAG
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make -f Makefile-lisp-scripting build-asdf-tools
   artifacts:
     paths:
@@ -71,12 +75,7 @@ Build asdf-tools:
 
 .Regression tests:
   stage: regression
-  image: mitmers/$l:$TAG
-  variables:
-    TAG: latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
     - make test
   artifacts:
@@ -86,12 +85,9 @@ Build asdf-tools:
 
 .Upgrade tests:
   stage: upgrade
-  image: mitmers/$l:$TAG
   variables:
     TAG: latest
   script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends git make
     - make
     - make test-upgrade
   artifacts:
@@ -99,6 +95,8 @@ Build asdf-tools:
       - build/results/$l-upgrade.text
   needs: []
   allow_failure: true
+  rules:
+    - if: $RUN_UPGRADE_TESTS
 
 .Scripting regression tests:
   extends: .Regression tests
@@ -116,7 +114,7 @@ Build asdf-tools:
   needs:
     - Build asdf-tools
   rules:
-    - if: $ENABLE_ASDF_TOOLS
+    - if: $ENABLE_ASDF_TOOLS && $RUN_UPGRADE_TESTS
 
 ###############################################################################
 # Actual test jobs - Makefile based harness
@@ -124,41 +122,58 @@ Build asdf-tools:
 
 ABCL regression tests:
   extends: .Regression tests
+  image: $ABCL_IMAGE:$ABCL_TAG
+  variables:
+    l: abcl
+  allow_failure: true
+
+# ABCL 1.8.0 has some issues that cause ASDF tests to fail. Remove this job
+# when the above job starts to pass again.
+ABCL 1.7.1 regression tests:
+  extends: .Regression tests
+  image: $ABCL_IMAGE:1.7.1-jdk8
   variables:
     l: abcl
 
 ABCL upgrade tests:
   extends: .Upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 CCL regression tests:
   extends: .Regression tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 CCL upgrade tests:
   extends: .Upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 ECL regression tests:
   extends: .Regression tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 ECL upgrade tests:
   extends: .Upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 SBCL regression tests:
   extends: .Regression tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
 SBCL upgrade tests:
   extends: .Upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
@@ -169,40 +184,48 @@ SBCL upgrade tests:
 
 ABCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 ABCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
   variables:
     l: abcl
 
 CCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 CCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
 
 ECL scripting regression tests:
   extends: .Scripting regression tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 ECL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
   variables:
     l: ecl
 
 SBCL scripting regression tests:
   extends: .Scripting regression tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
 
 SBCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl

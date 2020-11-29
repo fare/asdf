@@ -158,16 +158,20 @@ request or sending a patch to the asdf-devel mailing list.
 If you fork the repository on Gitlab, note that Gitlab CI is enabled to help in
 automated testing. While not exhaustive, this can help make sure you don't
 inadvertantly break anything with your patch! The tests will be run any time
-you submit a merge request or manually trigger a run using Gitlab's UI. In
-order for the tests to run properly (namely the ASDF upgrade tests), you must
-ensure your fork contains the tags for every released version of ASDF. If your
-fork is freshly created, this will happen automatically. However, if there has
-been a release since you forked, you need to update your tags. Assuming that
-your fork is the `origin` remote and upstream is the `upstream` remote, you can
-do this by running:
+you submit a merge request or manually trigger a run using Gitlab's UI.
+
+
+If you would like to run ASDF's upgrade tests you need to first ensure your
+fork contains the tags for every released version of ASDF. If your fork is
+freshly created, this will happen automatically. However, if there has been a
+release since you forked, you need to update your tags. Assuming that your fork
+is the `origin` remote and upstream is the `upstream` remote, you can do this
+by running:
 
     git fetch upstream --tags
     git push origin --tags
+
+Then set the varialbe `RUN_UPGRADE_TESTS` on a pipeline.
 
 If you would like to enable test jobs that use the Lisp scripting test harness,
 set the variable `ENABLE_ASDF_TOOLS` on a pipeline.
