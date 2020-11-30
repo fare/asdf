@@ -399,6 +399,31 @@
     ;;                (equal error-output-string error-output-line))
     ))
 
+(define-test
+    ":input <file> :output <sstream> :wait nil"
+    (let ((in-string (format nil "A line.~%And another.~%")))
+      (create-file-from-string *input-file* in-string)
+      (with-output-to-string (out-stream)
+        (let* ((process (launch-program "cat" :input *input-file*
+                                              :output out-stream)))
+          (wait-process process)
+          (check-strings in-string (get-output-stream-string out-stream))
+          (close-streams process)))))
+
+;; This test hangs indefinitely on ECL 20.4.24. Reported upstream with potential
+;; fix at https://gitlab.com/embeddable-common-lisp/ecl/-/merge_requests/219
+#-ecl
+(define-test
+    ":input <sstream> :output <sstream> :wait nil"
+    (let ((in-string (format nil "A line.~%And another.~%")))
+      (with-output-to-string (out-stream)
+        (with-input-from-string (in-stream in-string)
+          (let* ((process (launch-program "tee /tmp/asdf-test.txt" :input in-stream
+                                                                   :output out-stream)))
+            (wait-process process)
+            (check-strings in-string (get-output-stream-string out-stream))
+            (close-streams process))))))
+
 (defvar *dynamic-input*)
 
 (define-test
