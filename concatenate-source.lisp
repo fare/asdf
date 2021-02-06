@@ -69,10 +69,11 @@ into a single file"))
           :append
           (when (typep c 'cl-source-file)
             (let ((e (component-encoding c)))
-              (unless (equal e encoding)
+              (unless (or (equal e encoding)
+                          (and (equal e :ASCII) (equal encoding :UTF-8)))
                 (let ((a (assoc e other-encodings)))
                   (if a (push (component-find-path c) (cdr a))
-                      (push (list a (component-find-path c)) other-encodings)))))
+                      (push (list e (component-find-path c)) other-encodings)))))
             (unless (equal around-compile (around-compile-hook c))
               (push (component-find-path c) other-around-compile))
             (input-files (make-operation 'compile-op) c)) :into inputs
