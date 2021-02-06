@@ -1459,7 +1459,7 @@ Presumably, the 4th form looks like @code{(defparameter *foo-version* "5.6.7")}.
 # @pxref{Complex component names,Complex component names,Complex component names}
 @defrule{complex-component-name} @var{string} | @var{symbol}
 
-@defrule{system-option} :defsystem-depends-on @refrule{system-list}
+@defrule{system-option} :defsystem-depends-on @refrule{dependency-def}
                | :weakly-depends-on @refrule{system-list}
                | :class @var{class-name} # @pxref{System class names}
                | :build-pathname @refrule{pathname-specifier}
