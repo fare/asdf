@@ -154,10 +154,11 @@ push:
 	git fetch
 	git status
 
-# doc:
-# 	${MAKE} -C doc
-# don't have the toolchain to build docs installed...
-doc: ;
+doc:
+	${MAKE} -C doc
+# if you don't have the toolchain to build docs installed...
+#doc: ;
+
 website:
 	${MAKE} -C doc website
 	${MAKE} -C uiop/doc website
