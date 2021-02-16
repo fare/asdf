@@ -204,7 +204,7 @@ test-lisp: build/asdf.lisp show-version
 
 t: test-lisp
 
-test: doc test-lisp test-clean-load test-load-systems
+test: test-lisp test-clean-load test-load-systems
 
 test-load-systems: build/asdf.lisp show-version
 	./test/run-tests.sh -l ${l} ${s}
