@@ -188,7 +188,9 @@ then returning the non-empty string value of the variable"
        (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
        (:ppc64 :ppc64 :ppc64-target) (:ppc32 :ppc32 :ppc32-target :ppc :powerpc)
        :hppa64 :hppa :sparc64 (:sparc32 :sparc32 :sparc)
-       :mipsel :mipseb :mips :alpha (:arm :arm :arm-target) :vlm :imach
+       :mipsel :mipseb :mips :alpha
+       (:arm64 :arm64 :aarch64 :armv8l :armv8b :aarch64_be :|aarch64|)
+       (:arm :arm :arm-target) :vlm :imach
        ;; Java comes last: if someone uses C via CFFI or otherwise JNA or JNI,
        ;; we may have to segregate the code still by architecture.
        (:java :java :java-1.4 :java-1.5 :java-1.6 :java-1.7))))
