@@ -142,7 +142,8 @@ Use it in FORMAT control strings as ~/asdf-action:format-action/"
   (define-condition circular-dependency (system-definition-error)
     ((actions :initarg :actions :reader circular-dependency-actions))
     (:report (lambda (c s)
-               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+               (format s (compatfmt "~@<Circular dependency of ~s on: ~3i~_~S~@:>")
+                       (first (circular-dependency-actions c))
                        (circular-dependency-actions c)))))
 
   (defun call-while-visiting-action (operation component fun)
