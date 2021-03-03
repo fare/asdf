@@ -1,5 +1,6 @@
 cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 
+* Fix bug in handling combination of :serial and :if-feature dependencies.
 * Add support for package local nicknames to UIOP:DEFINE-PACKAGE and
 	ASDF's package-inferred systems.  Extend support for package local
 	nicknames to more lisp implementations.

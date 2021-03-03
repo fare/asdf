@@ -268,7 +268,43 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
 system names contained using COERCE-NAME. Return the result."
     (mapcar 'parse-dependency-def dd-list))
 
-  (defun* (parse-component-form) (parent options &key previous-serial-component)
+  ;;; Helper function for parse-component-form.  Sets the CHILDREN slot of
+  ;;; COMPONENT, using COMPONENTS list, and adds dependency links if
+  ;;; the COMPONENT is a serial component. Should ONLY be called on a
+  ;;; PARENT-COMPONENT.
+  ;;; Returns the list of child components -- it's not entirely clear to me
+  ;;; what is the set of possible values for elements of this list.
+  (declaim (ftype (function (parent-component list (or t nil)) t)
+                   compute-component-children)
+           (ftype (function ((or parent-component null) list &key (:previous-serial-components list)))
+                  parse-component-form))
+
+  (defun* compute-component-children (component components serial-p)
+    (prog1
+        (setf (component-children component)
+              (loop
+                :with previous-components = nil ; list of strings
+                :for c-form :in components
+                :for c = (parse-component-form component c-form
+                                               :previous-serial-components previous-components)
+                :for name :of-type string = (component-name c)
+                :collect c
+                :when serial-p
+                  ;; if this is an if-feature component, we need to make a serial link
+                  ;; from previous components to following components -- otherwise should
+                  ;; the IF-FEATURE component drop out, the chain of serial dependencies will be
+                  ;; broken.
+                  :unless (component-if-feature c)
+                    :do (setf previous-components nil)
+                :end
+                :and :do (push name previous-components)))
+      (compute-children-by-name component)))
+
+  (defun* stable-union (s1 s2 &key (test #'eql) (key 'identity))
+   (append s1
+     (remove-if #'(lambda (e2) (member (funcall key e2) (funcall key s1) :test test)) s2)))
+
+  (defun* (parse-component-form) (parent options &key previous-serial-components)
     (destructuring-bind
         (type name &rest rest &key
                                 (builtin-system-p () bspp)
@@ -320,18 +356,9 @@ system names contained using COERCE-NAME. Return the result."
         ;; A better fix is required.
         (setf (slot-value component 'version) version)
         (when (typep component 'parent-component)
-          (setf (component-children component)
-                (loop
-                  :with previous-component = nil
-                  :for c-form :in components
-                  :for c = (parse-component-form component c-form
-                                                 :previous-serial-component previous-component)
-                  :for name = (component-name c)
-                  :collect c
-                  :when serial :do (setf previous-component name)))
-          (compute-children-by-name component))
-        (when previous-serial-component
-          (push previous-serial-component depends-on))
+          (compute-component-children component components serial))
+        (when previous-serial-components
+          (setf depends-on (stable-union depends-on previous-serial-components :test #'equal)))
         (when weakly-depends-on
           ;; ASDF4: deprecate this feature and remove it.
           (appendf depends-on
@@ -343,7 +370,7 @@ system names contained using COERCE-NAME. Return the result."
           (error "The system definition for ~S uses deprecated ~
             ASDF option :IF-COMPONENT-DEP-FAILS. ~
             Starting with ASDF 3, please use :IF-FEATURE instead"
-           (coerce-name (component-system component))))
+                 (coerce-name (component-system component))))
         component)))
 
   ;; the following are all systems that Stas Boukarev maintains and refuses to fix,
