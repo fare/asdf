@@ -1,0 +1,14 @@
+;;; -*- mode: common-lisp; -*-
+
+(in-package :asdf-test)
+
+(configure-asdf)
+
+;;; According to Gitlab issue 39, this should cause an error. We can't use
+;;; LOAD-SYSTEM because LOAD-OP is a downward operation. Therefore the plan
+;;; will always have a LOAD-OP on every source file of the system (in serial
+;;; order).
+;;;
+(asdf:operate 'asdf:load-op
+              (asdf:find-component (asdf:find-system "test-serial-dependencies")
+                                   (list "file2")))
