@@ -9,6 +9,8 @@ variables:
   ABCL_TAG: latest
   CCL_IMAGE: clfoundation/ccl
   CCL_TAG: latest
+  CMUCL_IMAGE: clfoundation/cmucl
+  CMUCL_TAG: latest
   ECL_IMAGE: clfoundation/ecl
   ECL_TAG: latest
   SBCL_IMAGE: clfoundation/sbcl
@@ -153,6 +155,18 @@ CCL upgrade tests:
   variables:
     l: ccl
 
+CMUCL regression tests:
+  extends: .Regression tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
+CMUCL upgrade tests:
+  extends: .Upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
 ECL regression tests:
   extends: .Regression tests
   image: $ECL_IMAGE:$ECL_TAG
@@ -205,6 +219,18 @@ CCL scripting upgrade tests:
   image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
+
+CMUCL scripting regression tests:
+  extends: .Scripting regression tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
+CMUCL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
 
 ECL scripting regression tests:
   extends: .Scripting regression tests
