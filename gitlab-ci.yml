@@ -9,6 +9,10 @@ variables:
   ABCL_TAG: latest
   CCL_IMAGE: clfoundation/ccl
   CCL_TAG: latest
+  CLISP_IMAGE: clfoundation/clisp
+  CLISP_TAG: latest
+  CMUCL_IMAGE: clfoundation/cmucl
+  CMUCL_TAG: latest
   ECL_IMAGE: clfoundation/ecl
   ECL_TAG: latest
   SBCL_IMAGE: clfoundation/sbcl
@@ -153,6 +157,30 @@ CCL upgrade tests:
   variables:
     l: ccl
 
+CLISP regression tests:
+  extends: .Regression tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
+CLISP upgrade tests:
+  extends: .Upgrade tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
+CMUCL regression tests:
+  extends: .Regression tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
+CMUCL upgrade tests:
+  extends: .Upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
 ECL regression tests:
   extends: .Regression tests
   image: $ECL_IMAGE:$ECL_TAG
@@ -205,6 +233,30 @@ CCL scripting upgrade tests:
   image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
+
+CLISP scripting regression tests:
+  extends: .Scripting regression tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
+CLISP scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
+CMUCL scripting regression tests:
+  extends: .Scripting regression tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
+CMUCL scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
 
 ECL scripting regression tests:
   extends: .Scripting regression tests
