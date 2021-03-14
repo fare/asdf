@@ -51,7 +51,7 @@
 (defvar *test-number*)
 (defvar *suites* nil)
 (defvar *suites-reversed* t)
-(defvar *letters* "abcdefghijklmnopqrstuvwxyz")
+(defvar *letters* "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 (defvar *number-of-failed-tests* 0)
 (defvar *number-of-skipped-tests* 0)
 (defvar *number-of-unsupported-tests* 0)
@@ -205,7 +205,21 @@
     (run-program (format nil "./exiter.sh 0 ~a" output-string)
                  :error-output :output))
 
+(define-test
+    "run-program :output t"
+    (run-program (list "/bin/echo" "echoing output")
+                 :output t))
 
+(define-test
+    "launch-program :output t"
+    (launch-program (list "echo" "echoing output")
+                 :output t))
+
+(define-test
+    "launch-program :error-output t"
+    (uiop:wait-process
+     (launch-program (format nil "./exiter.sh 0 ~a" output-string)
+                     :error-output t)))
 
 (define-test
     ":output <file> (file e.)"
