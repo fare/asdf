@@ -212,14 +212,30 @@
 
 (define-test
     "launch-program :output t"
-    (launch-program (list "echo" "echoing output")
-                 :output t))
+    (catch 'unimplemented
+     (handler-bind
+         (
+          #+lispworks
+          (not-implemented-error
+            #'(lambda (x)
+                (format t "~&This behavior is expected to be unimplemented on this lisp.~%")
+                (throw 'unimplemented t))))
+       (launch-program (list "echo" "echoing output")
+                       :output t))))
 
 (define-test
     "launch-program :error-output t"
-    (uiop:wait-process
-     (launch-program (format nil "./exiter.sh 0 ~a" output-string)
-                     :error-output t)))
+    (catch 'unimplemented
+     (handler-bind
+         (
+          #+lispworks
+          (not-implemented-error
+            #'(lambda (x)
+                (format t "~&This behavior is expected to be unimplemented on this lisp.~%")
+                (throw 'unimplemented t))))
+       (uiop:wait-process
+        (launch-program (format nil "./exiter.sh 0 ~a" output-string)
+                        :error-output t)))))
 
 (define-test
     ":output <file> (file e.)"

@@ -168,8 +168,13 @@ argument to pass to the internal RUN-PROGRAM"
                                      role specifier))
              (t (parameter-error "~S IO specifier invalid for ~S" specifier role))))
       ((eql t)
+       #+lispworks
+       (not-implemented-error :interactive-output
+                              "On this lisp implementation, cannot interpret ~a value of ~a"
+                              specifier role)
+       #-lispworks
        (cond ((eq role :error-output) *error-output*)
-             ((eq role :output) *standard-output*)
+             ((eq role :output) #+lispworks *terminal-io* #-lispworks *standard-output*)
              ((eq role :input) *standard-input*)))
       (otherwise
        (parameter-error "Incorrect I/O specifier ~S for ~S"
