@@ -51,7 +51,7 @@
 (defvar *test-number*)
 (defvar *suites* nil)
 (defvar *suites-reversed* t)
-(defvar *letters* "abcdefghijklmnopqrstuvwxyz")
+(defvar *letters* "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 (defvar *number-of-failed-tests* 0)
 (defvar *number-of-skipped-tests* 0)
 (defvar *number-of-unsupported-tests* 0)
@@ -152,6 +152,12 @@
 (define-condition test-failure (error)
   ())
 
+(define-condition unexpected-test-success (error)
+  ((test-designator :initarg :test-designator))
+  (:report (lambda (condition stream)
+             (format stream "On this lisp implementation expected test ~a to fail, but it succeeded."
+                     (slot-value condition 'test-designator)))))
+
 ;;; Testing utilities
 
 (defun file-contains-exactly (filename expected-content)
@@ -186,6 +192,29 @@
           (error 'test-skipped :reason "ext:terminate-process missing"))
   (apply #'terminate-process rest))
 
+(defmacro expected-unimplemented ((impl-or-impl-list &key test-designator)
+                                  &body body)
+  (let* ((impl-list (if (listp impl-or-impl-list)
+                        impl-or-impl-list
+                        (list impl-or-impl-list)))
+         (non-implementing-implementation
+           `(some #'(lambda (x) (featurep x)) ',impl-list)))
+    `(when (and ,non-implementing-implementation
+                (eq
+                 (catch 'unimplemented
+                   (handler-bind
+                       ((not-implemented-error
+                          #'(lambda (x)
+                              (when ,non-implementing-implementation
+                                (format t "~&This behavior is expected to be unimplemented on this lisp.~%"))
+                              (throw 'unimplemented t))))
+                     ,@body
+                     :implemented
+                     ))
+                 :implemented))
+       (error 'unexpected-test-success :test-designator ,test-designator))))
+
+
 ;;; The actual tests
 
 (new-test-suite "run-program/launch-program")
@@ -205,7 +234,23 @@
     (run-program (format nil "./exiter.sh 0 ~a" output-string)
                  :error-output :output))
 
+(define-test
+    "run-program :output t"
+    (run-program (list "/bin/echo" "echoing output")
+                 :output t))
 
+(define-test
+    "launch-program :output t"
+    (expected-unimplemented ((:lispworks :abcl) :test-designator "launch-program :output t")
+       (launch-program (list "echo" "echoing output")
+                       :output t)))
+
+(define-test
+    "launch-program :error-output t"
+    (expected-unimplemented ((:lispworks :abcl) :test-designator "launch-program :error-output t")
+       (uiop:wait-process
+        (launch-program (format nil "./exiter.sh 0 ~a" output-string)
+                        :error-output t))))
 
 (define-test
     ":output <file> (file e.)"

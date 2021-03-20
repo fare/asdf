@@ -167,6 +167,15 @@ argument to pass to the internal RUN-PROGRAM"
                                      "Can't send ~a to ~a on this lisp implementation."
                                      role specifier))
              (t (parameter-error "~S IO specifier invalid for ~S" specifier role))))
+      ((eql t)
+       #+ (or lispworks abcl)
+       (not-implemented-error :interactive-output
+                              "On this lisp implementation, cannot interpret ~a value of ~a"
+                              specifier role)
+       #- (or lispworks abcl)
+       (cond ((eq role :error-output) *error-output*)
+             ((eq role :output) #+lispworks *terminal-io* #-lispworks *standard-output*)
+             ((eq role :input) *standard-input*)))
       (otherwise
        (parameter-error "Incorrect I/O specifier ~S for ~S"
                         specifier role))))
