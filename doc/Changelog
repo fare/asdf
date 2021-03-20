@@ -12,6 +12,7 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 	the bug and providing a fix.
 * Fixes for UIOP:WITH-TEMPORARY-FILE
 * Miscellaneous bug fixes from Luís Oliveira.
+* Fix for argument handling in LAUNCH-PROGRAM.
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
