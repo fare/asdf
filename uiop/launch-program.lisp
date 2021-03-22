@@ -513,7 +513,16 @@ IF-DOES-NOT-EXIST parameter to OPEN with :DIRECTION :INPUT.
 ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
 implementation, when applicable, for creation of the output stream.
 
-LAUNCH-PROGRAM returns a PROCESS-INFO object."
+LAUNCH-PROGRAM returns a PROCESS-INFO object.
+
+LAUNCH-PROGRAM currently does not smooth over all the differences between
+implementations. Of particular note is when streams are provided for OUTPUT or
+ERROR-OUTPUT. Some implementations don't support this at all, some support only
+certain subclasses of streams, and some support any arbitrary
+stream. Additionally, the implementations that support streams may have
+differing behavior on how those streams are filled with data. If data is not
+periodically read from the child process and sent to the stream, the child
+could block because its output buffers are full."
     #-(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys input output error-output directory element-type external-format
            if-input-does-not-exist if-output-exists if-error-output-exists ;; ignore
