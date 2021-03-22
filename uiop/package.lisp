@@ -602,6 +602,17 @@ or when loading the package is optional."
       (unless (eq status :external)
         (ensure-exported name symbol from-package recycle))))
 
+  #+package-local-nicknames
+  (defun install-package-local-nicknames (destination-package new-nicknames)
+    ;; First, remove all package-local nicknames. (We'll reinstall any desired ones later.)
+    (dolist (pair-to-remove (package-local-nicknames destination-package))
+      (remove-package-local-nickname (string (car pair-to-remove)) destination-package))
+    ;; Then, install all desired nicknames.
+    (loop :for (nickname package) :in new-nicknames
+          :do (add-package-local-nickname (string nickname)
+                                          (find-package package)
+                                          destination-package)))
+
   (defun ensure-package (name &key
                                 nicknames documentation use
                                 shadow shadowing-import-from
@@ -630,13 +641,17 @@ or when loading the package is optional."
            (exported (make-hash-table :test 'equal)) ; string to bool
            ;; string to list home package and use package:
            (inherited (make-hash-table :test 'equal)))
-      (declare (ignorable local-nicknames)) ; if not supported
+      #-package-local-nicknames
+      (declare (ignore local-nicknames)) ; if not supported
       (when-package-fishiness (record-fishy package-name))
+      ;; if supported, put package documentation
       #-genera
       (when documentation (setf (documentation package t) documentation))
+      ;; remove unwanted packages from use list
       (loop :for p :in (set-difference (package-use-list package) (append mix use))
             :do (note-package-fishiness :over-use name (package-names p))
                 (unuse-package p package))
+      ;; mark unwanted packages for deletion
       (loop :for p :in discarded
             :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                 (package-names p))
@@ -644,16 +659,12 @@ or when loading the package is optional."
                 (cond (n (rename-package p (first n) (rest n)))
                       (t (rename-package-away p)
                          (push p to-delete))))
+      ;; give package its desired name
       (rename-package package package-name nicknames)
       ;; Handle local nicknames
       #+package-local-nicknames
-      (let* ((existing-nicknames (mapcar #'(lambda (x) (string (car x))) (package-local-nicknames package)))
-             (new-nicknames (mapcar #'(lambda (x) (string (first x))) local-nicknames))
-             (to-remove (set-difference existing-nicknames new-nicknames :test 'equal)))
-        (mapc #'(lambda (x) (remove-package-local-nickname x package)) to-remove))
-      #+package-local-nicknames
-      (loop :for (nick-str package-str) :in local-nicknames
-            :do (add-package-local-nickname nick-str package-str package))
+      (install-package-local-nicknames package local-nicknames)
+      ;; handle uninterning unwanted symbols
       (dolist (name unintern)
         (multiple-value-bind (existing status) (find-symbol name package)
           (when status
@@ -661,11 +672,14 @@ or when loading the package is optional."
               (note-package-fishiness
                :unintern (package-name package) name (symbol-package-name existing) status)
               (unintern* name package nil)))))
+      ;; handle exports
       (dolist (name export)
         (setf (gethash name exported) t))
+      ;; handle reexportss
       (dolist (p reexport)
         (do-external-symbols (sym p)
           (setf (gethash (string sym) exported) t)))
+      ;; unexport symbols not listed in (re)export
       (do-external-symbols (sym package)
         (let ((name (symbol-name sym)))
           (unless (gethash name exported)
@@ -673,6 +687,7 @@ or when loading the package is optional."
              :over-export (package-name package) name
              (or (home-package-p sym package) (symbol-package-name sym)))
             (unexport sym package))))
+      ;; handle explicitly listed shadowed ssymbols
       (dolist (name shadow)
         (setf (gethash name shadowed) t)
         (multiple-value-bind (existing status) (find-symbol name package)
@@ -692,25 +707,31 @@ or when loading the package is optional."
                    (shadowing-import* dummy package)
                    (import* dummy package)))))))
         (shadow* name package))
+      ;; handle shadowing imports
       (loop :for (p . syms) :in shadowing-import-from
             :for pp = (find-package* p) :do
               (dolist (sym syms) (ensure-shadowing-import (string sym) package pp shadowed imported)))
+      ;; handle mixed packages
       (loop :for p :in mix
             :for pp = (find-package* p) :do
               (do-external-symbols (sym pp) (ensure-mix (symbol-name sym) sym package pp shadowed imported inherited)))
+      ;; handle import-from packages
       (loop :for (p . syms) :in import-from
             :for pp = (find-package p) :do
               (dolist (sym syms) (ensure-import (symbol-name sym) package pp shadowed imported)))
+      ;; handle use-list and mix
       (dolist (p (append use mix))
         (do-external-symbols (sym p) (ensure-inherited (string sym) sym package p nil shadowed imported inherited))
         (use-package p package))
       (loop :for name :being :the :hash-keys :of exported :do
         (ensure-symbol name package t recycle shadowed imported inherited exported)
         (ensure-export name package recycle))
+      ;; intern dessired symbols
       (dolist (name intern)
         (ensure-symbol name package t recycle shadowed imported inherited exported))
       (do-symbols (sym package)
         (ensure-symbol (symbol-name sym) package nil recycle shadowed imported inherited exported))
+      ;; delete now-deceased packages
       (map () 'delete-package* to-delete)
       package)))
 

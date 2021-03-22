@@ -123,3 +123,19 @@
           (sb (find-package +nn-name+)))
       (assert (eq cl (find-package :package-local-nicknames-test-2)))
       (assert (eq sb (find-package +pkg-name+))))))
+
+
+(define-test test-package-local-nicknames-nickname-removal-by-define-package
+  (reset-test-packages)
+  (uiop:define-package #:foo
+    (:local-nicknames (#:u #:uiop)))
+  (assert
+   (eq (find-package :uiop)
+       (let ((*package* (find-package '#:foo)))
+         (find-package '#:u))))
+  (uiop:define-package #:foo
+    (:local-nicknames (#:u #:asdf)))
+  (assert
+   (eq (find-package :asdf)
+       (let ((*package* (find-package '#:foo)))
+         (find-package '#:u)))))

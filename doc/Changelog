@@ -3,16 +3,20 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 * Fix bug in handling combination of :serial and :if-feature dependencies.
 * Add support for package local nicknames to UIOP:DEFINE-PACKAGE and
 	ASDF's package-inferred systems.  Extend support for package local
-	nicknames to more lisp implementations.
+	nicknames to more lisp implementations.  Initial work by
+	François-René Rideau, with assists from Phoebe Goldman, Michał
+	Herda, and Eric Timmons.
 * A number of fixes for Lispworks compatibility (thanks to Martin
 	Simmons).
-* Fixes for SBCL and ECL from Eric Timmons.
+* Fixes for SBCL and ECL from Eric Timmons and @pouar.
 * Add support for source files with different file extensions to
 	package-inferred-systems.  Thanks to Jingtao Xu for identifying
 	the bug and providing a fix.
 * Fixes for UIOP:WITH-TEMPORARY-FILE
-* Miscellaneous bug fixes from Luís Oliveira.
+* Miscellaneous bug fixes from Luís Oliveira, Gary Palter, François-René
+	Rideau, and Eric Schulte.
 * Fix for argument handling in LAUNCH-PROGRAM.
+* Fixes for feature handling from Eric Timmons.
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
