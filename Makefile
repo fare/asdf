@@ -78,6 +78,9 @@ SBCL ?= sbcl
 SCL ?= scl
 XCL ?= xcl
 
+# If you need to sudo in order to use docker, modify this.
+DOCKER ?= docker
+
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/version.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/lisp-build.lisp uiop/launch-program.lisp uiop/run-program.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
 defsystem_lisp := upgrade.lisp session.lisp component.lisp operation.lisp system.lisp system-registry.lisp action.lisp lisp-action.lisp find-component.lisp forcing.lisp plan.lisp operate.lisp find-system.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp output-translations.lisp source-registry.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
@@ -203,6 +206,15 @@ test-lisp: build/asdf.lisp show-version
 	@cd test; ./run-tests.sh ${l} ${t}
 
 t: test-lisp
+
+# Useful for reproducing test failures with Docker.
+test-docker-repl:
+	@${DOCKER} run --rm -i -t --pull always -u $(shell id -u):$(shell id -g) -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory)/test clfoundation/${l}:latest
+
+test-docker-lisp: build/asdf.lisp show-version
+	@${DOCKER} run --rm -i -t --pull always -u $(shell id -u):$(shell id -g) -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory) clfoundation/${l}:latest make test-lisp l=${l} t=${t}
+
+td: test-docker-lisp
 
 test: test-lisp test-clean-load test-load-systems
 
