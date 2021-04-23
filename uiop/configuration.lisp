@@ -328,11 +328,10 @@ also \"Configuration DSL\"\) in the ASDF manual."
                  ;; to export either the root (/) or /usr/share simply doesn't work.
                  ;; (Genera will go into an infinite loop trying to access those mounts.)
                  ;; So, when running Genera on macOS, only search /usr/local/share.
-                 ((and (os-genera-p)
-                       #+Genera (sys:system-case
-                                 (darwin-vlm t)
-                                 (otherwise nil)))
-                  (mapcar 'parse-unix-namestring '("/usr/local/share/")))
+                 ((os-genera-p)
+                  #+Genera (sys:system-case
+                            (darwin-vlm (mapcar 'parse-unix-namestring '("/usr/local/share/")))
+                            (otherwise (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))
                  (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
 
   (defun xdg-config-dirs (&rest more)
