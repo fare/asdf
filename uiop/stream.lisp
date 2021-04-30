@@ -352,13 +352,13 @@ If LINEWISE is true, then read and copy the stream line by line, with an optiona
 Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
     (with-open-stream (input input)
       (if linewise
-          (loop* :for (line eof) = (multiple-value-list (read-line input nil nil))
-                 :while line :do
-                 (when prefix (princ prefix output))
-                 (princ line output)
-                 (unless eof (terpri output))
-                 (finish-output output)
-                 (when eof (return)))
+          (loop :for (line eof) = (multiple-value-list (read-line input nil nil))
+                :while line :do
+                  (when prefix (princ prefix output))
+                  (princ line output)
+                  (unless eof (terpri output))
+                  (finish-output output)
+                  (when eof (return)))
           (loop
             :with buffer-size = (or buffer-size 8192)
             :with buffer = (make-array (list buffer-size) :element-type (or element-type 'character))

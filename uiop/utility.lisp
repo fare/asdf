@@ -4,9 +4,9 @@
 (uiop/package:define-package :uiop/utility
   (:use :uiop/common-lisp :uiop/package)
   ;; import and reexport a few things defined in :uiop/common-lisp
-  (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
+  (:import-from :uiop/common-lisp #:compatfmt #:frob-substrings
    #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
-  (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
+  (:export #:compatfmt #:frob-substrings #:compatfmt
    #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
@@ -185,15 +185,15 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 (with-upgradability ()
   (defun remove-plist-key (key plist)
     "Remove a single key from a plist"
-    (loop* :for (k v) :on plist :by #'cddr
-           :unless (eq k key)
-           :append (list k v)))
+    (loop :for (k v) :on plist :by #'cddr
+          :unless (eq k key)
+            :append (list k v)))
 
   (defun remove-plist-keys (keys plist)
     "Remove a list of keys from a plist"
-    (loop* :for (k v) :on plist :by #'cddr
-           :unless (member k keys)
-           :append (list k v))))
+    (loop :for (k v) :on plist :by #'cddr
+          :unless (member k keys)
+            :append (list k v))))
 
 
 ;;; Sequences
@@ -209,17 +209,17 @@ Returns two values: \(A B C\) and \(1 2 3\)."
   ;; NB: We assume a total order on character types.
   ;; If that's not true... this code will need to be updated.
   (defparameter +character-types+ ;; assuming a simple hierarchy
-    #.(coerce (loop* :for (type next) :on
-                     '(;; In SCL, all characters seem to be 16-bit base-char
-                       ;; Yet somehow character fails to be a subtype of base-char
-                       #-scl base-char
-                       ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
-                       ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
-                       #+lispworks7+ lw:bmp-char
-                       #+lispworks lw:simple-char
-                       character)
-                     :unless (and next (subtypep next type))
-                     :collect type) 'vector))
+    #.(coerce (loop :for (type next) :on
+                    '(;; In SCL, all characters seem to be 16-bit base-char
+                      ;; Yet somehow character fails to be a subtype of base-char
+                      #-scl base-char
+                      ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
+                      ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
+                      #+lispworks7+ lw:bmp-char
+                      #+lispworks lw:simple-char
+                      character)
+                    :unless (and next (subtypep next type))
+                      :collect type) 'vector))
   (defparameter +max-character-type-index+ (1- (length +character-types+)))
   (defconstant +non-base-chars-exist-p+ (plusp +max-character-type-index+))
   (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
