@@ -45,7 +45,13 @@
     (reverse (plan-actions-r plan)))
 
   (defgeneric record-dependency (plan operation component)
-    (:documentation "Record an action as a dependency in the current plan"))
+    (:documentation "Record that, within PLAN, performing OPERATION on COMPONENT depends on all
+of the (OPERATION . COMPONENT) actions in the current ASDF session's VISITING-ACTION-LIST.
+
+You can get a single action which dominates the set of dependencies corresponding to this call with
+(first (visiting-action-list *asdf-session*))
+since VISITING-ACTION-LIST is a stack whose top action depends directly on its second action,
+and whose second action depends directly on its third action, and so forth."))
 
   ;; No need to record a dependency to build a full graph, just accumulate nodes in order.
   (defmethod record-dependency ((plan sequential-plan) (o operation) (c component))
