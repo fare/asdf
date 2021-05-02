@@ -220,13 +220,13 @@ to be meaningful, or could it just as well have been done in another Lisp image?
 (with-upgradability ()
   (defun* (map-direct-dependencies) (operation component fun)
     "Call FUN on all the valid dependencies of the given action in the given plan"
-    (loop* :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
-      :for dep-o = (find-operation operation dep-o-spec)
-      :when dep-o
-      :do (loop :for dep-c-spec :in dep-c-specs
-            :for dep-c = (and dep-c-spec (resolve-dependency-spec component dep-c-spec))
-            :when (action-valid-p dep-o dep-c)
-            :do (funcall fun dep-o dep-c))))
+    (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
+          :for dep-o = (find-operation operation dep-o-spec)
+          :when dep-o
+            :do (loop :for dep-c-spec :in dep-c-specs
+                      :for dep-c = (and dep-c-spec (resolve-dependency-spec component dep-c-spec))
+                      :when (action-valid-p dep-o dep-c)
+                        :do (funcall fun dep-o dep-c))))
 
   (defun* (reduce-direct-dependencies) (operation component combinator seed)
     "Reduce the direct dependencies to a value computed by iteratively calling COMBINATOR

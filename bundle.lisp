@@ -556,7 +556,7 @@ which is probably not what you want; you probably need to tweak your output tran
   (defmethod component-depends-on :around ((o image-op) (c system))
     (let* ((next (call-next-method))
            (deps (make-hash-table :test 'equal))
-           (linkable (loop* :for (do . dcs) :in next :collect
+           (linkable (loop :for (do . dcs) :in next :collect
                        (cons do
                              (loop :for dc :in dcs
                                :for dep = (and dc (resolve-dependency-spec c dc))

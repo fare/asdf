@@ -1,4 +1,4 @@
-;;; -*- mode: Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; buffer-read-only: t; -*-
+;;; -*- mode: Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; Package: CL-USER ; buffer-read-only: t; -*-
 ;;; This is ASDF 3.3.4.14: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:

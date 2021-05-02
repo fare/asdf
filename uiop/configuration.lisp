@@ -218,21 +218,21 @@ directive.")
   (defun* (resolve-location) (x &key ensure-directory wilden directory)
     "Resolve location designator X into a PATHNAME"
     ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
-    (loop* :with dirp = (or directory ensure-directory)
-           :with (first . rest) = (if (atom x) (list x) x)
-           :with path = (or (resolve-absolute-location
-                             first :ensure-directory (and (or dirp rest) t)
-                                   :wilden (and wilden (null rest)))
-                            (return nil))
-           :for (element . morep) :on rest
-           :for dir = (and (or morep dirp) t)
-           :for wild = (and wilden (not morep))
-           :for sub = (merge-pathnames*
-                       (resolve-relative-location
-                        element :ensure-directory dir :wilden wild)
-                       path)
-           :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
-           :finally (return path)))
+    (loop :with dirp = (or directory ensure-directory)
+          :with (first . rest) = (if (atom x) (list x) x)
+          :with path = (or (resolve-absolute-location
+                            first :ensure-directory (and (or dirp rest) t)
+                            :wilden (and wilden (null rest)))
+                           (return nil))
+          :for (element . morep) :on rest
+          :for dir = (and (or morep dirp) t)
+          :for wild = (and wilden (not morep))
+          :for sub = (merge-pathnames*
+                      (resolve-relative-location
+                       element :ensure-directory dir :wilden wild)
+                      path)
+          :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
+          :finally (return path)))
 
   (defun location-designator-p (x)
     "Is X a designator for a location?"

@@ -69,17 +69,17 @@ the DEFPACKAGE-FORM uses it or imports a symbol from it."
     (assert (defpackage-form-p defpackage-form))
     (remove-duplicates
      (while-collecting (dep)
-       (loop* :for (option . arguments) :in (cddr defpackage-form) :do
-              (ecase option
-                ((:use :mix :reexport :use-reexport :mix-reexport)
-                 (dolist (p arguments) (dep (string p))))
-                ((:import-from :shadowing-import-from)
-                 (dep (string (first arguments))))
-                #+package-local-nicknames
-                ((:local-nicknames)
-                 (loop* :for (nil actual-package-name) :in arguments :do
-                      (dep (string actual-package-name))))
-                ((:nicknames :documentation :shadow :export :intern :unintern :recycle)))))
+       (loop :for (option . arguments) :in (cddr defpackage-form) :do
+         (ecase option
+           ((:use :mix :reexport :use-reexport :mix-reexport)
+            (dolist (p arguments) (dep (string p))))
+           ((:import-from :shadowing-import-from)
+            (dep (string (first arguments))))
+           #+package-local-nicknames
+           ((:local-nicknames)
+            (loop :for (nil actual-package-name) :in arguments :do
+              (dep (string actual-package-name))))
+           ((:nicknames :documentation :shadow :export :intern :unintern :recycle)))))
      :from-end t :test 'equal))
 
   (defun package-designator-name (package)

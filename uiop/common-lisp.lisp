@@ -166,13 +166,6 @@
   (setq clos::*redefine-class-in-place* t)) ;; Make sure we have strict ANSI class redefinition semantics
 
 
-;;;; Looping
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (defmacro loop* (&rest rest)
-    #-genera `(loop ,@rest)
-    #+genera `(lisp:loop ,@rest))) ;; In genera, CL:LOOP can't destructure, so we use LOOP*. Sigh.
-
-
 ;;;; compatfmt: avoid fancy format directives when unsupported
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun frob-substrings (string substrings &optional frob)

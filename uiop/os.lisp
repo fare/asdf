@@ -66,22 +66,22 @@ keywords explicitly."
   (defun detect-os ()
     "Detects the current operating system. Only needs be run at compile-time,
 except on ABCL where it might change between FASL compilation and runtime."
-    (loop* :with o
-           :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
-                                         (:os-windows . os-windows-p)
-                                         (:os-genera . os-genera-p) (:os-oldmac . os-oldmac-p)
-                                         (:os-haiku . os-haiku-p)
-                                         (:os-mezzano . os-mezzano-p))
-           :when (and (or (not o) (eq feature :os-macosx) (eq feature :os-haiku)) (funcall detect))
-           :do (setf o feature) (pushnew feature *features*)
-           :else :do (setf *features* (remove feature *features*))
-           :finally
-           (return (or o (error "Congratulations for trying ASDF on an operating system~%~
+    (loop :with o
+          :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
+                                        (:os-windows . os-windows-p)
+                                        (:os-genera . os-genera-p) (:os-oldmac . os-oldmac-p)
+                                        (:os-haiku . os-haiku-p)
+                                        (:os-mezzano . os-mezzano-p))
+          :when (and (or (not o) (eq feature :os-macosx) (eq feature :os-haiku)) (funcall detect))
+            :do (setf o feature) (pushnew feature *features*)
+          :else :do (setf *features* (remove feature *features*))
+          :finally
+             (return (or o (error "Congratulations for trying ASDF on an operating system~%~
 that is neither Unix, nor Windows, nor Genera, nor even old MacOS.~%Now you port it.")))))
 
   (defmacro os-cond (&rest clauses)
     #+abcl `(cond ,@clauses)
-    #-abcl (loop* :for (test . body) :in clauses :when (eval test) :return `(progn ,@body)))
+    #-abcl (loop :for (test . body) :in clauses :when (eval test) :return `(progn ,@body)))
 
   (detect-os))
 

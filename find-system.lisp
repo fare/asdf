@@ -68,7 +68,7 @@
   (defmethod component-depends-on ((o define-op) (s system))
     `(;;NB: 1- ,@(system-defsystem-depends-on s)) ; Should be already included in the below.
       ;; 2- We don't call-next-method to avoid other methods
-      ,@(loop* :for (o . c) :in (definition-dependency-list s) :collect (list o c))))
+      ,@(loop :for (o . c) :in (definition-dependency-list s) :collect (list o c))))
 
   (defmethod component-depends-on ((o operation) (s system))
     `(,@(when (and (not (typep o 'define-op))

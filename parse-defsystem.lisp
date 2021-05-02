@@ -195,44 +195,44 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
   (defun %define-component-inline-methods (ret rest)
     ;; find key-value pairs that look like inline method definitions in REST. For each identified
     ;; definition, parse it and, if it is well-formed, define the method.
-    (loop* :for (key value) :on rest :by #'cddr
-           :for name = (and (keywordp key) (find key +asdf-methods+ :test 'string=))
-           :when name :do
-           ;; parse VALUE as an inline method definition of the form
-           ;;
-           ;;   (OPERATION-NAME [QUALIFIER] (OPERATION-PARAMETER COMPONENT-PARAMETER) &rest BODY)
-           (destructuring-bind (operation-name &rest rest) value
-             (let ((qualifiers '()))
-               ;; ensure that OPERATION-NAME is a symbol.
-               (unless (and (symbolp operation-name) (not (null operation-name)))
-                 (sysdef-error "Ill-formed inline method: ~S. The first element is not a symbol ~
+    (loop :for (key value) :on rest :by #'cddr
+          :for name = (and (keywordp key) (find key +asdf-methods+ :test 'string=))
+          :when name :do
+            ;; parse VALUE as an inline method definition of the form
+            ;;
+            ;;   (OPERATION-NAME [QUALIFIER] (OPERATION-PARAMETER COMPONENT-PARAMETER) &rest BODY)
+            (destructuring-bind (operation-name &rest rest) value
+              (let ((qualifiers '()))
+                ;; ensure that OPERATION-NAME is a symbol.
+                (unless (and (symbolp operation-name) (not (null operation-name)))
+                  (sysdef-error "Ill-formed inline method: ~S. The first element is not a symbol ~
                               designating an operation but ~S."
-                               value operation-name))
-               ;; ensure that REST starts with either a cons (potential lambda list, further checked
-               ;; below) or a qualifier accepted by the standard method combination. Everything else
-               ;; is ill-formed. In case of a valid qualifier, pop it from REST so REST now definitely
-               ;; has to start with the lambda list.
-               (cond
-                 ((consp (car rest)))
-                 ((not (member (car rest)
-                               *standard-method-combination-qualifiers*))
-                  (sysdef-error "Ill-formed inline method: ~S. Only a single of the standard ~
+                                value operation-name))
+                ;; ensure that REST starts with either a cons (potential lambda list, further checked
+                ;; below) or a qualifier accepted by the standard method combination. Everything else
+                ;; is ill-formed. In case of a valid qualifier, pop it from REST so REST now definitely
+                ;; has to start with the lambda list.
+                (cond
+                  ((consp (car rest)))
+                  ((not (member (car rest)
+                                *standard-method-combination-qualifiers*))
+                   (sysdef-error "Ill-formed inline method: ~S. Only a single of the standard ~
                                qualifiers ~{~S~^ ~} is allowed, not ~S."
-                                value *standard-method-combination-qualifiers* (car rest)))
-                 (t
-                  (setf qualifiers (list (pop rest)))))
-               ;; REST must start with a two-element lambda list.
-               (unless (and (listp (car rest))
-                            (length=n-p (car rest) 2)
-                            (null (cddar rest)))
-                 (sysdef-error "Ill-formed inline method: ~S. The operation name ~S is not followed by ~
+                                 value *standard-method-combination-qualifiers* (car rest)))
+                  (t
+                   (setf qualifiers (list (pop rest)))))
+                ;; REST must start with a two-element lambda list.
+                (unless (and (listp (car rest))
+                             (length=n-p (car rest) 2)
+                             (null (cddar rest)))
+                  (sysdef-error "Ill-formed inline method: ~S. The operation name ~S is not followed by ~
                               a lambda-list of the form (OPERATION COMPONENT) and a method body."
-                               value operation-name))
-               ;; define the method.
-               (destructuring-bind ((o c) &rest body) rest
-                 (pushnew
-                  (eval `(defmethod ,name ,@qualifiers ((,o ,operation-name) (,c (eql ,ret))) ,@body))
-                  (component-inline-methods ret)))))))
+                                value operation-name))
+                ;; define the method.
+                (destructuring-bind ((o c) &rest body) rest
+                  (pushnew
+                   (eval `(defmethod ,name ,@qualifiers ((,o ,operation-name) (,c (eql ,ret))) ,@body))
+                   (component-inline-methods ret)))))))
 
   (defun %refresh-component-inline-methods (component rest)
     ;; clear methods, then add the new ones
