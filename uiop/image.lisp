@@ -105,7 +105,9 @@ This is designed to abstract away the implementation specific quit forms."
         :from-read-eval-print-loop nil
         :count (or count t)
         :all t))
-    #+(or clasp ecl mkcl)
+    #+clasp
+    (clasp-debug:print-backtrace :stream stream :count count)
+    #+(or ecl mkcl)
     (let* ((top (si:ihs-top))
            (repeats (if count (min top count) top))
            (backtrace (loop :for ihs :from 0 :below top
