@@ -783,7 +783,8 @@ or when loading the package is optional."
   "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form
 \(KEYWORD . ARGS\).
 DEFINE-PACKAGE supports the following keywords:
-USE, SHADOW, SHADOWING-IMPORT-FROM, IMPORT-FROM, EXPORT, INTERN -- as per CL:DEFPACKAGE.
+USE, SHADOW, SHADOWING-IMPORT-FROM, IMPORT-FROM, EXPORT, INTERN, NICKNAMES,
+DOCUMENTATION -- as per CL:DEFPACKAGE.
 RECYCLE -- Recycle the package's exported symbols from the specified packages,
 in order.  For every symbol scheduled to be exported by the DEFINE-PACKAGE,
 either through an :EXPORT option or a :REEXPORT option, if the symbol exists in
@@ -805,7 +806,9 @@ UNINTERN -- Remove symbols here from PACKAGE.
 LOCAL-NICKNAMES -- If the host implementation supports package local nicknames
 \(check for the :PACKAGE-LOCAL-NICKNAMES feature\), then this should be a list of
 nickname and package name pairs.  Using this option will cause an error if the
-host CL implementation does not support it."
+host CL implementation does not support it.
+USE-REEXPORT, MIX-REEXPORT -- Use or mix the specified packages as per the USE or
+MIX directives, and reexport their contents as per the REEXPORT directive."
   (let ((ensure-form
          `(prog1
               (funcall 'ensure-package ,@(parse-define-package-form package clauses))
