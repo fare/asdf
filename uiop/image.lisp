@@ -366,6 +366,10 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
            :quiet t
            :start-package *package*
            :keep-global-handlers nil
+           ;; Faré explains the odd executable value (slightly paraphrased):
+           ;; 0 is very different from t in clisp and there for a good reason:
+           ;; 0 turns the executable into one that has its own command-line handling, so hackers can't
+           ;; use the underlying -i or -x to turn your would-be restricted binary into an unrestricted evaluator.
            :executable (if executable 0 t) ;--- requires clisp 2.48 or later, still catches --clisp-x
            (when executable
              (list
