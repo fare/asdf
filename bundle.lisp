@@ -218,7 +218,8 @@ for all the linkable object files associated with the system or its dependencies
        (compile-file-type)) ; on image-based platforms, used as input and output
       ((eql :fasb) ;; the type of a fasl
        #-(or clasp ecl mkcl) (compile-file-type) ; on image-based platforms, used as input and output
-       #+(or clasp ecl mkcl) "fasb") ; on C-linking platforms, only used as output for system bundles
+       #+(or ecl mkcl) "fasb"
+       #+clasp "fasp") ; on C-linking platforms, only used as output for system bundles
       ((member :image)
        #+allegro "dxl"
        #+(and clisp os-windows) "exe"
@@ -226,7 +227,9 @@ for all the linkable object files associated with the system or its dependencies
       ;; NB: on CLASP and ECL these implementations, we better agree with
       ;; (compile-file-type :type bundle-type))
       ((eql :object) ;; the type of a linkable object file
-       (os-cond ((os-unix-p) "o")
+       (os-cond ((os-unix-p)
+                 #+clasp "fasp" ;(core:build-extension cmp:*default-object-type*)
+                 #-clasp "o")
                 ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "o" "obj"))))
       ((member :lib :static-library) ;; the type of a linkable library
        (os-cond ((os-unix-p) "a")
