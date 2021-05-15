@@ -118,7 +118,7 @@
     :encoding :latin-1
     :components ((:file "lambda"))))
 #-ecl-bytecmp
-(with-expected-failure (#+clasp "Clasp fails here")
+(with-expected-failure ()
   (with-encoding-test (:latin-1 :op load-op)
     (def-test-system :test-system-encoding-l1-load-op
         :encoding :latin-1
