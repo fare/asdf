@@ -91,8 +91,6 @@ Build asdf-tools:
 
 .Upgrade tests:
   stage: upgrade
-  variables:
-    TAG: latest
   script:
     - make
     - make test-upgrade
@@ -103,6 +101,15 @@ Build asdf-tools:
   allow_failure: true
   rules:
     - if: $RUN_UPGRADE_TESTS
+
+.REQUIRE upgrade tests:
+  extends: .Upgrade tests
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  rules:
+    - if: $RUN_UPGRADE_TESTS
+      when: never
+    - when: on_success
 
 .Scripting regression tests:
   extends: .Regression tests
@@ -121,6 +128,15 @@ Build asdf-tools:
     - Build asdf-tools
   rules:
     - if: $ENABLE_ASDF_TOOLS && $RUN_UPGRADE_TESTS
+
+.REQUIRE scripting upgrade tests:
+  extends: .Scripting upgrade tests
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  rules:
+    - if: $ENABLE_ASDF_TOOLS && $RUN_UPGRADE_TESTS
+      when: never
+    - if: $ENABLE_ASDF_TOOLS
 
 ###############################################################################
 # Actual test jobs - Makefile based harness
@@ -147,6 +163,12 @@ ABCL upgrade tests:
   variables:
     l: abcl
 
+ABCL REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
+  variables:
+    l: abcl
+
 CCL regression tests:
   extends: .Regression tests
   image: $CCL_IMAGE:$CCL_TAG
@@ -155,6 +177,12 @@ CCL regression tests:
 
 CCL upgrade tests:
   extends: .Upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
+  variables:
+    l: ccl
+
+CCL REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
   image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
@@ -171,6 +199,12 @@ Clasp upgrade tests:
   variables:
     l: clasp
 
+Clasp REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
+  image: $CLASP_IMAGE:$CLASP_TAG
+  variables:
+    l: clasp
+
 CLISP regression tests:
   extends: .Regression tests
   image: $CLISP_IMAGE:$CLISP_TAG
@@ -179,6 +213,12 @@ CLISP regression tests:
 
 CLISP upgrade tests:
   extends: .Upgrade tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
+CLISP REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
   image: $CLISP_IMAGE:$CLISP_TAG
   variables:
     l: clisp
@@ -195,6 +235,12 @@ CMUCL upgrade tests:
   variables:
     l: cmucl
 
+CMUCL REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
 ECL regression tests:
   extends: .Regression tests
   image: $ECL_IMAGE:$ECL_TAG
@@ -207,6 +253,12 @@ ECL upgrade tests:
   variables:
     l: ecl
 
+ECL REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
+  variables:
+    l: ecl
+
 SBCL regression tests:
   extends: .Regression tests
   image: $SBCL_IMAGE:$SBCL_TAG
@@ -215,6 +267,12 @@ SBCL regression tests:
 
 SBCL upgrade tests:
   extends: .Upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
+  variables:
+    l: sbcl
+
+SBCL REQUIRE upgrade tests:
+  extends: .REQUIRE upgrade tests
   image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
@@ -236,6 +294,12 @@ ABCL scripting upgrade tests:
   variables:
     l: abcl
 
+ABCL REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
+  image: $ABCL_IMAGE:$ABCL_TAG
+  variables:
+    l: abcl
+
 CCL scripting regression tests:
   extends: .Scripting regression tests
   image: $CCL_IMAGE:$CCL_TAG
@@ -244,6 +308,12 @@ CCL scripting regression tests:
 
 CCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $CCL_IMAGE:$CCL_TAG
+  variables:
+    l: ccl
+
+CCL REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
   image: $CCL_IMAGE:$CCL_TAG
   variables:
     l: ccl
@@ -272,6 +342,12 @@ CLISP scripting upgrade tests:
   variables:
     l: clisp
 
+CLISP REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
+  image: $CLISP_IMAGE:$CLISP_TAG
+  variables:
+    l: clisp
+
 CMUCL scripting regression tests:
   extends: .Scripting regression tests
   image: $CMUCL_IMAGE:$CMUCL_TAG
@@ -280,6 +356,12 @@ CMUCL scripting regression tests:
 
 CMUCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $CMUCL_IMAGE:$CMUCL_TAG
+  variables:
+    l: cmucl
+
+CMUCL REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
   image: $CMUCL_IMAGE:$CMUCL_TAG
   variables:
     l: cmucl
@@ -296,6 +378,12 @@ ECL scripting upgrade tests:
   variables:
     l: ecl
 
+ECL REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
+  image: $ECL_IMAGE:$ECL_TAG
+  variables:
+    l: ecl
+
 SBCL scripting regression tests:
   extends: .Scripting regression tests
   image: $SBCL_IMAGE:$SBCL_TAG
@@ -304,6 +392,12 @@ SBCL scripting regression tests:
 
 SBCL scripting upgrade tests:
   extends: .Scripting upgrade tests
+  image: $SBCL_IMAGE:$SBCL_TAG
+  variables:
+    l: sbcl
+
+SBCL REQUIRE scripting upgrade tests:
+  extends: .REQUIRE scripting upgrade tests
   image: $SBCL_IMAGE:$SBCL_TAG
   variables:
     l: sbcl
