@@ -298,7 +298,7 @@ children."))
    (append s1
      (remove-if #'(lambda (e2) (member (funcall key e2) (funcall key s1) :test test)) s2)))
 
-  (defun (parse-component-form) (parent options &key previous-serial-components)
+  (defun parse-component-form (parent options &key previous-serial-components)
     (destructuring-bind
         (type name &rest rest &key
                                 (builtin-system-p () bspp)
