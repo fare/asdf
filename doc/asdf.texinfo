@@ -159,7 +159,7 @@ Components
 * Pre-defined subclasses of component::
 * Creating new component types::
 
-properties
+Properties
 
 * Pre-defined subclasses of component::
 * Creating new component types::
@@ -3179,7 +3179,7 @@ CL-USER> (asdf:component-pathname
 
 
 
-@subsubsection properties
+@subsubsection Properties
 
 This attribute is optional.
 
