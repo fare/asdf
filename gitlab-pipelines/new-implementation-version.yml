@@ -1,0 +1,58 @@
+# This pipeline is run when a new implementation version is released (or about
+# to be released).
+
+variables:
+  # Just let the runner fetch and update the submodules for us.
+  GIT_SUBMODULE_STRATEGY: normal
+
+stages:
+  - regression
+  - upgrade
+  - notify
+
+Regression test:
+  stage: regression
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  script:
+    - make
+    - make test
+  artifacts:
+    paths:
+      - build/results/$l-test.text
+  needs: []
+  retry:
+    max: 2
+    when:
+      - job_execution_timeout
+
+REQUIRE Upgrade test:
+  stage: upgrade
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  script:
+    - make
+    - make test-upgrade
+  artifacts:
+    paths:
+      - build/results/$l-upgrade.text
+  needs: []
+
+# Open an issue so that job failures are not lost in the noise.
+
+Open issue:
+  stage: notify
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine
+  script:
+    - apk add curl jq
+    # If we've already opened an issue, bail out.
+    - '[ $(curl -fsSL -G -d "labels=bot" -d "search=test+failure+for+$l+$LISP_VERSION" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues" | jq length) = "0" ] || exit 0'
+    # Otherwise, open a new issue!
+    - |
+      curl -fsSL -X \
+           -H "PRIVATE-TOKEN: $ASDF_ISSUE_BOT_PAT"
+           -d "labels=bot" \
+           -d "title=Test failure for $l $LISP_VERSION" \
+           -d "description=An automated pipeline using image clfoundation/$l:$IMAGE_TAG has failed. See: <$CI_PIPELINE_URL>" \
+           "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues"
+  when: on_failure
