@@ -1,0 +1,146 @@
+###############################################################################
+# Global configuration
+###############################################################################
+
+variables:
+  # Just let the runner fetch and update the submodules for us.
+  GIT_SUBMODULE_STRATEGY: normal
+
+# Split regression testing into a separate stage than upgrade tests. The
+# upgrade tests tend to run slower and are generally less important than
+# regression tests for most changes.
+stages:
+  - build
+  - regression
+  - upgrade
+
+# This is needed otherwise the jobs won't always be added to MR pipelines. We
+# can just say when: always because this is run as a child pipeline and only
+# triggered under the desired conditions.
+workflow:
+  rules:
+    - when: always
+
+###############################################################################
+# Build jobs
+###############################################################################
+
+Build ASDF:
+  stage: build
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/buildpack-deps:latest
+  script:
+    - make
+  artifacts:
+    paths:
+      - build/asdf.lisp
+
+Build docs:
+  stage: build
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/buildpack-deps:buster
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends texinfo texlive
+    - make -C doc
+  artifacts:
+    paths:
+      - doc/asdf.html
+      - doc/asdf.info
+      - doc/asdf.pdf
+
+###############################################################################
+# Regression tests
+###############################################################################
+
+.Regression test template:
+  stage: regression
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  variables:
+    IMAGE_TAG: latest
+  script:
+    - make
+    - make test
+  artifacts:
+    paths:
+      - build/results/$l-test.text
+  needs: []
+  retry:
+    max: 2
+    when:
+      - job_execution_timeout
+
+Regression test:
+  extends: .Regression test template
+  parallel:
+    matrix:
+      - l: [ccl, clasp, clisp, cmucl, ecl, sbcl]
+        IMAGE_TAG: latest
+      - l: abcl
+        IMAGE_TAG: 1.7.1-jdk8
+
+Regression test expected failure:
+  extends: .Regression test template
+  parallel:
+    matrix:
+      - l: [abcl]
+        IMAGE_TAG: latest
+  allow_failure: true
+
+###############################################################################
+# Upgrade tests
+###############################################################################
+
+.Upgrade test template:
+  stage: upgrade
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  variables:
+    IMAGE_TAG: latest
+  script:
+    - make
+    - make test-upgrade
+  artifacts:
+    paths:
+      - build/results/$l-upgrade.text
+  needs: []
+  rules:
+    - if: $RUN_UPGRADE_TESTS
+
+Upgrade test:
+  extends: .Upgrade test template
+  parallel:
+    matrix:
+      - l: [abcl, ccl, clasp, clisp, cmucl, ecl, sbcl]
+        IMAGE_TAG: latest
+
+Upgrade test known failure:
+  extends: .Upgrade test template
+  parallel:
+    matrix:
+      - l: [abcl]
+        IMAGE_TAG: latest
+  allow_failure: true
+
+.REQUIRE upgrade test template:
+  extends: .Upgrade test template
+  rules:
+    - if: $RUN_UPGRADE_TESTS
+      when: never
+    - when: on_success
+
+REQUIRE upgrade test:
+  extends: .REQUIRE upgrade test template
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  parallel:
+    matrix:
+      - l: [ccl, clasp, clisp, cmucl, ecl, sbcl]
+        IMAGE_TAG: latest
+
+REQUIRE upgrade test known failure:
+  extends: .REQUIRE upgrade test template
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  parallel:
+    matrix:
+      - l: abcl
+        IMAGE_TAG: latest
+  allow_failure: true
