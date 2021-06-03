@@ -17,6 +17,8 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
 	Rideau, and Eric Schulte.
 * Fix for argument handling in LAUNCH-PROGRAM.
 * Fixes for feature handling from Eric Timmons.
+* Replaced some of the internals of `parse-defsystem` with generic functions to
+  enable modular extension.  Thanks to Eric Timmons.
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
