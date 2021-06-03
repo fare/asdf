@@ -468,6 +468,11 @@
              (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
              p))))))
 
+(let ((pn4 (uiop:with-temporary-file (:pathname pn :direction :output :prefix "WTF4")
+             :close-stream
+             pn)))
+  (assert (not (probe-file pn4))))
+
 (DBG :ensure-gethash)
 (let ((h (make-hash-table :test 'equal)))
   (assert-equal (multiple-value-list (gethash 1 h 2)) '(2 nil))
