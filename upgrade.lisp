@@ -140,11 +140,11 @@ previously-loaded version of ASDF."
                            (if (consp x) (values (car x) (cadr x)) (values x :asdf))
                          (find-symbol* s p nil)))
              (asyms (l) (mapcar #'asym l)))
-      (loop* :for (name superclasses slots) :in redefined-classes
-             :for sym = (find-symbol* name :asdf nil)
-             :when (and sym (find-class sym))
-             :do #+ccl (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))
-             #-ccl (setf (find-class sym) nil))))) ;; mkcl
+      (loop :for (name superclasses slots) :in redefined-classes
+            :for sym = (find-symbol* name :asdf nil)
+            :when (and sym (find-class sym))
+              :do #+ccl (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))
+                  #-ccl (setf (find-class sym) nil))))) ;; mkcl
 
 ;;; Self-upgrade functions
 (with-upgradability ()
