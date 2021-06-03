@@ -636,13 +636,15 @@ or when loading the package is optional."
   #+package-local-nicknames
   (defun install-package-local-nicknames (destination-package new-nicknames)
     ;; First, remove all package-local nicknames. (We'll reinstall any desired ones later.)
-    (dolist (pair-to-remove (package-local-nicknames destination-package))
-      (remove-package-local-nickname (string (car pair-to-remove)) destination-package))
+    (dolist (pair-to-remove (uiop/package-local-nicknames:package-local-nicknames destination-package))
+      (uiop/package-local-nicknames:remove-package-local-nickname
+       (string (car pair-to-remove)) destination-package))
     ;; Then, install all desired nicknames.
     (loop :for (nickname package) :in new-nicknames
-          :do (add-package-local-nickname (string nickname)
-                                          (find-package package)
-                                          destination-package)))
+          :do (uiop/package-local-nicknames:add-package-local-nickname
+               (string nickname)
+               (find-package package)
+               destination-package)))
 
   (defun ensure-package (name &key
                                 nicknames documentation use
@@ -694,15 +696,7 @@ or when loading the package is optional."
       (rename-package package package-name nicknames)
       ;; Handle local nicknames
       #+package-local-nicknames
-      (let* ((existing-nicknames (mapcar #'(lambda (x) (string (car x)))
-                                         (uiop/package-local-nicknames:package-local-nicknames package)))
-             (new-nicknames (mapcar #'(lambda (x) (string (first x))) local-nicknames))
-             (to-remove (set-difference existing-nicknames new-nicknames :test 'equal)))
-        (map () #'(lambda (x) (uiop/package-local-nicknames:remove-package-local-nickname x package))
-             to-remove)
-        (loop :for (nick-str package-str) :in local-nicknames
-              :do (uiop/package-local-nicknames:add-package-local-nickname
-                   nick-str package-str package)))
+      (install-package-local-nicknames package local-nicknames)
       (dolist (name unintern)
         (multiple-value-bind (existing status) (find-symbol name package)
           (when status
