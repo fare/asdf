@@ -31,6 +31,7 @@ Build ASDF:
   script:
     - make
   artifacts:
+    when: always
     paths:
       - build/asdf.lisp
 
@@ -42,10 +43,12 @@ Build docs:
     - apt-get install -y --no-install-recommends texinfo texlive
     - make -C doc
   artifacts:
+    when: always
     paths:
       - doc/asdf.html
       - doc/asdf.info
       - doc/asdf.pdf
+      - doc/*.log
 
 ###############################################################################
 # Regression tests
@@ -60,6 +63,7 @@ Build docs:
     - make
     - make test
   artifacts:
+    when: always
     paths:
       - build/results/$l-test.text
   needs: []
@@ -98,6 +102,7 @@ Regression test expected failure:
     - make
     - make test-upgrade
   artifacts:
+    when: always
     paths:
       - build/results/$l-upgrade.text
   needs: []
