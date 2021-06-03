@@ -147,6 +147,7 @@ The Object model of ASDF
 * Components::
 * Dependencies::
 * Functions::
+* Parsing system definitions::
 
 Operations
 
@@ -2261,6 +2262,7 @@ customize the behaviour of existing @emph{functions}.
 * Components::
 * Dependencies::
 * Functions::
+* Parsing system definitions::
 @end menu
 
 @node  Operations, Components, The object model of ASDF, The object model of ASDF
@@ -3352,7 +3354,7 @@ remain at the system level, and are not propagated along the hierarchy,
 but instead do something global on the system.
 
 
-@node Functions,  , Dependencies, The object model of ASDF
+@node Functions, Parsing system definitions, Dependencies, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Functions
 
@@ -3387,6 +3389,62 @@ If needs be, the @code{(:version ...)} syntax for specifying dependencies
 could be in the future extended to specify an exclusive upper bound for compatible versions
 as well as an inclusive lower bound.
 @end defun
+
+@node Parsing system definitions,  , Functions, The object model of ASDF
+@section Parsing system definitions
+@cindex Parsing system definitions
+@cindex Extending ASDF's defsystem parser
+
+Thanks to Eric Timmons, ASDF now provides hooks to extend how it parses
+@code{defsystem} forms.
+
+@strong{Warning!} These interfaces are experimental, and as such are not
+exported from the ASDF package yet. We plan to export them in ASDF
+3.4.0. If you use them before they are exported, please subscribe to
+@url{https://gitlab.common-lisp.net/asdf/asdf/-/issues/76} so you are
+made aware of any changes.
+
+@defun parse-component-form @var{parent} @var{options} &key @var{previous-serial-components}
+
+This is the core function for parsing a system definition. At the
+moment, we do not expect ASDF extenders to modify this function.
+
+When being called on a @code{component} of type @code{system} (i.e.,
+inside the @code{defsystem} macro), @var{parent} will be @code{NIL}.
+@end defun
+
+@deffn {Generic function} compute-component-children @var{component} @var{components} @var{serial-p}
+
+This generic function provides standard means for computing component
+children, but can be extended with additional methods by a programmer.
+
+Returns a list of children (of type @code{component}) for @var{component}.
+@var{components} is a list of the explicitly defined children descriptions.
+@var{serial-p} is non-@code{NIL} if each child in @var{components} should depend on the previous
+children.
+
+
+@end deffn
+
+@deffn {Generic function} class-for-type @var{parent} @var{type-designator}
+
+Return a @code{class} designator to be used to instantiate a component
+whose type is specified by @var{type-designator} in the context of
+@var{parent}, which should be either a @code{parent-component} -- or subclass
+thereof -- or @code{nil} (if the type designator is some class of system).
+
+This generic function provides a means for changing how ASDF translates
+type-designators (like @code{:file}) into CLOS classes.  It is intended
+for programmers to extend by adding new methods.
+
+@strong{Warning!} Adding new methods for @code{class-for-type} is
+typically @emph{not} necessary: much can already be done by using
+@code{:default-component-class} and defining (and explicitly calling
+for) new component types.
+
+@end deffn
+
+
 
 @node Controlling where ASDF searches for systems, Controlling where ASDF saves compiled files, The object model of ASDF, Top
 @comment  node-name,  next,  previous,  up

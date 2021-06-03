@@ -138,10 +138,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
           (when (typep top 'package-inferred-system)
             (if-let (dir (component-pathname top))
               (let* ((sub (subseq system-name (1+ (length primary))))
-                     (component-type (class-for-type
-                                      nil
-                                      (or (module-default-component-class top)
-                                          *default-component-class*)))
+                     (component-type (class-for-type top :file))
                      (file-type (file-type (make-instance component-type)))
                      (f (probe-file* (subpathname dir sub :type file-type)
                                      :truename *resolve-symlinks*)))

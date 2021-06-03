@@ -14,13 +14,16 @@
   (:import-from :asdf/find-system #:define-op)
   (:export
    #:defsystem #:register-system-definition
-   #:class-for-type #:*default-component-class*
+   #:*default-component-class*
    #:determine-system-directory #:parse-component-form
    #:non-toplevel-system #:non-system-system #:bad-system-name
    #:*known-systems-with-bad-secondary-system-names*
    #:known-system-with-bad-secondary-system-names-p
    #:sysdef-error-component #:check-component-input
-   #:explain))
+   #:explain
+   ;; for extending the component types
+   #:compute-component-children
+   #:class-for-type))
 (in-package :asdf/parse-defsystem)
 
 ;;; Pathname
@@ -48,20 +51,33 @@
        nil)))))
 
 
+(when-upgrading (:version "3.3.4.17")
+  ;; This turned into a generic function in 3.3.4.17
+  (fmakunbound 'class-for-type))
+
 ;;; Component class
 (with-upgradability ()
   ;; What :file gets interpreted as, unless overridden by a :default-component-class
   (defvar *default-component-class* 'cl-source-file)
 
-  (defun class-for-type (parent type)
-      (or (coerce-class type :package :asdf/interface :super 'component :error nil)
-          (and (eq type :file)
-               (coerce-class
-                (or (loop :for p = parent :then (component-parent p) :while p
-                      :thereis (module-default-component-class p))
-                    *default-component-class*)
-                :package :asdf/interface :super 'component :error nil))
-          (sysdef-error "don't recognize component type ~S" type))))
+  (defgeneric class-for-type (parent type-designator)
+    (:documentation
+     "Return a CLASS object to be used to instantiate components specified by TYPE-DESIGNATOR in the context of PARENT."))
+
+  (defmethod class-for-type ((parent null) type)
+    "If the PARENT is NIL, then TYPE must designate a subclass of SYSTEM."
+    (or (coerce-class type :package :asdf/interface :super 'system :error nil)
+        (sysdef-error "don't recognize component type ~S in the context of no parent" type)))
+
+  (defmethod class-for-type ((parent parent-component) type)
+    (or (coerce-class type :package :asdf/interface :super 'component :error nil)
+        (and (eq type :file)
+             (coerce-class
+              (or (loop :for p = parent :then (component-parent p) :while p
+                          :thereis (module-default-component-class p))
+                  *default-component-class*)
+              :package :asdf/interface :super 'component :error nil))
+        (sysdef-error "don't recognize component type ~S" type))))
 
 
 ;;; Check inputs
@@ -268,37 +284,14 @@ Please only define ~S and secondary systems with a name starting with ~S (e.g. ~
 system names contained using COERCE-NAME. Return the result."
     (mapcar 'parse-dependency-def dd-list))
 
-  ;;; Helper function for parse-component-form.  Sets the CHILDREN slot of
-  ;;; COMPONENT, using COMPONENTS list, and adds dependency links if
-  ;;; the COMPONENT is a serial component. Should ONLY be called on a
-  ;;; PARENT-COMPONENT.
-  ;;; Returns the list of child components -- it's not entirely clear to me
-  ;;; what is the set of possible values for elements of this list.
-  (declaim (ftype (function (parent-component list (or t nil)) t)
-                   compute-component-children)
-           (ftype (function ((or parent-component null) list &key (:previous-serial-components list)))
-                  parse-component-form))
+  (defgeneric compute-component-children (component components serial-p)
+    (:documentation
+     "Return a list of children for COMPONENT.
 
-  (defun* compute-component-children (component components serial-p)
-    (prog1
-        (setf (component-children component)
-              (loop
-                :with previous-components = nil ; list of strings
-                :for c-form :in components
-                :for c = (parse-component-form component c-form
-                                               :previous-serial-components previous-components)
-                :for name :of-type string = (component-name c)
-                :collect c
-                :when serial-p
-                  ;; if this is an if-feature component, we need to make a serial link
-                  ;; from previous components to following components -- otherwise should
-                  ;; the IF-FEATURE component drop out, the chain of serial dependencies will be
-                  ;; broken.
-                  :unless (component-if-feature c)
-                    :do (setf previous-components nil)
-                :end
-                :and :do (push name previous-components)))
-      (compute-children-by-name component)))
+COMPONENTS is a list of the explicitly defined children descriptions.
+
+SERIAL-P is non-NIL if each child in COMPONENTS should depend on the previous
+children."))
 
   (defun* stable-union (s1 s2 &key (test #'eql) (key 'identity))
    (append s1
@@ -356,7 +349,8 @@ system names contained using COERCE-NAME. Return the result."
         ;; A better fix is required.
         (setf (slot-value component 'version) version)
         (when (typep component 'parent-component)
-          (compute-component-children component components serial))
+          (setf (component-children component) (compute-component-children component components serial))
+          (compute-children-by-name component))
         (when previous-serial-components
           (setf depends-on (stable-union depends-on previous-serial-components :test #'equal)))
         (when weakly-depends-on
@@ -372,6 +366,26 @@ system names contained using COERCE-NAME. Return the result."
             Starting with ASDF 3, please use :IF-FEATURE instead"
                  (coerce-name (component-system component))))
         component)))
+
+  (defmethod compute-component-children ((component parent-component) components serial-p)
+    (loop
+      :with previous-components = nil ; list of strings
+      :for c-form :in components
+      :for c = (parse-component-form component c-form
+                                     :previous-serial-components previous-components)
+      :for name :of-type string = (component-name c)
+      :when serial-p
+        ;; if this is an if-feature component, we need to make a serial link
+        ;; from previous components to following components -- otherwise should
+        ;; the IF-FEATURE component drop out, the chain of serial dependencies will be
+        ;; broken.
+        :unless (component-if-feature c)
+          :do (setf previous-components nil)
+        :end
+        :and
+          :do (push name previous-components)
+      :end
+      :collect c))
 
   ;; the following are all systems that Stas Boukarev maintains and refuses to fix,
   ;; hoping instead to make my life miserable. Instead, I just make ASDF ignore them.
@@ -436,7 +450,7 @@ system names contained using COERCE-NAME. Return the result."
          (error 'non-system-system :name name :class-name (class-name class)))
        (unless (eq (type-of system) class)
          (reset-system-class system class)))
-     (parse-component-form nil (list* :module name :pathname directory component-options))))
+     (parse-component-form nil (list* :system name :pathname directory component-options))))
 
   (defmacro defsystem (name &body options)
     `(apply 'register-system-definition ',name ',options)))
