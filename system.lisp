@@ -186,10 +186,11 @@ the primary one."
           (slot-value (find-system (primary-system-name system))
                       slot-name))))
   (defmacro define-system-virtual-slot-reader (slot-name)
-    `(defun* ,(intern (concatenate 'string (string :system-)
-                                   (string slot-name)))
-         (system)
-       (system-virtual-slot-value system ',slot-name)))
+    (let ((name (intern (strcat (string :system-) (string slot-name)))))
+      `(progn
+         (fmakunbound ',name) ;; These were gf from defgeneric before 3.3.2.11
+         (declaim (notinline ,name))
+         (defun ,name (system) (system-virtual-slot-value system ',slot-name)))))
   (defmacro define-system-virtual-slot-readers ()
     `(progn ,@(mapcar (lambda (slot-name)
                         `(define-system-virtual-slot-reader ,slot-name))
@@ -214,7 +215,7 @@ the primary one."
 in which the system specification (.asd file) is located."
     (pathname-directory-pathname (system-source-file system-designator)))
 
-  (defun* (system-relative-pathname) (system name &key type)
+  (defun system-relative-pathname (system name &key type)
     "Given a SYSTEM, and a (Unix-style relative path) NAME of a file (or directory) of given TYPE,
 return the absolute pathname of a corresponding file under that system's source code pathname."
     (subpathname (system-source-directory system) name :type type))

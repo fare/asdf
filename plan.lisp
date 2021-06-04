@@ -224,7 +224,7 @@ to be meaningful, or could it just as well have been done in another Lisp image?
 
 ;;;; Visiting dependencies of an action and computing action stamps
 (with-upgradability ()
-  (defun* (map-direct-dependencies) (operation component fun)
+  (defun map-direct-dependencies (operation component fun)
     "Call FUN on all the valid dependencies of the given action in the given plan"
     (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
           :for dep-o = (find-operation operation dep-o-spec)
@@ -234,7 +234,7 @@ to be meaningful, or could it just as well have been done in another Lisp image?
                       :when (action-valid-p dep-o dep-c)
                         :do (funcall fun dep-o dep-c))))
 
-  (defun* (reduce-direct-dependencies) (operation component combinator seed)
+  (defun reduce-direct-dependencies (operation component combinator seed)
     "Reduce the direct dependencies to a value computed by iteratively calling COMBINATOR
 for each dependency action on the dependency's operation and component and an accumulator
 initialized with SEED."
@@ -243,7 +243,7 @@ initialized with SEED."
      #'(lambda (dep-o dep-c) (setf seed (funcall combinator dep-o dep-c seed))))
     seed)
 
-  (defun* (direct-dependencies) (operation component)
+  (defun direct-dependencies (operation component)
     "Compute a list of the direct dependencies of the action within the plan"
     (reverse (reduce-direct-dependencies operation component #'acons nil)))
 
@@ -527,7 +527,7 @@ Update the VISITED-ACTIONS table with the known status, but don't add anything t
         :do (collect-action-dependencies plan (action-operation action) (action-component action)))
       (plan-actions plan)))
 
-  (defun* (required-components) (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+  (defun required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     "Given a SYSTEM and a GOAL-OPERATION (default LOAD-OP), traverse the dependencies and
 return a list of the components involved in building the desired action."
     (with-asdf-session (:override t)

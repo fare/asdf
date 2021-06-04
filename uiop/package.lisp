@@ -4,39 +4,40 @@
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
 
+;; CAUTION: The definition of the UIOP/PACKAGE package MUST NOT CHANGE,
+;; NOT NOW, NOT EVER, NOT UNDER ANY CIRCUMSTANCE. NEVER.
+;; ... and the same goes for UIOP/PACKAGE-LOCAL-NICKNAMES.
+;;
+;; The entire point of UIOP/PACKAGE is to address the fact that the CL standard
+;; *leaves it unspecified what happens when a package is redefined incompatibly*.
+;; For instance, SBCL 1.4.2 will signal a full WARNING when this happens,
+;; throwing a wrench in upgrading code with ASDF itself, while continuing to
+;; export old symbols it now shouldn't as it also exports new ones,
+;; causing problems with code that relies on the new/current exports.
+;; CLISP and CCL also exports both sets of symbols, though without any WARNING.
+;; ABCL 1.6.1 will plainly ignore the new definition.
+;; Other implementations may do whatever they want and change their behavior at any time.
+;; ***Using DEFPACKAGE twice with different definitions is nasal-demon territory.***
+;;
+;; Thus we define UIOP/PACKAGE:DEFINE-PACKAGE with which packages can be defined
+;; in an upgrade-friendly way: the new definition is authoritative, and
+;; the package will define and export exactly those symbols in the new definition,
+;; no more and no fewer, whereas it is well-defined what happens to previous symbols.
+;; However, for obvious bootstrap reasons, we cannot use DEFINE-PACKAGE
+;; to define UIOP/PACKAGE itself, only DEFPACKAGE.
+;; Therefore, unlike the other packages in ASDF, UIOP/PACKAGE is immutable,
+;; now and forever. It is frozen for the aeons to come, like the CL package itself,
+;; to the same exact state it was defined at its inception, in ASDF 2.27 in 2013.
+;; The same goes for UIOP/PACKAGE-LOCAL-NICKNAMES, that we use internally.
+;;
+;; If you ever must define new symbols in this file, you can and must
+;; export them from a different package, possibly defined in the same file,
+;; say a package UIOP/PACKAGE* defined at the end of this file with DEFINE-PACKAGE,
+;; that might use :import-from to import the symbols from UIOP/PACKAGE,
+;; if you must somehow define them in UIOP/PACKAGE.
 
-;;; package local nicknames feature. Can't be deferred until common-lisp.lisp,
-;;; where most such features are set.
-;;; ABCL and CCL already define this feature appropriately.
-;;; Seems to be unconditionally present for SBCL, ACL, and clasp
-;;; Don't know about ecl, or others
- (eval-when (:load-toplevel :compile-toplevel :execute)
-   ;; abcl pushes :package-local-nicknames without UIOP interfering,
-   ;; and Lispworks will do so
-    #+(or sbcl clasp)
-    (pushnew :package-local-nicknames *features*)
-    #+allegro
-    (let ((fname (find-symbol (symbol-name '#:add-package-local-nickname) '#:excl)))
-      (when (and fname (fboundp fname))
-            (pushnew :package-local-nicknames *features*))))
-
-(defpackage :uiop/package
-  ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
-  ;; This package definition MUST NOT change unless its name too changes;
-  ;; if/when it changes, don't forget to add new functions missing from below.
-  ;; Until then, uiop/package is frozen to forever
-  ;; import and export the same exact symbols as for ASDF 2.27.
-  ;; Any other symbol must be import-from'ed and re-export'ed in a different package.
+(defpackage :uiop/package ;;; THOU SHALT NOT modify this definition, EVER. See explanations above.
   (:use :common-lisp)
-  #+package-local-nicknames
-  (:import-from #+allegro #:excl
-                #+sbcl #:sb-ext
-                #+(or clasp abcl ecl) #:ext
-                #+ccl #:ccl
-                #+lispworks #:hcl
-                #-(or allegro sbcl clasp abcl ccl lispworks ecl)
-                (error "Don't know from which package this lisp supplies the local-package-nicknames API.")
-                #:remove-package-local-nickname #:package-local-nicknames #:add-package-local-nickname)
   (:export
    #:find-package* #:find-symbol* #:symbol-call
    #:intern* #:export* #:import* #:shadowing-import* #:shadow* #:make-symbol* #:unintern*
@@ -48,12 +49,42 @@
    #:package-names #:packages-from-names #:fresh-package-name #:rename-package-away
    #:package-definition-form #:parse-define-package-form
    #:ensure-package #:define-package
-   #+package-local-nicknames #:add-package-local-nickname
-   #+package-local-nicknames #:remove-package-local-nickname
-   #+package-local-nicknames #:package-local-nicknames
    ))
 
 (in-package :uiop/package)
+
+;;; package local nicknames feature.
+;;; This can't be deferred until common-lisp.lisp, where most such features are set.
+;;; ABCL and CCL already define this feature appropriately.
+;;; Seems to be unconditionally present for SBCL, ACL, and CLASP
+;;; Don't know about ECL, or others
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  ;; ABCL pushes :package-local-nicknames without UIOP interfering,
+  ;; and Lispworks will do so
+  #+(or sbcl clasp)
+  (pushnew :package-local-nicknames *features*)
+  #+allegro
+  (let ((fname (find-symbol (symbol-name '#:add-package-local-nickname) '#:excl)))
+    (when (and fname (fboundp fname))
+      (pushnew :package-local-nicknames *features*))))
+
+;;; THOU SHALT NOT modify this definition, EVER, *EXCEPT* to add a new implementation.
+;; If you somehow need to modify the API in any way,
+;; you will need to create another, differently named, and just as immutable package.
+#+package-local-nicknames
+(defpackage :uiop/package-local-nicknames
+  (:use :cl)
+  (:import-from
+   #+allegro #:excl
+   #+sbcl #:sb-ext
+   #+(or clasp abcl ecl) #:ext
+   #+ccl #:ccl
+   #+lispworks #:hcl
+   #-(or allegro sbcl clasp abcl ccl lispworks ecl)
+   (error "Don't know from which package this lisp supplies the local-package-nicknames API.")
+   #:remove-package-local-nickname #:package-local-nicknames #:add-package-local-nickname)
+  (:export
+   #:add-package-local-nickname #:remove-package-local-nickname #:package-local-nicknames))
 
 ;;;; General purpose package utilities
 
@@ -605,13 +636,15 @@ or when loading the package is optional."
   #+package-local-nicknames
   (defun install-package-local-nicknames (destination-package new-nicknames)
     ;; First, remove all package-local nicknames. (We'll reinstall any desired ones later.)
-    (dolist (pair-to-remove (package-local-nicknames destination-package))
-      (remove-package-local-nickname (string (car pair-to-remove)) destination-package))
+    (dolist (pair-to-remove (uiop/package-local-nicknames:package-local-nicknames destination-package))
+      (uiop/package-local-nicknames:remove-package-local-nickname
+       (string (car pair-to-remove)) destination-package))
     ;; Then, install all desired nicknames.
     (loop :for (nickname package) :in new-nicknames
-          :do (add-package-local-nickname (string nickname)
-                                          (find-package package)
-                                          destination-package)))
+          :do (uiop/package-local-nicknames:add-package-local-nickname
+               (string nickname)
+               (find-package package)
+               destination-package)))
 
   (defun ensure-package (name &key
                                 nicknames documentation use
@@ -664,7 +697,6 @@ or when loading the package is optional."
       ;; Handle local nicknames
       #+package-local-nicknames
       (install-package-local-nicknames package local-nicknames)
-      ;; handle uninterning unwanted symbols
       (dolist (name unintern)
         (multiple-value-bind (existing status) (find-symbol name package)
           (when status
@@ -818,3 +850,8 @@ MIX directives, and reexport their contents as per the REEXPORT directive."
        #+(or clasp ecl gcl mkcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
+
+;; This package, unlike UIOP/PACKAGE, is allowed to evolve and acquire new symbols or drop old ones.
+(define-package :uiop/package*
+  (:use-reexport :uiop/package
+                 #+package-local-nicknames :uiop/package-local-nicknames))

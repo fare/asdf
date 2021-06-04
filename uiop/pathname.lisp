@@ -715,7 +715,7 @@ added to its DIRECTORY component. This is useful for output translations."
                              :defaults pathname)))
         pathname)))
 
-  (defun* (translate-pathname*) (path absolute-source destination &optional root source)
+  (defun translate-pathname* (path absolute-source destination &optional root source)
     "A wrapper around TRANSLATE-PATHNAME to be used by the ASDF output-translations facility.
 PATH is the pathname to be translated.
 ABSOLUTE-SOURCE is an absolute pathname to use as source for translate-pathname,

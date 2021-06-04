@@ -108,30 +108,31 @@ previously-loaded version of ASDF."
 (when-upgrading ()
   (let* ((previous-version (first *previous-asdf-versions*))
          (redefined-functions ;; List of functions that changed incompatibly since 2.27:
-          ;; gf signature changed (should NOT happen), defun that became a generic function,
-          ;; method removed that will mess up with new ones (especially :around :before :after,
-          ;; more specific or call-next-method'ed method) and/or semantics otherwise modified. Oops.
+          ;; gf signature changed, defun that became a generic function (but not way around),
+          ;; method removed that will mess up with new ones
+          ;; (especially :around :before :after, more specific or call-next-method'ed method)
+          ;; and/or semantics otherwise modified. Oops.
           ;; NB: it's too late to do anything about functions in UIOP!
-          ;; If you introduce some critical incompatibility there, you must change the function name.
+          ;; If you introduce some critical incompatibility there, you MUST change the function name.
           ;; Note that we don't need do anything about functions that changed incompatibly
           ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
-          ;; Also note that we don't include the defgeneric=>defun, because they are
-          ;; done directly with defun* and need not trigger a punt on data.
+          ;; Also, the strong constraints apply most importantly for functions called from
+          ;; the continuation of compiling or loading some of the code in ASDF or UIOP.
           ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
-          `(,@(when (version< previous-version "3.1.2") '(#:component-depends-on #:input-files)) ;; crucial methods *removed* before 3.1.2
-            ,@(when (version< previous-version "3.1.7.20") '(#:find-component))))
+          ;; and at https://gitlab.common-lisp.net/asdf/asdf/-/merge_requests/141
+          `(,@(when (version< previous-version "2.31") '(#:normalize-version)) ;; pathname became &key
+            ,@(when (version< previous-version "3.1.2") '(#:component-depends-on #:input-files)) ;; crucial methods *removed* before 3.1.2
+            ,@(when (version< previous-version "3.1.7.20") '(#:find-component)))) ;; added &key registered
          (redefined-classes
-          ;; redefining the classes causes interim circularities
           ;; with the old ASDF during upgrade, and many implementations bork
-          #-clozure ()
-          #+clozure
-          '((#:compile-concatenated-source-op (#:operation) ())
-            (#:compile-bundle-op (#:operation) ())
-            (#:concatenate-source-op (#:operation) ())
-            (#:dll-op (#:operation) ())
-            (#:lib-op (#:operation) ())
-            (#:monolithic-compile-bundle-op (#:operation) ())
-            (#:monolithic-concatenate-source-op (#:operation) ()))))
+          (when (or #+(or clozure mkcl) t)
+            '((#:compile-concatenated-source-op (#:operation) ())
+              (#:compile-bundle-op (#:operation) ())
+              (#:concatenate-source-op (#:operation) ())
+              (#:dll-op (#:operation) ())
+              (#:lib-op (#:operation) ())
+              (#:monolithic-compile-bundle-op (#:operation) ())
+              (#:monolithic-concatenate-source-op (#:operation) ())))))
     (loop :for name :in redefined-functions
       :for sym = (find-symbol* name :asdf nil)
       :do (when sym (fmakunbound sym)))
@@ -142,8 +143,8 @@ previously-loaded version of ASDF."
       (loop :for (name superclasses slots) :in redefined-classes
             :for sym = (find-symbol* name :asdf nil)
             :when (and sym (find-class sym))
-              :do (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))))))
-
+              :do #+ccl (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))
+                  #-ccl (setf (find-class sym) nil))))) ;; mkcl
 
 ;;; Self-upgrade functions
 (with-upgradability ()

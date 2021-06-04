@@ -662,7 +662,7 @@ possibly in a different process. Otherwise just call THUNK."
   (defvar *compile-check* nil
     "A hook for user-defined compile-time invariants")
 
-  (defun* (compile-file*) (input-file &rest keys
+  (defun compile-file* (input-file &rest keys
                                       &key (compile-check *compile-check*) output-file warnings-file
                                       #+clisp lib-file #+(or clasp ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
