@@ -342,7 +342,7 @@
 ;; (assert (directory-exists-p oddball-pathname))
 ;; (pathname oddball-namestring)
 ;; (assert-equal nil (uiop:subdirectories oddball-namestring))
-(with-expected-failure ("UIOP:SUBDIRECTORIES does not handle non-standard pathnames.")
+(with-expected-failure (#+(or sbcl cmucl) t)
     (assert-equal nil (uiop:subdirectories "/[foo")))
 
 (DBG "check to make sure WITH-CURRENT-DIRECTORY checks its parameter for directory pathname")
