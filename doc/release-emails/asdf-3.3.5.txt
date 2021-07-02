@@ -1,0 +1,36 @@
+Today we release ASDF 3.3.5, the fifth bugfix release for the 3.3 release series.
+
+We urge implementations that are currently bundling previous versions of ASDF -- and especially those bundling 3.3.0 or 3.3.1 -- to upgrade to 3.3.5 at their earliest convenience.  In addition to fixes that are generally applicable, there are fixes for ECL, LispWorks, and SBCL.
+
+As maintainer, my primary role has been coordination and some limited quality control.  The real work for this release has been done by many contributors and bug-reporters, to whom the Common Lisp community owes a tremendous vote of thanks.  Their names are listed on the Changelog, appended below.
+
+We *hope* that the next release will be 3.4, introducing new functionality but which, as the numbering suggests, will be backward compatible.
+
+Best,
+Robert
+
+cl-asdf (2:3.3.5-1) unstable; urgency=low
+
+* Fix bug in handling combination of :serial and :if-feature dependencies.
+* Add support for package local nicknames to UIOP:DEFINE-PACKAGE and
+	ASDF's package-inferred systems.  Extend support for package local
+	nicknames to more lisp implementations.  Initial work by
+	François-René Rideau, with assists from Phoebe Goldman, Michał
+	Herda, and Eric Timmons.
+* A number of fixes for Lispworks compatibility (thanks to Martin
+	Simmons).
+* Fixes for SBCL and ECL from Eric Timmons and @pouar.
+* Add support for source files with different file extensions to
+	package-inferred-systems.  Thanks to Jingtao Xu for identifying
+	the bug and providing a fix.
+* Fixes for UIOP:WITH-TEMPORARY-FILE
+* Miscellaneous bug fixes from Luís Oliveira, Gary Palter, François-René
+	Rideau, and Eric Schulte.
+* Fix for argument handling in LAUNCH-PROGRAM.
+* Fixes for feature handling from Eric Timmons.
+* Replaced some of the internals of `parse-defsystem` with generic functions to
+  enable modular extension.  Thanks to Eric Timmons.
+* Faré provided more graceful upgrade capabilities, fixing bugs with upgrading
+  support for local package nicknames, and with upgrading ABCL.
+
+-- Robert P. Goldman <rpgoldman@sift.net> Fri, 2 Jul 2021 13:07:00 -0500

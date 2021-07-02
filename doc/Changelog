@@ -1,4 +1,4 @@
-cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
+cl-asdf (2:3.3.5-1) unstable; urgency=low
 
 * Fix bug in handling combination of :serial and :if-feature dependencies.
 * Add support for package local nicknames to UIOP:DEFINE-PACKAGE and
@@ -21,6 +21,8 @@ cl-asdf (2:3.3.5-1) unstable; urgency=low IN PROGRESS
   enable modular extension.  Thanks to Eric Timmons.
 * Faré provided more graceful upgrade capabilities, fixing bugs with upgrading
   support for local package nicknames, and with upgrading ABCL.
+
+-- Robert P. Goldman <rpgoldman@sift.net> Fri, 2 Jul 2021 13:07:00 -0500
 
 cl-asdf (2:3.3.4-1) unstable; urgency=low
 Bug fix release:
