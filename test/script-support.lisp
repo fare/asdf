@@ -151,6 +151,9 @@ Some constraints:
        (assert-equal ',condition (type-of ,x))
        ,x)))
 (defmacro with-expected-failure ((&optional condition) &body body)
+  "If CONDITION is non-NIL, then the BODY is expected to fail, and an error will be
+raised if it *succeeds*.  If non-NIL, CONDITION should evaluate to something that
+explains the unexpected success -- typically a string."
   `(call-with-expected-failure ,condition (lambda () ,@body)))
 (defun call-with-expected-failure (condition thunk)
   (if condition
