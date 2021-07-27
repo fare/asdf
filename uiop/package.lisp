@@ -809,7 +809,8 @@ or when loading the package is optional."
                          :import-from ',import-from :export ',export :intern ',intern
                          :recycle ',(if recycle-p recycle (cons package nicknames))
                          :mix ',mix :reexport ',reexport :unintern ',unintern
-                         :local-nicknames ',local-nicknames)))))
+                         ,@(when local-nicknames
+                             `(:local-nicknames ',local-nicknames)))))))
 
 (defmacro define-package (package &rest clauses)
   "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form
