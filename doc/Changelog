@@ -1,3 +1,6 @@
+* Fix bug loading ASDF system definitions from jar files on ABCL.
+	See !190
+
 cl-asdf (2:3.3.5-1) unstable; urgency=low
 
 * Fix bug in handling combination of :serial and :if-feature dependencies.
