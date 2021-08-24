@@ -259,13 +259,19 @@ typically but not necessarily representing the files in a subdirectory of the bu
     ;; We ought to be able to extract this from the component alone with FILE-TYPE.
     ;; TODO: track who uses it in Quicklisp, and have them not use it anymore;
     ;; maybe issue a WARNING (then eventually CERROR) if the two methods diverge?
-    (parse-unix-namestring
-     (or (and (slot-boundp component 'relative-pathname)
-              (slot-value component 'relative-pathname))
-         (component-name component))
-     :want-relative t
-     :type (source-file-type component (component-system component))
-     :defaults (component-parent-pathname component)))
+    (let (#+abcl
+          (parent
+            (component-parent-pathname component)))
+      (parse-unix-namestring
+       (or (and (slot-boundp component 'relative-pathname)
+                (slot-value component 'relative-pathname))
+           (component-name component))
+       :want-relative
+       #-abcl t
+       ;; JAR-PATHNAMES always have absolute directories
+       #+abcl (not (ext:pathname-jar-p parent))
+       :type (source-file-type component (component-system component))
+       :defaults (component-parent-pathname component))))
 
   (defmethod source-file-type ((component parent-component) (system parent-component))
     :directory)
