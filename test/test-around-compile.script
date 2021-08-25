@@ -21,4 +21,6 @@
                       (funcall thunk)))
   :components ((:file "test")))
 (load-system 'test-around-compile-lambda :force t)
-(assert-equal 10 (funcall 'add10 1)) ;; add10 must have been compiled in base 16
+(with-expected-failure (#+abcl (and (uiop:version= (lisp-implementation-version) "1.8.0")
+                                    "ABCL version 1.8.0"))
+ (assert-equal 10 (funcall 'add10 1))) ;; add10 must have been compiled in base 16
