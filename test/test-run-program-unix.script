@@ -522,11 +522,18 @@
 
 (define-test
     "basic functionality"
-    (let* ((process-info (launch-program "./sleeper.sh 12 1"))
-           (pid (process-info-pid process-info)))
-      (handle-result "obtainable and plausible?"
-                     (and (numberp pid) (plusp pid)))
-      (wait-process process-info)))
+    (with-expected-failure (#+abcl
+                            (or
+                             (and (eq (uiop:operating-system) :linux)
+                                  (uiop:version= (lisp-implementation-version) "1.8.0"))
+
+                             (not (eq (uiop:operating-system) :linux))))
+      (let* ((process-info (launch-program "./sleeper.sh 12 1"))
+             (pid (process-info-pid process-info)))
+
+        (handle-result "obtainable and plausible?"
+                       (and (numberp pid) (plusp pid)))
+        (wait-process process-info))))
 
 (new-test-suite "wait-process")
 

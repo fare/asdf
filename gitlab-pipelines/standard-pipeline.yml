@@ -76,18 +76,10 @@ Regression test:
   extends: .Regression test template
   parallel:
     matrix:
-      - l: [ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, ccl, clasp, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
       - l: abcl
         IMAGE_TAG: 1.7.1-jdk8
-
-Regression test expected failure:
-  extends: .Regression test template
-  parallel:
-    matrix:
-      - l: [abcl]
-        IMAGE_TAG: latest
-  allow_failure: true
 
 ###############################################################################
 # Upgrade tests
