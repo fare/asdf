@@ -12,7 +12,7 @@ stages:
 
 Regression test:
   stage: regression
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   script:
     - make
     - make test
@@ -28,7 +28,7 @@ Regression test:
 
 REQUIRE Upgrade test:
   stage: upgrade
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   variables:
     ASDF_UPGRADE_TEST_TAGS: REQUIRE
   script:
@@ -44,7 +44,7 @@ REQUIRE Upgrade test:
 
 Open issue:
   stage: notify
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine
+  image: alpine
   script:
     - apk add curl jq
     # If we've already opened an issue, bail out.
