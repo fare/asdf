@@ -12,7 +12,7 @@ stages:
 
 Regression test:
   stage: regression
-  image: clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   script:
     - make
     - make test
@@ -28,7 +28,7 @@ Regression test:
 
 REQUIRE Upgrade test:
   stage: upgrade
-  image: clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   variables:
     ASDF_UPGRADE_TEST_TAGS: REQUIRE
   script:

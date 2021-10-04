@@ -27,7 +27,7 @@ workflow:
 
 Build ASDF:
   stage: build
-  image: buildpack-deps:latest
+  image: containers.common-lisp.net/cl-docker-images/sbcl:latest
   script:
     - make
   artifacts:
@@ -56,7 +56,7 @@ Build docs:
 
 .Regression test template:
   stage: regression
-  image: clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   variables:
     IMAGE_TAG: latest
   script:
@@ -87,7 +87,7 @@ Regression test:
 
 .Upgrade test template:
   stage: upgrade
-  image: clfoundation/$l:$IMAGE_TAG
+  image: containers.common-lisp.net/cl-docker-images/$l:$IMAGE_TAG
   variables:
     IMAGE_TAG: latest
   script:
