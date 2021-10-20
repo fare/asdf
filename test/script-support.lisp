@@ -761,6 +761,8 @@ is bound, write a message and exit on an error.  If
     (format t "Now loading new asdf via method ~A~%" new-method)
     (acall (list new-method :asdf-test))
     (format t "Testing it~%")
+    (format t "UIOP: ~S ~S~%" (asymval :*uiop-version*) (acall :system-version (acall :find-system :uiop)))
+    (format t "ASDF: ~S ~S~%" (get-asdf-version) (acall :system-version (acall :find-system :asdf)))
     (assert (equal (asymval :*uiop-version*) (acall :system-version (acall :find-system :uiop))))
     (assert (equal (get-asdf-version) (acall :system-version (acall :find-system :asdf))))
     (register-directory *test-directory*)
