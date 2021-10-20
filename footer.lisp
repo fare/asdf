@@ -30,12 +30,12 @@
 ;;;; data from the file system that we want to preserve instead of blasting
 ;;;; away and replacing with a blank preloaded system.
 (with-upgradability ()
-  (unless (equal (system-version (find-system "asdf")) (asdf-version))
+  (unless (equal (system-version (registered-system "asdf")) (asdf-version))
     (clear-system "asdf"))
   ;; 3.1.2 is the last version where asdf-package-system was a separate system.
-  (when (version< "3.1.2" (system-version (find-system "asdf-package-system")))
+  (when (version< "3.1.2" (system-version (registered-system "asdf-package-system")))
     (clear-system "asdf-package-system"))
-  (unless (equal (system-version (find-system "uiop")) *uiop-version*)
+  (unless (equal (system-version (registered-system "uiop")) *uiop-version*)
     (clear-system "uiop")))
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
