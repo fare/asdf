@@ -27,7 +27,43 @@
 
   (terpri)
   (DBG "Loading test-mutual-redefinition-2 in the same cache session.
-Looking for its definition should trigger a DEFINE-OP and cause the asd paths to be affected.")
+test-mutual-redefinition-1 has already been registered as the primary system
+name for test-mutual-redefinition-2, so no new DEFINE-OP is needed and the
+system should be cleanly loaded from its definition in
+test-mutual-redefinition-1.asd.")
+  (let ((warned-p nil))
+    (handler-bind ((bad-system-name (lambda (c)
+                                      (setf warned-p t)
+                                      (format t "Caught bad-system-name condition: ~A~%" c))))
+      (load-system 'test-mutual-redefinition-2))
+    (assert (not warned-p)))
+  (assert-pathname-equal
+   (test-source "test-mutual-redefinition-1.asd")
+   (current-system-source-file "test-mutual-redefinition-1"))
+  (assert-pathname-equal
+   (test-source "test-mutual-redefinition-1.asd")
+   (current-system-source-file "test-mutual-redefinition-2"))
+
+  (terpri)
+  (DBG "Loading test-mutual-redefinition-1 again in the same cache session.
+It should be considered already loaded.")
+  (let ((warned-p nil))
+    (handler-bind ((bad-system-name (lambda (c)
+                                      (setf warned-p t))))
+      (load-system 'test-mutual-redefinition-1))
+    (assert (not warned-p)))
+  (assert-pathname-equal
+   (test-source "test-mutual-redefinition-1.asd")
+   (current-system-source-file "test-mutual-redefinition-2"))
+  (assert-pathname-equal
+   (test-source "test-mutual-redefinition-1.asd")
+   (current-system-source-file "test-mutual-redefinition-1")))
+
+(with-asdf-session (:override t)
+  (terpri)
+  (DBG "loading test-mutual-redefinition-2 in a different cache session.
+This should cause a warning as we'll look for the definition of
+test-mutual-redefinition-2 again.")
   (let ((warned-p nil))
     (handler-bind ((bad-system-name (lambda (c)
                                       (setf warned-p t)
@@ -36,32 +72,6 @@ Looking for its definition should trigger a DEFINE-OP and cause the asd paths to
                                       (assert-equal (pathname-name (system-source-file c)) "test-mutual-redefinition-2"))))
       (load-system 'test-mutual-redefinition-2))
     (assert warned-p))
-  (assert-pathname-equal
-   (test-source "test-mutual-redefinition-2.asd")
-   (current-system-source-file "test-mutual-redefinition-2"))
-  (assert-pathname-equal
-   (test-source "test-mutual-redefinition-2.asd")
-   (current-system-source-file "test-mutual-redefinition-1"))
-
-  (terpri)
-  (DBG "Loading test-mutual-redefinition-1 again in the same cache session.
-It should be considered already loaded.")
-  (let ((warned-p nil))
-    (handler-bind ((bad-system-name (lambda (c)
-                                      (setf warned-p t))))
-      (load-system 'test-mutual-redefinition-2))
-    (assert (not warned-p)))
-  (assert-pathname-equal
-   (test-source "test-mutual-redefinition-2.asd")
-   (current-system-source-file "test-mutual-redefinition-2"))
-  (assert-pathname-equal
-   (test-source "test-mutual-redefinition-2.asd")
-   (current-system-source-file "test-mutual-redefinition-1")))
-
-(with-asdf-session (:override t)
-  (terpri)
-  (DBG "loading test-mutual-redefinition-2 in a different cache session")
-  (load-system 'test-mutual-redefinition-2)
   (assert-pathname-equal
    (test-source "test-mutual-redefinition-2.asd")
    (current-system-source-file "test-mutual-redefinition-2"))
