@@ -1,0 +1,35 @@
+;;-*- Lisp -*-
+
+(in-package :asdf-test)
+
+;;;
+;;; Using a slot override
+;;;
+(defclass def-initarg-system-1 (system)
+  ((asdf/component:default-component-class :initform 'slot-override)))
+
+(def-test-system test-system-default-initargs-1
+  :class def-initarg-system-1)
+
+(assert (equal (asdf/component:module-default-component-class
+                (find-system :test-system-default-initargs-1))
+               'slot-override))
+
+;;;
+;;; Using :default-initargs
+;;;
+;;; This fails at the time of writing, most probably because of the
+;;; use of CHANGE-CLASS, and probably inside RESET-SYSTEM-CLASS.
+
+(defclass def-initarg-system-2 (system)
+  ()
+  (:default-initargs
+   :default-component-class 'default-initargs))
+
+(def-test-system test-system-default-initargs-2
+  :class def-initarg-system-2)
+
+(with-expected-failure (:default-initargs-expected-to-fail)
+  (assert (equal (asdf/component:module-default-component-class
+                  (find-system :test-system-default-initargs-2))
+                 'default-initargs)))
