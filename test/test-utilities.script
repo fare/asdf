@@ -274,6 +274,8 @@
     asdf/system-registry:sysdef-find-asdf
     ;; restart
     asdf/session:clear-configuration-and-retry
+    ;; condition
+    uiop/package:no-such-package-error
     ))
 
 (defun defined-symbol-p (symbol)
@@ -636,3 +638,15 @@
                  (read-line str))))
          (assert-equal line-read "Have successfully written in thunk."))
     (ignore-errors (uiop:delete-file-if-exists pathname))))
+
+(DBG "Test error-checking in DEFINE-PACKAGE")
+(signals uiop:no-such-package-error
+  (let ((package-name (gentemp "IMPORTER"))
+        (import-package-name (gentemp "IMPORT-FROM")))
+   (eval
+    `(uiop:define-package ,package-name
+       (:use #:cl)
+       (:shadow #:require)
+       (:import-from ,import-package-name
+                     #:with-gensyms #:shuffle #:when-let #:define-constant)
+       (:export #:amb #:amb-failure #:amb-failure-stack #:+empty-stack+)))))
