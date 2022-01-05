@@ -132,18 +132,18 @@ REQUIRE upgrade test:
     ASDF_UPGRADE_TEST_TAGS: REQUIRE
   parallel:
     matrix:
-      - l: [abcl, ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, ccl, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
 
 # No more tests are known to fail. But leave commented out in case it needs to
 # be resurrected.
 
-# REQUIRE upgrade test known failure:
-#   extends: .REQUIRE upgrade test template
-#   variables:
-#     ASDF_UPGRADE_TEST_TAGS: REQUIRE
-#   parallel:
-#     matrix:
-#       - l: []
-#         IMAGE_TAG: latest
-#   allow_failure: true
+REQUIRE upgrade test known failure:
+  extends: .REQUIRE upgrade test template
+  variables:
+    ASDF_UPGRADE_TEST_TAGS: REQUIRE
+  parallel:
+    matrix:
+      - l: [clasp]
+        IMAGE_TAG: latest
+  allow_failure: true

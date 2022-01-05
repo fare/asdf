@@ -17,11 +17,26 @@
 
 ;;;; Register ASDF itself and all its subsystems as preloaded.
 (with-upgradability ()
-  (dolist (s '("asdf" "uiop" "asdf-package-system"))
+  (dolist (s '("asdf" "asdf-package-system"))
     ;; Don't bother with these system names, no one relies on them anymore:
     ;; "asdf-utils" "asdf-bundle" "asdf-driver" "asdf-defsystem"
-    (register-preloaded-system s :version *asdf-version*)))
+    (register-preloaded-system s :version *asdf-version*))
+  (register-preloaded-system "uiop" :version *uiop-version*))
 
+;;;; Ensure that the version slot on the registered preloaded systems are
+;;;; correct, by CLEARing the system. However, we do not CLEAR-SYSTEM
+;;;; unconditionally. This is because it's possible the user has upgraded the
+;;;; systems using ASDF itself, meaning that the registered systems have real
+;;;; data from the file system that we want to preserve instead of blasting
+;;;; away and replacing with a blank preloaded system.
+(with-upgradability ()
+  (unless (equal (system-version (registered-system "asdf")) (asdf-version))
+    (clear-system "asdf"))
+  ;; 3.1.2 is the last version where asdf-package-system was a separate system.
+  (when (version< "3.1.2" (system-version (registered-system "asdf-package-system")))
+    (clear-system "asdf-package-system"))
+  (unless (equal (system-version (registered-system "uiop")) *uiop-version*)
+    (clear-system "uiop")))
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 #+(or abcl clasp clisp clozure cmucl ecl mezzano mkcl sbcl)
