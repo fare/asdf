@@ -2,6 +2,8 @@
 	See !190
 * Fix bug with version numbering after reload.  See !194 and #94. Thanks
 	to Eric Timmons.
+* Fix bug in return value of UPGRADE-ASDF.  See !195.  Again, thanks to
+	Eric Timmons.
 
 cl-asdf (2:3.3.5-1) unstable; urgency=low
 
