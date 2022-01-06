@@ -57,6 +57,9 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   ;; Private hook for functions to run after ASDF has upgraded itself from an older variant:
   (defvar *post-upgrade-cleanup-hook* ())
+  ;; Private variable for post upgrade cleanup to communicate if an upgrade has
+  ;; actually occured.
+  (defvar *asdf-upgraded-p*)
   ;; Private function to detect whether the current upgrade counts as an incompatible
   ;; data schema upgrade implying the need to drop data.
   (defun upgrading-p (&optional (oldest-compatible-version *oldest-forward-compatible-asdf-version*))
@@ -154,6 +157,8 @@ previously-loaded version of ASDF."
     (let ((new-version (asdf-version)))
       (unless (equal old-version new-version)
         (push new-version *previous-asdf-versions*)
+        (when (boundp '*asdf-upgraded-p*)
+          (setf *asdf-upgraded-p* t))
         (when old-version
           (if (version<= new-version old-version)
               (error (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
@@ -172,9 +177,11 @@ previously-loaded version of ASDF."
     "Try to upgrade of ASDF. If a different version was used, return T.
    We need do that before we operate on anything that may possibly depend on ASDF."
     (let ((*load-print* nil)
-          (*compile-print* nil))
+          (*compile-print* nil)
+          (*asdf-upgraded-p* nil))
       (handler-bind (((or style-warning) #'muffle-warning))
-        (symbol-call :asdf :load-system :asdf :verbose nil))))
+        (symbol-call :asdf :load-system :asdf :verbose nil))
+      *asdf-upgraded-p*))
 
   (defmacro with-asdf-deprecation ((&rest keys &key &allow-other-keys) &body body)
     `(with-upgradability ()

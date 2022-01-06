@@ -38,7 +38,9 @@
         (call-next-method)))
 
 (DBG "loading test-module-excessive-depend"
-     (operate 'load-op 'test-module-excessive-depend))
+     ;; Prevent the done status from leaking into the top-level session.
+     (with-asdf-session (:override t)
+       (operate 'load-op 'test-module-excessive-depend)))
 
 ;; test that it compiled
 (defparameter file1 (test-fasl "file1"))
@@ -71,14 +73,21 @@
 (touch-file (test-source "file2.lisp") :timestamp (- before 30))
 (touch-file file2 :timestamp (- before 15))
 
+;; Sleep to ensure that we can use #'> to compare write timestamps instead of
+;; #'>=. Hopefully 4 seconds is enough for all file systems. The poorest mtime
+;; resolution ET is aware of is 2 seconds on FAT.
+(sleep 4)
+
 (defparameter plan (traverse 'load-op 'test-module-excessive-depend))
 (defparameter file3c (find-component :file3-only "file3"))
 #|(format t "~%Operation plan is:~%")(pprint plan)(terpri)|#
+(when (null plan)
+  (error "No plan generated.  LOAD-OP considered already done?"))
 (when (loop :for (o . c) :in plan :thereis (and (eq c file3c) (typep o 'asdf:compile-op)))
   (error "Excessive operations on file3-only system.  Bad propagation of dependencies."))
 (operate 'load-op 'test-module-excessive-depend)
-(assert-compare (>= (file-write-date file1) before))
-(assert-compare (>= (file-write-date file2) before))
+(assert-compare (> (file-write-date file1) before))
+(assert-compare (> (file-write-date file2) before))
 (unless (= (file-write-date file3)
            file3-date)
   (error "Excessive compilation of file3.lisp:  traverse bug."))
