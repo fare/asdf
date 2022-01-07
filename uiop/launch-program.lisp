@@ -15,6 +15,7 @@
    ;;; launch-program
    #:launch-program
    #:close-streams #:process-alive-p #:terminate-process #:wait-process
+   #:process-info
    #:process-info-error-output #:process-info-input #:process-info-output #:process-info-pid))
 (in-package :uiop/launch-program)
 
@@ -221,7 +222,10 @@ argument to pass to the internal RUN-PROGRAM"
      (exit-code :initform nil)
      ;; If the platform allows it, distinguish exiting with a code
      ;; >128 from exiting in response to a signal by setting this code
-     (signal-code :initform nil)))
+     (signal-code :initform nil))
+    (:documentation "This class should be treated as opaque by programmers, except for the
+exported PROCESS-INFO-* functions.  It should never be directly instantiated by
+MAKE-INSTANCE. Primarily, it is being made available to enable type-checking."))
 
 ;;;---------------------------------------------------------------------------
 ;;; The following two helper functions take care of handling the IF-EXISTS and
