@@ -275,7 +275,8 @@
     ;; restart
     asdf/session:clear-configuration-and-retry
     ;; condition
-    uiop/package:no-such-package-error
+    uiop/package*:no-such-package-error
+    uiop/package*:define-package-style-warning
     ))
 
 (defun defined-symbol-p (symbol)
@@ -650,3 +651,79 @@
        (:import-from ,import-package-name
                      #:with-gensyms #:shuffle #:when-let #:define-constant)
        (:export #:amb #:amb-failure #:amb-failure-stack #:+empty-stack+)))))
+
+(DBG "Test style-warning in DEFINE-PACKAGE. Upgrade to warning in 3.4")
+(signals uiop:define-package-style-warning
+  (let ((package-name (gentemp "IMPORTER"))
+        (import-package-name (gentemp "IMPORT-FROM")))
+   (eval
+    `(uiop:define-package ,package-name
+       (:use #:cl)
+       (:shadow #:require)
+       (:import-from ,import-package-name)))))
+
+(DBG "Test errors in FIND-PACKAGE*.")
+(let ((non-existent-package-name (gentemp (symbol-name '#:pack))))
+ (assert
+  (catch 'no-such-package-error
+    (handler-bind ((uiop:no-such-package-error
+                     #'(lambda (c)
+                         (assert-equal non-existent-package-name (uiop:package-designator c))
+                         (assert-equal non-existent-package-name (type-error-datum c))
+                         (assert-equal 'package-designator (type-error-expected-type c))
+                         (throw 'no-such-package-error t))))
+      (find-package* non-existent-package-name)))))
+
+(let ((non-existent-package-name (gentemp (symbol-name '#:pack))))
+  (assert (null
+           (find-package* non-existent-package-name nil))))
+
+(defun collect-external-non-cl-symbols (package)
+  (loop :with package := (find-package package)
+        :for s :being :the :symbols :of package
+        :for symbol-package := (symbol-package s)
+        :unless (or (eql symbol-package package)
+                    ;; CLOS related symbols seem to have a different home
+                    ;; package in CLISP than COMMON-LISP.
+                    (nth-value 1 (find-symbol (symbol-name s) (find-package "COMMON-LISP"))))
+          :collect s))
+
+(defun assert-package-equal (package &key exported-symbols use nicknames shadowing-symbols
+                                       external-non-cl-symbols)
+  (assert-compare (set-equality exported-symbols
+                                (loop :for s :being :the :external-symbols :of (find-package package)
+                                      :collect s)))
+  (assert-compare (set-equality use (package-use-list package)))
+  (assert-compare (set-equality nicknames (package-nicknames package)))
+  (assert-compare (set-equality shadowing-symbols (package-shadowing-symbols package)))
+  (assert-compare (set-equality external-non-cl-symbols (collect-external-non-cl-symbols package))))
+
+(DBG "Ensure UIOP/PACKAGE is not modified. Add new imports/exports/etc. to UIOP/PACKAGE* instead.")
+(assert-package-equal
+ "UIOP/PACKAGE"
+ :exported-symbols '(uiop:find-package* uiop:find-symbol* uiop:symbol-call
+                     uiop:intern* uiop:export* uiop:import* uiop:shadowing-import*
+                     uiop:shadow* uiop:make-symbol* uiop:unintern* uiop:symbol-shadowing-p
+                     uiop:home-package-p uiop:symbol-package-name uiop:standard-common-lisp-symbol-p
+                     uiop:reify-package uiop:unreify-package uiop:reify-symbol uiop:unreify-symbol
+                     uiop:nuke-symbol-in-package uiop:nuke-symbol uiop:rehome-symbol
+                     uiop:ensure-package-unused uiop:delete-package* uiop:package-names
+                     uiop:packages-from-names uiop:fresh-package-name uiop:rename-package-away
+                     uiop:package-definition-form uiop:parse-define-package-form uiop:ensure-package
+                     uiop:define-package)
+ :use (list (find-package "COMMON-LISP")))
+
+#+package-local-nicknames
+(DBG "Ensure UIOP/PACKAGE-LOCAL-NICNKAMES is not modified. Add new imports/exports/etc. to UIOP/PACKAGE* instead.")
+#+package-local-nicknames
+(assert-package-equal
+ "UIOP/PACKAGE-LOCAL-NICKNAMES"
+ :exported-symbols '(uiop:add-package-local-nickname uiop:remove-package-local-nickname
+                     uiop:package-local-nicknames)
+ :use (list (find-package "COMMON-LISP"))
+ :external-non-cl-symbols
+ #+allegro '(excl:remove-package-local-nickname excl:package-local-nicknames excl:add-package-local-nickname)
+ #+sbcl '(sb-ext:remove-package-local-nickname sb-ext:package-local-nicknames sb-ext:add-package-local-nickname)
+ #+(or clasp abcl ecl) '(ext:remove-package-local-nickname ext:package-local-nicknames ext:add-package-local-nickname)
+ #+ccl '(ccl:remove-package-local-nickname ccl:package-local-nicknames ccl:add-package-local-nickname)
+ #+lispworks '(hcl:remove-package-local-nickname hcl:package-local-nicknames hcl:add-package-local-nickname))

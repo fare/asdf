@@ -1,5 +1,5 @@
 ;;;; ---------------------------------------------------------------------------
-;;;; Handle ASDF package upgrade, including implementation-dependent magic.
+;;;; ASDF package upgrade, including implementation-dependent magic.
 ;;
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
@@ -49,7 +49,6 @@
    #:package-names #:packages-from-names #:fresh-package-name #:rename-package-away
    #:package-definition-form #:parse-define-package-form
    #:ensure-package #:define-package
-   #:no-such-package-error
    ))
 
 (in-package :uiop/package)
@@ -90,13 +89,15 @@
 ;;;; General purpose package utilities
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (define-condition no-such-package-error (error)
-    ((package-designator
-      :initarg :package-designator
-      :reader package-designator
-      ))
+  (deftype package-designator () '(and (or package character string symbol) (satisfies find-package)))
+  (define-condition no-such-package-error (type-error)
+    ()
+    (:default-initargs :expected-type 'package-designator)
     (:report (lambda (c s)
-              (format s "No package named ~a" (string (slot-value c 'package-designator))))))
+              (format s "No package named ~a" (string (type-error-datum c))))))
+
+  (defmethod package-designator ((c no-such-package-error))
+    (type-error-datum c))
 
   (defun find-package* (package-designator &optional (errorp t))
     "Like CL:FIND-PACKAGE, but by default raises a UIOP:NO-SUCH-PACKAGE-ERROR if the
@@ -104,7 +105,7 @@
     (let ((package (find-package package-designator)))
       (cond
         (package package)
-        (errorp (error 'no-such-package-error :package-designator package-designator))
+        (errorp (error 'no-such-package-error :datum package-designator))
         (t nil))))
 
   (defun find-symbol* (name package-designator &optional (error t))
@@ -409,6 +410,11 @@ or when loading the package is optional."
 
 ;;; ensure-package, define-package
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  ;; We already have UIOP:SIMPLE-STYLE-WARNING, but it comes from a later
+  ;; package.
+  (define-condition define-package-style-warning
+      #+sbcl (sb-int:simple-style-warning) #-sbcl (simple-condition style-warning)
+      ())
   (defun ensure-shadowing-import (name to-package from-package shadowed imported)
     (check-type name string)
     (check-type to-package package)
@@ -761,7 +767,15 @@ or when loading the package is optional."
               (do-external-symbols (sym pp) (ensure-mix (symbol-name sym) sym package pp shadowed imported inherited)))
       ;; handle import-from packages
       (loop :for (p . syms) :in import-from
-            :for pp = (find-package* p) :do
+            ;; FOR NOW suppress errors in the case where the :import-from
+            ;; symbol list is empty (used only to establish a dependency by
+            ;; package-inferred-system users).
+            :for pp = (find-package* p syms) :do
+              (when (null pp)
+                ;; TODO: ASDF 3.4 Change to a full warning.
+                (warn 'define-package-style-warning
+                      :format-control "When defining package ~a, attempting to import-from non-existent package ~a. This is deprecated behavior and will be removed from UIOP in the future."
+                      :format-arguments (list name p)))
               (dolist (sym syms) (ensure-import (symbol-name sym) package pp shadowed imported)))
       ;; handle use-list and mix
       (dolist (p (append use mix))
@@ -867,4 +881,11 @@ MIX directives, and reexport their contents as per the REEXPORT directive."
 ;; This package, unlike UIOP/PACKAGE, is allowed to evolve and acquire new symbols or drop old ones.
 (define-package :uiop/package*
   (:use-reexport :uiop/package
-                 #+package-local-nicknames :uiop/package-local-nicknames))
+                 #+package-local-nicknames :uiop/package-local-nicknames)
+  (:import-from :uiop/package
+                #:define-package-style-warning
+                #:no-such-package-error
+                #:package-designator)
+  (:export #:define-package-style-warning
+           #:no-such-package-error
+           #:package-designator))
