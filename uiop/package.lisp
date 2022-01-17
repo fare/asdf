@@ -861,7 +861,9 @@ an error if there is a conflict with an explicitly :IMPORT-FROM symbol.
 REEXPORT -- Takes a list of package designators.  For each package, p, in the list,
 export symbols with the same name as those exported from p.  Note that in the case
 of shadowing, etc. the symbols with the same name may not be the same symbols.
-UNINTERN -- Remove symbols here from PACKAGE.
+UNINTERN -- Remove symbols here from PACKAGE. Note that this is primarily useful
+when *redefining* a previously-existing package in the current image (e.g., when
+upgrading ASDF).  Most programmers will have no use for this option.
 LOCAL-NICKNAMES -- If the host implementation supports package local nicknames
 \(check for the :PACKAGE-LOCAL-NICKNAMES feature\), then this should be a list of
 nickname and package name pairs.  Using this option will cause an error if the
