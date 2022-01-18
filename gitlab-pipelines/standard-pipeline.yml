@@ -60,6 +60,7 @@ Build docs:
   variables:
     IMAGE_TAG: latest
   script:
+    - export l=$l$variant
     - make
     - make test
   artifacts:
@@ -76,8 +77,11 @@ Regression test:
   extends: .Regression test template
   parallel:
     matrix:
-      - l: [abcl, ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, allegro, ccl, clasp, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
+      - l: allegro
+        IMAGE_TAG: latest
+        variant: modern
       - l: abcl
         IMAGE_TAG: 1.7.1-jdk8
 
@@ -91,6 +95,7 @@ Regression test:
   variables:
     IMAGE_TAG: latest
   script:
+    - export l=$l$variant
     - make
     - make test-upgrade
   artifacts:
@@ -105,8 +110,11 @@ Upgrade test:
   extends: .Upgrade test template
   parallel:
     matrix:
-      - l: [abcl, ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, allegro, ccl, clasp, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
+      - l: allegro
+        IMAGE_TAG: latest
+        variant: modern
 
 # No more tests are known to fail. But leave commented out in case it needs to
 # be resurrected.
@@ -132,8 +140,11 @@ REQUIRE upgrade test:
     ASDF_UPGRADE_TEST_TAGS: REQUIRE
   parallel:
     matrix:
-      - l: [abcl, ccl, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, allegro, ccl, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
+      - l: allegro
+        IMAGE_TAG: latest
+        variant: modern
 
 # No more tests are known to fail. But leave commented out in case it needs to
 # be resurrected.
