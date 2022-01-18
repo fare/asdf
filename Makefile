@@ -63,6 +63,7 @@ endif
 
 
 l ?= sbcl
+UPCASE_L = $(shell echo '$(l)' | tr '[:lower:]' '[:upper:]')
 
 ABCL ?= abcl
 ALLEGRO ?= alisp
@@ -81,6 +82,16 @@ XCL ?= xcl
 # If you need to sudo in order to use docker, modify this.
 DOCKER ?= docker
 docker_tag ?= latest
+
+DOCKER_IMAGE_ABCL ?= containers.common-lisp.net/cl-docker-images/abcl
+DOCKER_IMAGE_ALLEGRO ?= containers.common-lisp.net/cl-docker-images/allegro
+DOCKER_IMAGE_ALLEGROMODERN ?= containers.common-lisp.net/cl-docker-images/allegro
+DOCKER_IMAGE_CCL ?= containers.common-lisp.net/cl-docker-images/ccl
+DOCKER_IMAGE_CLISP ?= containers.common-lisp.net/cl-docker-images/clisp
+DOCKER_IMAGE_CMUCL ?= containers.common-lisp.net/cl-docker-images/cmucl
+DOCKER_IMAGE_ECL ?= containers.common-lisp.net/cl-docker-images/ecl
+DOCKER_IMAGE_ECL_BYTECODES ?= containers.common-lisp.net/cl-docker-images/ecl
+DOCKER_IMAGE_SBCL ?= containers.common-lisp.net/cl-docker-images/sbcl
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/version.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/lisp-build.lisp uiop/launch-program.lisp uiop/run-program.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
@@ -208,12 +219,17 @@ test-lisp: build/asdf.lisp show-version
 
 t: test-lisp
 
-# Useful for reproducing test failures with Docker.
+# Useful for reproducing test failures with Docker. Allegro does not like it if
+# the user we're running as has no entry in /etc/passwd. So we make a user
+# first and then execute the command as that user.
 test-docker-repl:
-	@${DOCKER} run --rm -i -t --pull always -u $(shell id -u):$(shell id -g) -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory)/test clfoundation/${l}:${docker_tag}
+	@${DOCKER} run --rm -i -t -e I_AGREE_TO_ALLEGRO_EXPRESS_LICENSE=yes -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory)/test $(DOCKER_IMAGE_$(UPCASE_L)):${docker_tag} bash -c "adduser --uid $(shell id -u) --gecos 'ASDF tester' --disabled-password --no-create-home user && su user -c \"$($(UPCASE_L))\""
 
+# Allegro does not like it if the user we're running as has no entry in
+# /etc/passwd. So we make a user first and then execute the command as that
+# user.
 test-docker-lisp: build/asdf.lisp show-version
-	@${DOCKER} run --rm -i -t --pull always -u $(shell id -u):$(shell id -g) -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory) clfoundation/${l}:${docker_tag} make test-lisp l=${l} t=${t}
+	${DOCKER} run --rm -i -t -e I_AGREE_TO_ALLEGRO_EXPRESS_LICENSE=yes -v $(sourceDirectory):$(sourceDirectory) -w $(sourceDirectory) $(DOCKER_IMAGE_$(UPCASE_L)):${docker_tag} bash -c "adduser --uid $(shell id -u) --gecos 'ASDF tester' --disabled-password --no-create-home user && su user -c \"make test-lisp l=$(l) t=$(t)\""
 
 td: test-docker-lisp
 
