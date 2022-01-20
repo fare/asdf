@@ -685,7 +685,7 @@
         :unless (or (eql symbol-package package)
                     ;; CLOS related symbols seem to have a different home
                     ;; package in CLISP than COMMON-LISP.
-                    (nth-value 1 (find-symbol (symbol-name s) (find-package "COMMON-LISP"))))
+                    (nth-value 1 (find-symbol (symbol-name s) (find-package :common-lisp))))
           :collect s))
 
 (defun assert-package-equal (package &key exported-symbols use nicknames shadowing-symbols
@@ -700,7 +700,7 @@
 
 (DBG "Ensure UIOP/PACKAGE is not modified. Add new imports/exports/etc. to UIOP/PACKAGE* instead.")
 (assert-package-equal
- "UIOP/PACKAGE"
+ :uiop/package
  :exported-symbols '(uiop:find-package* uiop:find-symbol* uiop:symbol-call
                      uiop:intern* uiop:export* uiop:import* uiop:shadowing-import*
                      uiop:shadow* uiop:make-symbol* uiop:unintern* uiop:symbol-shadowing-p
@@ -711,16 +711,16 @@
                      uiop:packages-from-names uiop:fresh-package-name uiop:rename-package-away
                      uiop:package-definition-form uiop:parse-define-package-form uiop:ensure-package
                      uiop:define-package)
- :use (list (find-package "COMMON-LISP")))
+ :use (list (find-package :common-lisp)))
 
 #+package-local-nicknames
 (DBG "Ensure UIOP/PACKAGE-LOCAL-NICNKAMES is not modified. Add new imports/exports/etc. to UIOP/PACKAGE* instead.")
 #+package-local-nicknames
 (assert-package-equal
- "UIOP/PACKAGE-LOCAL-NICKNAMES"
+ :uiop/package-local-nicknames
  :exported-symbols '(uiop:add-package-local-nickname uiop:remove-package-local-nickname
                      uiop:package-local-nicknames)
- :use (list (find-package "COMMON-LISP"))
+ :use (list (find-package :common-lisp))
  :external-non-cl-symbols
  #+allegro '(excl:remove-package-local-nickname excl:package-local-nicknames excl:add-package-local-nickname)
  #+sbcl '(sb-ext:remove-package-local-nickname sb-ext:package-local-nicknames sb-ext:add-package-local-nickname)
