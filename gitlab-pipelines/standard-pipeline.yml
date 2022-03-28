@@ -78,8 +78,10 @@ Regression test:
   extends: .Regression test template
   parallel:
     matrix:
-      - l: [abcl, allegro, ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, allegro, ccl, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
+      - l: clasp
+        IMAGE_TAG: "b14e329f49998275579926da2a737885ceb2cea7"
       - l: allegro
         IMAGE_TAG: latest
         variant: modern
@@ -111,8 +113,10 @@ Upgrade test:
   extends: .Upgrade test template
   parallel:
     matrix:
-      - l: [abcl, allegro, ccl, clasp, clisp, cmucl, ecl, sbcl]
+      - l: [abcl, allegro, ccl, clisp, cmucl, ecl, sbcl]
         IMAGE_TAG: latest
+      - l: clasp
+        IMAGE_TAG: "b14e329f49998275579926da2a737885ceb2cea7"
       - l: allegro
         IMAGE_TAG: latest
         variant: modern
@@ -157,5 +161,5 @@ REQUIRE upgrade test known failure:
   parallel:
     matrix:
       - l: [clasp]
-        IMAGE_TAG: latest
+        IMAGE_TAG: "b14e329f49998275579926da2a737885ceb2cea7"
   allow_failure: true
