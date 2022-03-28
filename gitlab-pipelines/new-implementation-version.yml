@@ -51,7 +51,7 @@ Open issue:
     - '[ $(curl -fsSL -G -d "labels=bot" -d "search=test+failure+for+$l+$LISP_VERSION" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues" | jq length) = "0" ] || exit 0'
     # Otherwise, open a new issue!
     - |
-      curl -fsSL -X \
+      curl -fsSL -X POST \
            -H "PRIVATE-TOKEN: $ASDF_ISSUE_BOT_PAT"
            -d "labels=bot" \
            -d "title=Test failure for $l $LISP_VERSION" \
