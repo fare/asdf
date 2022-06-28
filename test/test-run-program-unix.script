@@ -11,7 +11,8 @@
    "This test is not meant to be run on versions of ABCL that predate 1.4" 0))
 
 #+clasp
-(leave-test "Clasp does not have a run-program function" 0)
+(unless (find-symbol* '#:run-program :ext nil)
+  (leave-test "This clasp does not have a run-program function" 0))
 
 #+cmucl
 (let* ((v (first (uiop:split-string (lisp-implementation-version))))
@@ -539,6 +540,8 @@
 
 (define-test
     "exit code after exit: synchronous"
+     #+clasp
+    (skip-test "Known to fail")
     (let ((exit-code (nth-value 2 (run-program "./exiter.sh 12"
                                                :ignore-error-status t))))
       (handle-result "exit code matches?" (equal 12 exit-code))))
@@ -553,7 +556,7 @@
 
 (define-test
     "exit code after signal: synchronous"
-    #+(and lispworks (not lispworks7+))
+    #+(or clasp (and lispworks (not lispworks7+)))
     (skip-test "Known to fail")
     (let ((exit-code (nth-value 2 (run-program "./killer.sh"
                                                :ignore-error-status t))))
@@ -561,7 +564,7 @@
 
 (define-test
     "exit code after signal: asynchronous (repeated)"
-    #+(and lispworks (not lispworks7+))
+    #+(or clasp (and lispworks (not lispworks7+)))
     (skip-test "Known to fail")
     (let ((process-info (launch-program "./killer.sh")))
       (handle-result "exit code matches?"
@@ -661,7 +664,7 @@
 
 (define-test
     ":exited/:signaled (it killed itself; repeated query)"
-    #+(and lispworks (not lispworks7+))
+    #+(or clasp (and lispworks (not lispworks7+)))
     (skip-test "Known to fail")
     (let* ((process-info (launch-program "./killer.sh")))
       (sleep 5)
