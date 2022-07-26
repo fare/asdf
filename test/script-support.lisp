@@ -632,7 +632,15 @@ is bound, write a message and exit on an error.  If
            `(:output-translations
              (,(acall :wilden *asdf-directory*) ,(acall :wilden (resolve-output "asdf/")))
              (t ,(acall :wilden (resolve-output "root")))
-             :ignore-inherited-configuration)))
+             :ignore-inherited-configuration))
+
+    (let ((fasl-dir (resolve-output "asdf/test/")))
+      (when (acall (list '#:directory-exists-p :uiop) fasl-dir)
+        (format t "Removing old fasls from directory ~a.~%" fasl-dir)
+        (funcall (asym '#:delete-directory-tree :uiop t)
+                 fasl-dir
+                 :validate #'(lambda (x)
+                               (member "build" (pathname-directory x) :test 'equal))))))
   (when (asym :*central-registry*)
     (set (asym :*central-registry*) `(,*test-directory*)))
   (format t "Being a bit verbose~%")
