@@ -1,0 +1,28 @@
+;;; -*- Mode: common-lisp; -*-
+
+;;; Test for cl.net gitlab issue #124
+;;; If *PACKAGE* is bound to the package named foobar in the context in which
+;;; file1.lisp is compiled, that will cause an error (defpackage not found).
+
+;;; ABCL does not issue the errors we expect.
+(when (member :abcl *features*)
+  (leave-test "This test does not function properly on ABCL." 0))
+
+(defpackage foobar
+  (:use))
+
+(def-test-system test-bad-package-discipline
+  :components ((:file "file1")))
+
+(setf asdf:*compile-file-warnings-behaviour* :error
+      asdf:*compile-file-failure-behaviour* :error)
+
+(with-expected-failure ("Value of *PACKAGE* not controlled")
+  (let ((*package* (find-package :foobar))
+          (asdf:*compile-file-warnings-behaviour* :error))
+      (asdf:compile-system "test-bad-package-discipline" :force t)))
+
+(with-expected-failure ("Value of *PACKAGE* not controlled")
+  (in-package :foobar)
+  (cl:let ((asdf:*compile-file-warnings-behaviour* :error))
+    (asdf:compile-system "test-bad-package-discipline" :force cl:t)))
