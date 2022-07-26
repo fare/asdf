@@ -110,16 +110,17 @@ Note that it will NOT be called around the performing of LOAD-OP."))
             (when warnings-file
               (unless (equal (pathname-type warnings-file) (warnings-file-type))
                 (setf warnings-file nil)))
-            (call-with-around-compile-hook
-             c #'(lambda (&rest flags)
-                   (apply 'compile-file* input-file
-                          :output-file output-file
-                          :external-format (component-external-format c)
-                          :warnings-file warnings-file
-                          (append
-                           #+clisp (list :lib-file lib-file)
-                           #+(or clasp ecl mkcl) (list :object-file object-file)
-                           flags)))))
+            (let ((*package* (find-package* '#:common-lisp-user)))
+             (call-with-around-compile-hook
+              c #'(lambda (&rest flags)
+                    (apply 'compile-file* input-file
+                           :output-file output-file
+                           :external-format (component-external-format c)
+                           :warnings-file warnings-file
+                           (append
+                            #+clisp (list :lib-file lib-file)
+                            #+(or clasp ecl mkcl) (list :object-file object-file)
+                            flags))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
   (defun report-file-p (f)
@@ -203,7 +204,8 @@ an OPERATION and a COMPONENT."
     "Perform the loading of a FASL associated to specified action (O . C),
 an OPERATION and a COMPONENT."
     (if-let (fasl (first (input-files o c)))
-      (load* fasl)))
+            (let ((*package* (find-package '#:common-lisp-user)))
+              (load* fasl))))
   (defmethod perform ((o load-op) (c cl-source-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-op) (c static-file))
