@@ -17,12 +17,10 @@
 (setf asdf:*compile-file-warnings-behaviour* :error
       asdf:*compile-file-failure-behaviour* :error)
 
-(with-expected-failure ("Value of *PACKAGE* not controlled")
-  (let ((*package* (find-package :foobar))
-          (asdf:*compile-file-warnings-behaviour* :error))
-      (asdf:compile-system "test-bad-package-discipline" :force t)))
+(let ((*package* (find-package :foobar))
+      (asdf:*compile-file-warnings-behaviour* :error))
+  (asdf:compile-system "test-bad-package-discipline" :force t))
 
-(with-expected-failure ("Value of *PACKAGE* not controlled")
-  (in-package :foobar)
-  (cl:let ((asdf:*compile-file-warnings-behaviour* :error))
-    (asdf:compile-system "test-bad-package-discipline" :force cl:t)))
+(in-package :foobar)
+(cl:let ((asdf:*compile-file-warnings-behaviour* :error))
+  (asdf:compile-system "test-bad-package-discipline" :force cl:t))
