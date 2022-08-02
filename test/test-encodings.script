@@ -117,8 +117,21 @@
   (def-test-system :test-system-encoding-l1
     :encoding :latin-1
     :components ((:file "lambda"))))
-#-ecl-bytecmp
-(with-expected-failure ()
+(let ((file (first (output-files (make-operation 'compile-op) (find-component (find-system "test-system-encoding-l1") "lambda")))))
+  (DBG (format nil "Checking for previously-compiled file ~a.~a" (pathname-name file) (pathname-type file)))
+  (if (file-exists-p file)
+      (progn
+       (delete-file file)
+       (DBG "Deleted file.")
+       (assert (not (file-exists-p file))))
+      (DBG "No such file.")))
+(defun permissive-parse-version (string)
+  (uiop:parse-version (subseq string 0 (position #\- string)) #'error))
+(with-expected-failure ((or (and (featurep :ecl-bytecmp) :ecl-bytecmp "ECL Byte compiler does not handle LATIN-1")
+                             (and (featurep :abcl)
+                                  (equalp (subseq (permissive-parse-version (uiop:lisp-version-string)) 0 2)
+                                          '(1 8))
+                                 "ABCL version 1.8 does not properly handle latin-1 in the compiler")))
   (with-encoding-test (:latin-1 :op load-op)
     (def-test-system :test-system-encoding-l1-load-op
         :encoding :latin-1
