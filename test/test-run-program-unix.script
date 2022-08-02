@@ -3,13 +3,6 @@
 
 (chdir *test-directory*)
 
-#+abcl
-(unless (version-satisfies
-         (second (split-string (implementation-identifier) :separator '(#\-)))
-         "1.4")
-  (leave-test
-   "This test is not meant to be run on versions of ABCL that predate 1.4" 0))
-
 #+clasp
 (unless (find-symbol* '#:run-program :ext nil)
   (leave-test "This clasp does not have a run-program function" 0))
@@ -215,6 +208,13 @@
                  :implemented))
        (error 'unexpected-test-success :test-designator ,test-designator))))
 
+#+abcl
+(let* ((raw-version (uiop:lisp-version-string))
+       (version
+         (subseq raw-version 0 (position #\- raw-version))))
+  (when (not (asdf:version-satisfies version "1.8"))
+    (push :old-abcl *features*)))
+
 
 ;;; The actual tests
 
@@ -242,16 +242,20 @@
 
 (define-test
     "launch-program :output t"
-    (expected-unimplemented ((:lispworks :abcl) :test-designator "launch-program :output t")
-       (launch-program (list "echo" "echoing output")
-                       :output t)))
+    (expected-unimplemented ((:lispworks :old-abcl) :test-designator "launch-program :output t")
+       (progn
+         (launch-program (list "echo" "echoing output")
+                         :output t)
+         t)))
 
 (define-test
     "launch-program :error-output t"
-    (expected-unimplemented ((:lispworks :abcl) :test-designator "launch-program :error-output t")
-       (uiop:wait-process
-        (launch-program (format nil "./exiter.sh 0 ~a" output-string)
-                        :error-output t))))
+    (expected-unimplemented ((:lispworks :old-abcl) :test-designator "launch-program :error-output t")
+  (progn
+    (uiop:wait-process
+     (launch-program (format nil "./exiter.sh 0 ~a" output-string)
+                     :error-output t))
+    t)))
 
 (define-test
     ":output <file> (file e.)"

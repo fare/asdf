@@ -29,12 +29,13 @@
 
 ;;;; Early meta-level tweaks
 
-#+(or allegro clasp clisp clozure cmucl ecl lispworks mezzano mkcl sbcl)
+#+(or allegro clasp clisp clozure cmucl ecl lispworks mezzano mkcl sbcl abcl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (when (and #+allegro (member :ics *features*)
              #+(or clasp clisp cmucl ecl lispworks mkcl) (member :unicode *features*)
              #+clozure (member :openmcl-unicode-strings *features*)
-             #+sbcl (member :sb-unicode *features*))
+             #+sbcl (member :sb-unicode *features*)
+             #+abcl t)
     ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
     ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.
     (pushnew :asdf-unicode *features*)))

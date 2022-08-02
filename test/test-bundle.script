@@ -13,13 +13,6 @@
 #+(and os-macosx ecl)
 (leave-test "Bundle test doesn't work on Mac on this lisp." 0)
 
-#+abcl
-(when (and (member :abcl *features*)
-           (os-macosx-p)
-           ;; bundles don't work on pre-1.3.0
-           (second (third (sys::arglist 'directory))))
-  (leave-test "Bundle test doesn't work on Mac on this version of ABCL." 0))
-
 #+(or (and ecl ecl-bytecmp) gcl)
 (leave-test "bundles not on this implementation" 0)
 
