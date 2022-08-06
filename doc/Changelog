@@ -1,9 +1,19 @@
+cl-asdf (2:3.3.6-1) unstable; urgency=low
+
 * Fix bug loading ASDF system definitions from jar files on ABCL.
 	See !190
 * Fix bug with version numbering after reload.  See !194 and #94. Thanks
 	to Eric Timmons.
 * Fix bug in return value of UPGRADE-ASDF.  See !195.  Again, thanks to
 	Eric Timmons.
+* Multiple improvements to documentation and tests.  Thanks to Nathan
+	Ringo and Phoebe Goldman.
+* Add clasp support for uiop/launch program. Thanks to Christian
+	Schafmeister.
+* Miscellaneous minor bug fixes and tweaks.
+* Don't let *package* binding leak into ASDF compile operations. Thanks to
+	Phoebe Goldman.
+-- Robert P. Goldman <rpgoldman@sift.net> Sat Aug  6 16:40:46 CDT 2022
 
 cl-asdf (2:3.3.5-1) unstable; urgency=low
 

@@ -1,0 +1,27 @@
+Today we release ASDF 3.3.6, the sixth bugfix release for the 3.3 release series, and -- it is devoutly to be hoped -- the final one.
+
+We urge implementations that are currently bundling previous versions of ASDF -- and especially those bundling 3.3.0 through 3.3.5 -- to upgrade to 3.3.6 at their earliest convenience.
+
+As maintainer, my primary role continues to be coordination and some limited quality control.  The real work for this release has been done by many contributors and bug-reporters, to whom the Common Lisp community owes a tremendous vote of thanks.  Their names are listed on the Changelog, appended below.
+
+We *hope* that the next release will be 3.4, introducing new functionality but which, as the numbering suggests, will be backward compatible.
+
+Best,
+Robert
+
+
+cl-asdf (2:3.3.6-1) unstable; urgency=low
+
+* Fix bug loading ASDF system definitions from jar files on ABCL.
+	See !190
+* Fix bug with version numbering after reload.  See !194 and #94. Thanks
+	to Eric Timmons.
+* Fix bug in return value of UPGRADE-ASDF.  See !195.  Again, thanks to
+	Eric Timmons.
+* Multiple improvements to documentation and tests.  Thanks to Nathan
+	Ringo and Phoebe Goldman.
+* Add clasp support for uiop/launch program. Thanks to Christian
+	Schafmeister.
+* Miscellaneous minor bug fixes and tweaks.
+* Don't let *package* binding leak into ASDF compile operations. Thanks to
+	Phoebe Goldman.
