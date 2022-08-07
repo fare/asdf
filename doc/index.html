@@ -175,13 +175,13 @@
               for which Lisp support is available:
               <a href="https://github.com/qitab/bazelisp"><tt>bazelisp</tt></a>.
             </li>
-            <li>Alastair Bridgewater's small and simple one-package-per-file
-              <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
-              (also reimplemented as the ASDF extension
-              <a href="https://gitlab.common-lisp.net/asdf/asdf-package-system"
-                 ><tt>asdf-package-system</tt></a>, now part of ASDF 3;
-              similar to <tt>faslpath</tt> below).
-            </li>
+            <!-- <li>Alastair Bridgewater's small and simple one-package-per-file -->
+            <!--   <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> -->
+            <!--   (also reimplemented as the ASDF extension -->
+            <!--   <a href="https://gitlab.common-lisp.net/asdf/asdf-package-system" -->
+            <!--      ><tt>asdf-package-system</tt></a>, now part of ASDF 3; -->
+            <!--   similar to <tt>faslpath</tt> below). -->
+            <!-- </li> -->
             <li>Fran&ccedil;ois-Ren&eacute; Rideau's
               <a href="https://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
               (building object and image files deterministically
@@ -194,33 +194,34 @@
             <li>Drew McDermott's
               <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
               (the polar opposite of XCVB, trying to maintain coherence
-              of the current Lisp image at a fine grain).
+              of the current Lisp image at a fine grain). Sadly, Drew
+              has recently passed away.
             </li>
-            <li>Dmitriy Ivanov's
-              <a href="http://lisp.ystok.ru/asdlite/"><tt>ASDlite</tt></a>
-              (a somewhat improved incompatible variant of ASDF 1,
-              much less featureful, robust or portable than ASDF 3),
-            </li>
-            <li>Mark Kantrowitz's
-              <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
-              (free software successor of the old proprietary DEFSYSTEM's
-              and predecessor of ASDF, obsolete),
-            </li>
-            <li>Sean Ross's
-              <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a>
-              (an attempt at making things cleaner than in ASDF 2, aborted),
-            </li>
-            <li>Peter von Etter's
-              <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
-              (a much simpler system establishing a mapping
-              between packages and files, abandoned but
-              see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above),
-            </li>
-            <li>Alexander Kahl's
-              <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
-              (a reimplementation in Lisp of the GNU autotools stack,
-              abandoned).
-            </li>
+            <!-- <li>Dmitriy Ivanov's -->
+            <!--   <a href="http://lisp.ystok.ru/asdlite/"><tt>ASDlite</tt></a> -->
+            <!--   (a somewhat improved incompatible variant of ASDF 1, -->
+            <!--   much less featureful, robust or portable than ASDF 3), -->
+            <!-- </li> -->
+            <!-- <li>Mark Kantrowitz's -->
+            <!--   <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a> -->
+            <!--   (free software successor of the old proprietary DEFSYSTEM's -->
+            <!--   and predecessor of ASDF, obsolete), -->
+            <!-- </li> -->
+            <!-- <li>Sean Ross's -->
+            <!--   <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a> -->
+            <!--   (an attempt at making things cleaner than in ASDF 2, aborted), -->
+            <!-- </li> -->
+            <!-- <li>Peter von Etter's -->
+            <!--   <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a> -->
+            <!--   (a much simpler system establishing a mapping -->
+            <!--   between packages and files, abandoned but -->
+            <!--   see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above), -->
+            <!-- </li> -->
+            <!-- <li>Alexander Kahl's -->
+            <!--   <a href="http://www.cliki.net/evol"><tt>evol</tt></a> -->
+            <!--   (a reimplementation in Lisp of the GNU autotools stack, -->
+            <!--   abandoned). -->
+            <!-- </li> -->
           </ul>
           There are probably more. However, none of these systems seems
           to ever have had the traction of ASDF, probably because
@@ -251,7 +252,8 @@
           but some hacking is probably required
           to make the latest ASDF work well
           with the latest release of these implementations:
-          <ul><li>
+          <ul>
+            <li>
               CLISP is generally well-tested with ASDF,
               though it has a few minor bugs.
               The implementation has received only
@@ -263,7 +265,16 @@
               and there is hope of a new release some day soon.
               If needs be, you can replace CLISP's provided ASDF
               with a newer one, or use an upgrade on top of that.
-            </li><li>
+            </li>
+            <li>clasp contributors have recently been providing fixes
+            for ASDF on clasp, and it has been added to the test
+            suite.</li>
+            <li>As of version 1.9, ABCL support is good. There were
+            some regressions in 1.8.</li>
+            <li>Clozure CL and CMUCL are getting harder to support,
+            since they don't run well or at all, respectively, on the
+            M1 hardware that I (rpg) use as my primary platform.</li>
+            <li>
               CormanLisp was recently open-sourced.
               Its bundled ASDF has not yet been updated from 1.x;
               ASDF 3 should work fine with it, but
@@ -283,7 +294,7 @@
               GCL is somewhat maintained but
               its maintainer doesn't seem to care about ASDF,
               and hasn't replied for years to requests for bug fixes or
-              for providing ASDF via <tt>(require "asdf")</tt>
+              for providing ASDF via <tt>(require "asdf")</tt>.
             </li><li>
               Genera was never open-source and never bundled ASDF,
               but should otherwise just work with a recent ASDF 3,
@@ -505,6 +516,11 @@ Corman Common Lisp <admin@cormanlisp.com>
         <p>Known extensions to ASDF include:</p>
         <ul>
           <li>
+            <a href="https://github.com/rpgoldman/fiveam-asdf">
+              <tt>fiveam-asdf</tt></a>, use <a href="https://github.com/lispci/fiveam" >the FiveAM library</a> to
+              implement an <tt>ASDF:TEST-OP</tt>.
+          </li>
+          <li>
             <a href="https://gitlab.common-lisp.net/xcvb/asdf-dependency-grovel">
             <tt>asdf-dependency-grovel</tt></a>,
             to compute the actual dependencies in a big ASDF system.</li>
@@ -663,9 +679,12 @@ Corman Common Lisp <admin@cormanlisp.com>
         <p>For a detailed description of changes see our <a href="changelog">Changelog</a>
         </p>
         <dl>
+          <dt>August 2022</dt>
+          <dd>Release of 3.3.6; sixth bugfix release for the 3.3
+          release series.</dd>
           <dt>July 2021</dt>
           <dd> Release of 3.3.5: fifth bugfix release for the 3.3
-          release series</dd>
+          release series.</dd>
 
           <dt>February 2020</dt>
           <dd> Release of 3.3.4: fourth bugfix release for the 3.3
