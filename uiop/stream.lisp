@@ -672,7 +672,7 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
                        ,@before)))
               ,@(when after
                   (assert pathnamep)
-                  `((,afterf (,pathname) ,@after))))
+                  `((,afterf (,pathname) (declare (ignorable ,pathname)) ,@after))))
          #-gcl (declare (dynamic-extent ,@(when before `(#',beforef)) ,@(when after `(#',afterf))))
          (call-with-temporary-file
           ,(when before `#',beforef)
