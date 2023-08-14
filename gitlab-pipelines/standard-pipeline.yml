@@ -2,7 +2,7 @@
 # Global configuration
 ###############################################################################
 
-env:
+variables:
   # Just let the runner fetch and update the submodules for us.
   GIT_SUBMODULE_STRATEGY: normal
   I_AGREE_TO_ALLEGRO_EXPRESS_LICENSE: "yes"
