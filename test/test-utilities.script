@@ -486,6 +486,22 @@
              pn)))
   (assert (not (probe-file pn4))))
 
+
+(let (warning)
+  (handler-bind ((style-warning #'(lambda (c)
+                                    (setf warning c)
+                                    (muffle-warning c))))
+    (compile 'test-style-warning-function
+             '(lambda ()
+                 (let (namestring)
+                   (uiop:with-temporary-file (:stream str :pathname pn :direction :output :prefix "WTF5")
+                     (format str "Checking variable usage.~%")
+                     (setf namestring (namestring pn))
+                     :close-stream
+                     namestring)))))
+  (assert (null warning)))
+
+
 (DBG :ensure-gethash)
 (let ((h (make-hash-table :test 'equal)))
   (assert-equal (multiple-value-list (gethash 1 h 2)) '(2 nil))
