@@ -26,8 +26,6 @@ Some constraints:
    #:with-test #:test-asdf #:debug-asdf
    #:run-test-script #:interactive-test #:test-load-systems
    #:verbose #:exit-lisp
-   #:assert-compare
-   #:assert-equal
    #:leave-test #:def-test-system
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location

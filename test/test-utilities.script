@@ -743,3 +743,11 @@
  #+(or clasp abcl ecl) '(ext:remove-package-local-nickname ext:package-local-nicknames ext:add-package-local-nickname)
  #+ccl '(ccl:remove-package-local-nickname ccl:package-local-nicknames ccl:add-package-local-nickname)
  #+lispworks '(hcl:remove-package-local-nickname hcl:package-local-nicknames hcl:add-package-local-nickname))
+
+#+sbcl #+sbcl
+(DBG "Ensure that SBCL threaded FASLs are distinguished from unthreaded ones.")
+(assert (not (string=
+              (let ((*features* (remove :sb-thread *features*)))
+                (uiop:implementation-identifier))
+              (let ((*features* (cons :sb-thread *features*)))
+                (uiop:implementation-identifier)))))
