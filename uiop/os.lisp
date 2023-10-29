@@ -121,18 +121,56 @@ use getenvp to return NIL in such a case."
 
   (defsetf getenv (x) (val)
     "Set an environment variable."
-    (declare (ignorable x val))
-    #+allegro `(setf (sys:getenv ,x) ,val)
-    #+clasp `(ext:setenv ,x ,val)
-    #+clisp `(system::setenv ,x ,val)
-    #+clozure `(ccl:setenv ,x ,val)
-    #+cmucl `(unix:unix-setenv ,x ,val 1)
-    #+(or ecl clasp) `(ext:setenv ,x ,val)
-    #+lispworks `(setf (lispworks:environment-variable ,x) ,val)
-    #+mkcl `(mkcl:setenv ,x ,val)
-    #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
-    #-(or allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl)
-    '(not-implemented-error '(setf getenv)))
+    (declare (ignorable x val))         ; for the not-implemented cases.
+    (if (constantp val)
+        (if val
+         #+allegro `(setf (sys:getenv ,x) ,val)
+         #+clasp `(ext:setenv ,x ,val)
+         #+clisp `(system::setenv ,x ,val)
+         #+clozure `(ccl:setenv ,x ,val)
+         #+cmucl `(unix:unix-setenv ,x ,val 1)
+         #+ecl `(ext:setenv ,x ,val)
+         #+lispworks `(setf (lispworks:environment-variable ,x) ,val)
+         #+mkcl `(mkcl:setenv ,x ,val)
+         #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
+         #-(or allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl)
+         '(not-implemented-error '(setf getenv))
+         ;; VAL is NIL, unset the variable
+         #+allegro `(symbol-call :excl.osi :unsetenv ,x)
+         ;; #+clasp `(ext:setenv ,x ,val) ; UNSETENV is not supported.
+         #+clisp `(system::setenv ,x ,val) ; need fix -- no idea if this works.
+         #+clozure `(ccl:unsetenv ,x)
+         #+cmucl `(unix:unix-unsetenv ,x)
+         #+ecl `(ext:setenv ,x ,val) ; Looked at source, don't see UNSETENV
+         #+lispworks `(setf (lispworks:environment-variable ,x) ,val) ; according to their docs, this should unset the variable
+         #+mkcl `(mkcl:setenv ,x ,val) ; like other ECL-family implementations, don't see UNSETENV
+         #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :unsetenv ,x))
+         #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
+         '(not-implemented-error 'unsetenv))
+        `(if ,val
+             #+allegro (setf (sys:getenv ,x) ,val)
+             #+clasp (ext:setenv ,x ,val)
+             #+clisp (system::setenv ,x ,val)
+             #+clozure (ccl:setenv ,x ,val)
+             #+cmucl (unix:unix-setenv ,x ,val 1)
+             #+ecl (ext:setenv ,x ,val)
+             #+lispworks (setf (lispworks:environment-variable ,x) ,val)
+             #+mkcl (mkcl:setenv ,x ,val)
+             #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
+             #-(or allegro clasp clisp clozure cmucl ecl lispworks mkcl sbcl)
+             '(not-implemented-error '(setf getenv))
+             ;; VAL is NIL, unset the variable
+             #+allegro (symbol-call :excl.osi :unsetenv ,x)
+             ;; #+clasp (ext:setenv ,x ,val) ; UNSETENV not supported
+             #+clisp (system::setenv ,x ,val) ; need fix -- no idea if this works.
+             #+clozure (ccl:unsetenv ,x)
+             #+cmucl (unix:unix-unsetenv ,x)
+             #+ecl (ext:setenv ,x ,val) ; Looked at source, don't see UNSETENV
+             #+lispworks (setf (lispworks:environment-variable ,x) ,val) ; according to their docs, this should unset the variable
+             #+mkcl (mkcl:setenv ,x ,val) ; like other ECL-family implementations, don't see UNSETENV
+             #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :unsetenv ,x))
+             #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
+             '(not-implemented-error 'unsetenv))))
 
   (defun getenvp (x)
     "Predicate that is true if the named variable is present in the libc environment,
@@ -404,5 +442,3 @@ the number having BYTES octets (defaulting to 4)."
         (end-of-file (c)
           (declare (ignore c))
           nil)))))
-
-

@@ -525,7 +525,7 @@
             (loop :for q :in '(speed space safety debug) :do
                   #+mkcl (DBG :os i q s (assoc q s))
                (assert-equal i (second (assoc q s))))))
-        ;;; The order does not seem to be significant, should better test that all values are the same  
+        ;;; The order does not seem to be significant, should better test that all values are the same
         (assert-equal (get-optimization-settings) settings))
 
 (DBG :standard-case-symbol-name)
@@ -751,3 +751,25 @@
                 (uiop:implementation-identifier))
               (let ((*features* (cons :sb-thread *features*)))
                 (uiop:implementation-identifier)))))
+
+(DBG "Check setting environment variable to NIL.")
+(assert
+ (catch 'clasp-error
+   (handler-bind (#+clasp
+                  (error #'(lambda (e)
+                             (throw 'clasp-error t))))
+     (flet ((some-action (value)
+              (declare (ignore value)))
+            (ensure-environment-is-clean ()
+              (unless (eq nil (uiop:getenv "VAR_FOR_ASDF_TEST"))
+                (error "The variable VAR_FOR_ASDF_TEST should not be bound."))))
+       (let ((saved-value
+               (uiop:getenv "VAR_FOR_ASDF_TEST")))
+         (ensure-environment-is-clean)
+         (setf (uiop:getenv "VAR_FOR_ASDF_TEST") "alternative value")
+         (unwind-protect (some-action (uiop:getenv "VAR_FOR_ASDF_TEST"))
+           (setf (uiop:getenv "VAR_FOR_ASDF_TEST") saved-value))
+         (ensure-environment-is-clean)))
+     #-clasp t
+     ;; signal an error if this test passes, unexpectedly, on clasp
+     #+clasp nil)))
