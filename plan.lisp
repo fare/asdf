@@ -300,6 +300,9 @@ initialized with SEED."
                       ((and action-status (or (status-keep-p action-status)
                                               (and just-done (status-stamp action-status))))
                        (merge-action-status action-status status))
+		      ((and just-done
+                            (not (status-need-p action-status)))
+                        status)
                       (just-done
                        ;; It's OK to lose some ASDF action stamps during self-upgrade
                        (unless (equal "asdf" (primary-system-name dc))
